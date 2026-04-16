@@ -85,8 +85,9 @@ function injectButtons() {
 
                 // Background script returns a callback
                 if (response && response.status === "success") {
+                    const count = response.backendResponse?.total_count || "?";
                     btn.classList.add('synced');
-                    btn.innerText = 'Synced ✓';
+                    btn.innerText = `Synced #${count} ✓`;
                 } else {
                     btn.classList.add('error');
                     btn.innerText = 'Failed ✗';

@@ -87,6 +87,7 @@ class SourceResponse(BaseModel):
     content: str
     timestamp: datetime
     source_url: str
+    total_count: int = 0
 
     class Config:
         from_attributes = True
@@ -167,8 +168,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.get("/api/sources")
 def get_sources(db: Session = Depends(get_db)):
-    """Return all ingested sources ordered by most recent."""
-    sources = db.query(GeminiSource).order_by(GeminiSource.timestamp.desc()).all()
+    """Return all ingested sources ordered chronologically."""
+    sources = db.query(GeminiSource).order_by(GeminiSource.timestamp.asc()).all()
     return sources
 
 @app.delete("/api/sources/{source_id}")
@@ -204,10 +205,19 @@ async def ingest_source(source: SourceCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_source)
     
+    total = db.query(GeminiSource).count()
+    
     # Notify connected real-time UI components
     await manager.broadcast("new_source")
     
-    return db_source
+    return SourceResponse(
+        id=db_source.id,
+        title=db_source.title,
+        content=db_source.content,
+        timestamp=db_source.timestamp,
+        source_url=db_source.source_url,
+        total_count=total
+    )
 
 @app.post("/api/analyze")
 async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
