@@ -4,6 +4,35 @@ let syncedSources = [];
 chrome.runtime.sendMessage({ action: "fetch_synced_sources" }, (response) => {
     if (response && response.status === "success") {
         syncedSources = response.sources;
+        
+        // Retroactively sweep any buttons injected before cache finished loading
+        const containers = document.querySelectorAll('message-content, .message-content, [data-message-author="model"], div[class*="model-response"]');
+        containers.forEach((container) => {
+            const btn = container.querySelector('.synapseip-sync-btn');
+            if (!btn || btn.classList.contains('synced')) return;
+
+            const textClone = container.cloneNode(true);
+            const btnInClone = textClone.querySelector('.synapseip-sync-btn');
+            if (btnInClone) btnInClone.remove();
+
+            const snippet = textClone.innerText.trim().substring(0, 60).replace(/\s+/g, ' ');
+            
+            let syncedIndex = -1;
+            if (snippet.length > 5) {
+                syncedIndex = syncedSources.findIndex(s => {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = s.content;
+                    const plainText = (tempDiv.innerText || tempDiv.textContent || "").replace(/\s+/g, ' ');
+                    return plainText.includes(snippet);
+                });
+            }
+
+            if (syncedIndex !== -1) {
+                btn.classList.add('synced');
+                btn.innerText = `Synced #${syncedIndex + 1} ✓`;
+                btn.disabled = true;
+            }
+        });
     }
 });
 
