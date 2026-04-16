@@ -1,0 +1,37 @@
+/* SynapseIP Messenger Styles */
+
+.synapseip-sync-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 6px 12px;
+  font-family: 'Google Sans', 'Roboto', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background-color: #1a73e8; /* Google Blue */
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+  z-index: 10;
+}
+
+.synapseip-sync-btn:hover {
+  background-color: #1557b0;
+  box-shadow: 0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15);
+}
+
+.synapseip-sync-btn:active {
+  transform: scale(0.98);
+}
+
+.synapseip-sync-btn.synced {
+  background-color: #188038; /* Success Green */
+}
+
+.synapseip-sync-btn.error {
+  background-color: #d93025; /* Error Red */
+}

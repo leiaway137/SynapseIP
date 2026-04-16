@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "SynapseIP Messenger",
+  "version": "1.0",
+  "description": "Sync specific Gemini responses to your SynapseIP local backend.",
+  "permissions": [
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://gemini.google.com/*",
+    "http://localhost:8000/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "SynapseIP Messenger Active"
+  }
+}
