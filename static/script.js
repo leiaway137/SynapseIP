@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchLatestReport();
     
     document.getElementById('generate-btn').addEventListener('click', generateIntelligence);
-    document.getElementById('architect-btn').addEventListener('click', startArchitectPipeline);
+    document.getElementById('architect-btn').addEventListener('click', openArchitectConfig);
     
     // Modal Close Logic
     document.getElementById('modal-close').addEventListener('click', () => {
@@ -230,7 +230,7 @@ ws.onmessage = function(event) {
                     downloadBtn.style.textDecoration = 'none';
                     downloadBtn.style.marginTop = '12px';
                     downloadBtn.style.display = 'flex';
-                    downloadBtn.innerHTML = `<span>Download Blueprint (.docx)</span>`;
+                    downloadBtn.innerHTML = `<span>Download Blueprint (.md)</span>`;
                     btnContainer.appendChild(downloadBtn);
                 }
             }
@@ -273,7 +273,22 @@ async function fetchLatestReport() {
     } catch (e) { console.error("Error fetching report", e); }
 }
 
+function openArchitectConfig() {
+    document.getElementById('config-modal').style.display = 'flex';
+}
+
+document.getElementById('config-close').addEventListener('click', () => {
+    document.getElementById('config-modal').style.display = 'none';
+});
+
 async function startArchitectPipeline() {
+    const designer = document.getElementById('config-designer').value.trim();
+    const appName = document.getElementById('config-appname').value.trim();
+    const purpose = document.getElementById('config-purpose').value.trim();
+    
+    // Hide modal
+    document.getElementById('config-modal').style.display = 'none';
+
     const btn = document.getElementById('architect-btn');
     const genBtn = document.getElementById('generate-btn');
     const select = document.getElementById('vibe-tool');
@@ -295,7 +310,12 @@ async function startArchitectPipeline() {
         const response = await fetch('/api/architect/start', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ target_platform: tool })
+            body: JSON.stringify({ 
+                target_platform: tool,
+                designer_name: designer,
+                app_name: appName,
+                app_purpose: purpose
+            })
         });
         
         if (!response.ok) {
@@ -307,6 +327,9 @@ async function startArchitectPipeline() {
         alert("Request error: " + e.message);
     }
 }
+
+// Bind the config submit explicitly
+document.getElementById('config-submit').addEventListener('click', startArchitectPipeline);
 
 const THOUGHTS = [
     "Initializing SynapseIP Architecture...",

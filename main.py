@@ -4,7 +4,6 @@ import os
 import json
 import asyncio
 from dotenv import load_dotenv
-from docx import Document
 from google import genai
 from typing import List
 
@@ -74,6 +73,9 @@ class AnalysisSchema(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     target_platform: str = "Antigravity"
+    designer_name: str = ""
+    app_name: str = ""
+    app_purpose: str = ""
 
 class BulkDeleteRequest(BaseModel):
     source_ids: list[int]
@@ -288,12 +290,18 @@ def get_latest_report(db: Session = Depends(get_db)):
         return json.loads(report.report_data)
     return None
 
-async def generate_architect_report(source_texts: str, platform: str):
+async def generate_architect_report(source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str):
     await manager.broadcast(json.dumps({"type": "progress", "message": "Initializing Architect Framework...", "progress": 10}))
     
     outline_prompt = f"""
-    You are an expert technical and business architect. Analyze these raw notes and generate a comprehensive structural outline for a massive professional blueprint.
-    Target platform: {platform}
+    You are an expert technical and business architect defining an MVP build process for a new app.
+    App Name: {app_name}
+    App Purpose: {app_purpose}
+    Designer: {designer}
+    Target Vibe Coding Platform: {platform}
+    
+    Analyze the raw notes below and output a strict structural outline. 
+    The outline must be restricted to logical MVP feature building steps (e.g., "Feature 1: User Auth", "Feature 2: Database Setup"). Do not output hundreds of pages. Be concise.
     
     Raw Notes:
     {source_texts}
@@ -314,25 +322,47 @@ async def generate_architect_report(source_texts: str, platform: str):
         await manager.broadcast(json.dumps({"type": "error", "message": f"Outline generation failed: {str(e)}"}))
         return
 
-    doc = Document()
-    doc.add_heading('SynapseIP Master Blueprint', 0)
+    # Start Markdown Document
+    current_date = datetime.utcnow().strftime('%Y-%m-%d')
+    markdown_content = f"# {app_name} - Master Blueprint\n\n"
+    markdown_content += f"**Designer:** {designer}\n\n"
+    markdown_content += f"**Target Platform:** {platform}\n\n"
+    markdown_content += f"**Version:** 1.0.0\n\n"
+    markdown_content += f"**Date:** {current_date}\n\n"
+    markdown_content += "---\n\n"
+    markdown_content += f"## Executive Purpose\n{app_purpose}\n\n"
+    markdown_content += "---\n\n"
+    markdown_content += "## Table of Contents\n\n"
+    
+    # Generate TOC
+    for idx, chapter in enumerate(chapters):
+        # Generate safe anchor
+        anchor = chapter.lower().replace(' ', '-').replace('.', '').replace(':', '')
+        markdown_content += f"{idx + 1}. [{chapter}](#{anchor})\n"
+        
+    markdown_content += "\n---\n\n"
     
     total_chapters = len(chapters)
-    await manager.broadcast(json.dumps({"type": "progress", "message": f"Outline verified. Writing {total_chapters} chapters...", "progress": 20}))
+    await manager.broadcast(json.dumps({"type": "progress", "message": f"Outline verified. Writing {total_chapters} MVP feature iterations...", "progress": 20}))
     
     for i, chapter_title in enumerate(chapters):
         prog = 20 + int((i / total_chapters) * 70)
-        await manager.broadcast(json.dumps({"type": "progress", "message": f"Drafting Chapter {i+1}: {chapter_title}...", "progress": prog}))
+        await manager.broadcast(json.dumps({"type": "progress", "message": f"Drafting MVP Feature {i+1}: {chapter_title}...", "progress": prog}))
         
         chapter_prompt = f"""
-        You are an expert architect writing a deep-dive, professional chapter for a massive blueprint document.
-        
-        Document Outline: {json.dumps(chapters)}
-        Current Chapter to Write: '{chapter_title}'
+        You are an expert technical architect documenting a specific MVP feature build step.
+        App Name: {app_name}
+        App Purpose: {app_purpose}
+        Current Feature to Write: '{chapter_title}'
         Target Platform: {platform}
         
-        Based ONLY on the following raw notes, write a highly detailed, 4-page equivalent professional business and technical guide for this specific chapter. 
-        Use professional maturity. DO NOT write an introduction to the whole document, just write the chapter itself.
+        Based ONLY on the following raw notes, write a highly concise, systematic, ordered step-by-step logic guide to build this specific feature.
+        
+        REQUIREMENTS:
+        1. Explain why this feature is needed and its calculation/logic.
+        2. Provide exactly what to expect if it works or fails.
+        3. Include a specific, detailed prompt that the designer can copy and paste directly into {platform} to build this.
+        Do NOT write an introduction to the whole document. Use Markdown styling heavily (bolding, lists). Ensure plenty of white space by separating paragraphs cleanly.
         
         Raw Notes:
         {source_texts}
@@ -343,9 +373,8 @@ async def generate_architect_report(source_texts: str, platform: str):
                 model='gemini-2.5-flash',
                 contents=chapter_prompt
             )
-            doc.add_heading(chapter_title, level=1)
-            doc.add_paragraph(chap_res.text)
-            doc.add_page_break()
+            markdown_content += f"## {chapter_title}\n\n"
+            markdown_content += f"{chap_res.text}\n\n---\n\n"
         except Exception as e:
             print(f"Skipping chapter {chapter_title} due to error: {e}")
         
@@ -353,12 +382,13 @@ async def generate_architect_report(source_texts: str, platform: str):
         await asyncio.sleep(4)
 
     os.makedirs('static/reports', exist_ok=True)
-    file_path = "static/reports/SynapseIP_Master_Plan.docx"
-    doc.save(file_path)
+    file_path = "static/reports/SynapseIP_Master_Plan.md"
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(markdown_content)
     
     await manager.broadcast(json.dumps({
         "type": "architect_complete",
-        "message": "Master Document compiled and saved.",
+        "message": "Markdown MVP Document compiled and saved.",
         "progress": 100,
         "download_url": f"/{file_path}"
     }))
@@ -370,7 +400,7 @@ async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks
         raise HTTPException(status_code=400, detail="No sources available. Sync some datanodes first.")
         
     combined_text = "\n\n---\n\n".join([f"TITLE: {s.title}\n{s.content}" for s in sources])
-    background_tasks.add_task(generate_architect_report, combined_text, req.target_platform)
+    background_tasks.add_task(generate_architect_report, combined_text, req.target_platform, req.designer_name, req.app_name, req.app_purpose)
     
     return {"status": "started", "message": "Architect pipeline initiated."}
 
