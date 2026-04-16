@@ -25,8 +25,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       console.error("SynapseIP Messenger: Error synching to backend", error);
       sendResponse({ status: "error", error: error.message });
     });
-
-    // Return true to indicate that response will be sent asynchronously
-    return true; 
+    return true; // Keep the message channel open for async response
+  } else if (request.action === "fetch_synced_sources") {
+    fetch("http://localhost:8000/api/sources", {
+      method: "GET"
+    })
+    .then(response => response.json())
+    .then(data => sendResponse({ status: "success", sources: data }))
+    .catch(error => {
+      console.error("SynapseIP Messenger: Error fetching sources", error);
+      sendResponse({ status: "error", error: error.message });
+    });
+    return true;
   }
 });

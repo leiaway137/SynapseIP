@@ -1,5 +1,12 @@
 console.log("SynapseIP Messenger: Content script loaded on Gemini.");
 
+let syncedSources = [];
+chrome.runtime.sendMessage({ action: "fetch_synced_sources" }, (response) => {
+    if (response && response.status === "success") {
+        syncedSources = response.sources;
+    }
+});
+
 // Function to inject our Sync button
 function injectButtons() {
     // Gemini frequently changes class names. A generic approach:
@@ -15,12 +22,32 @@ function injectButtons() {
         // Prevent adding multiple buttons to the same container
         if (container.querySelector('.synapseip-sync-btn')) return;
 
+        // Clean check for existing sync state
+        const textClone = container.cloneNode(true);
+        const snippet = textClone.innerText.trim().substring(0, 60).replace(/\s+/g, ' ');
+        
+        let syncedIndex = -1;
+        if (syncedSources.length > 0 && snippet.length > 5) {
+            syncedIndex = syncedSources.findIndex(s => {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = s.content;
+                const plainText = (tempDiv.innerText || tempDiv.textContent || "").replace(/\s+/g, ' ');
+                return plainText.includes(snippet);
+            });
+        }
+
         // Create the button
         const btn = document.createElement('button');
         btn.className = 'synapseip-sync-btn';
-        btn.innerText = 'Sync to SynapseIP';
         
-        // Add click listener
+        if (syncedIndex !== -1) {
+            btn.classList.add('synced');
+            btn.innerText = `Synced #${syncedIndex + 1} ✓`;
+            btn.disabled = true;
+        } else {
+            btn.innerText = 'Sync to SynapseIP';
+        }
+        
         btn.addEventListener('click', () => {
             btn.innerText = 'Syncing...';
             btn.disabled = true;
@@ -88,6 +115,10 @@ function injectButtons() {
                     const count = response.backendResponse?.total_count || "?";
                     btn.classList.add('synced');
                     btn.innerText = `Synced #${count} ✓`;
+                    
+                    syncedSources.push({
+                        content: `<div>${htmlContent}</div>`
+                    });
                 } else {
                     btn.classList.add('error');
                     btn.innerText = 'Failed ✗';
