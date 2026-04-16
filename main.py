@@ -195,8 +195,25 @@ async def bulk_delete_sources(req: BulkDeleteRequest, db: Session = Depends(get_
 @app.post("/ingest", response_model=SourceResponse)
 async def ingest_source(source: SourceCreate, db: Session = Depends(get_db)):
     """Accepts JSON and saves it to the DB."""
+    
+    # Generate an intelligent, short summary title automatically using Flash
+    smart_title = source.title
+    try:
+        if gemini_client:
+            title_prompt = f"You are a neat summarization bot. Create a professional, catchy, 3 to 6 word title summarizing this interaction. Do not use quotes, labels, or generic prefixes. Only return the title itself.\n\nText: {source.content[:1500]}"
+            res = gemini_client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=title_prompt
+            )
+            smart_title = res.text.strip().strip('"').strip("'")
+            if len(smart_title) > 100:
+                smart_title = smart_title[:100]
+    except Exception as e:
+        print("Title summarization failed, falling back to default.", e)
+        pass
+
     db_source = GeminiSource(
-        title=source.title,
+        title=smart_title,
         content=source.content,
         source_url=source.source_url,
         timestamp=datetime.utcnow()

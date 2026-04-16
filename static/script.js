@@ -120,19 +120,28 @@ async function fetchSources() {
                 if(source.source_url) {
                     sourceHost = new URL(source.source_url).hostname;
                 }
-            } catch (e) {
-                // Ignore parse errors
-            }
+            } catch (e) {}
 
-            // Safely strip HTML to get plaintext for titles and previews
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = source.content;
             const plainText = tempDiv.innerText || tempDiv.textContent || "";
             
-            // Extract a smart title from the first sentence or line
-            let smartTitle = plainText.split(/[.\n]/)[0].replace(/[*_#>]/g, '').trim();
+            // Prioritize the rich AI title generated on the backend
+            let smartTitle = source.title;
+            // Fallback for legacy notes that just had "Gemini Response - [Date]"
+            if (!smartTitle || smartTitle.startsWith("Gemini Response")) {
+                let fallback = plainText.split(/[.\n]/)[0].replace(/[*_#>]/g, '').trim();
+                // Strip the "User Prompt:" prefix if we accidentally captured it
+                if (fallback.startsWith("User Prompt:")) {
+                    fallback = fallback.replace("User Prompt:", "").trim();
+                }
+                if (fallback.startsWith("AI Response:")) {
+                    fallback = fallback.replace("AI Response:", "").trim();
+                }
+                smartTitle = fallback.length > 3 ? fallback : "Synced Note";
+            }
+            
             if (smartTitle.length > 55) smartTitle = smartTitle.substring(0, 55) + "...";
-            if (smartTitle.length < 3) smartTitle = "Synced Note";
 
             card.innerHTML = `
                 <div class="source-title"><span style="color: var(--accent-color); margin-right: 6px;">#${index + 1}</span>${escapeHTML(smartTitle)}</div>
