@@ -211,12 +211,51 @@ async function fetchLatestReport() {
     } catch (e) { console.error("Error fetching report", e); }
 }
 
+const THOUGHTS = [
+    "Initializing SynapseIP Architecture...",
+    "Correlating raw Gemini payloads...",
+    "Mapping platform constraints...",
+    "Conducting live Market SWOT Analysis...",
+    "Evaluating competitive cost dynamics...",
+    "Building Vibe Coding Pipeline...",
+    "Validating strict JSON schema adherence...",
+    "Finalizing actionable execution nodes..."
+];
+
 async function generateIntelligence() {
     const btn = document.getElementById('generate-btn');
-    const tool = document.getElementById('vibe-tool').value;
+    const select = document.getElementById('vibe-tool');
+    const tool = select.value;
+    const thinkingContainer = document.getElementById('thinking-container');
+    const fill = document.getElementById('progress-bar-fill');
+    const stream = document.getElementById('consciousness-stream');
     
-    btn.disabled = true;
-    btn.querySelector('span').innerText = 'Generating (Takes 10-30s)...';
+    // Hide inputs, show loading UI
+    btn.style.display = 'none';
+    select.disabled = true;
+    thinkingContainer.style.display = 'flex';
+    
+    let progress = 0;
+    let thoughtIndex = 0;
+    stream.innerText = THOUGHTS[0];
+    
+    // Simulate progressive filling
+    const simInterval = setInterval(() => {
+        if (progress < 96) {
+            progress += (96 - progress) * 0.05 + 0.1;
+            fill.style.width = `${progress}%`;
+        }
+    }, 100);
+    
+    // Rotate text
+    const thoughtInterval = setInterval(() => {
+        stream.style.opacity = '0';
+        setTimeout(() => {
+            thoughtIndex = (thoughtIndex + 1) % THOUGHTS.length;
+            stream.innerText = THOUGHTS[thoughtIndex];
+            stream.style.opacity = '1';
+        }, 300);
+    }, 2500);
     
     try {
         const response = await fetch('/api/analyze', {
@@ -232,13 +271,37 @@ async function generateIntelligence() {
         }
         
         const data = await response.json();
-        renderDashboard(data);
+        
+        // Server responded! Max out bar
+        clearInterval(simInterval);
+        clearInterval(thoughtInterval);
+        fill.style.width = '100%';
+        stream.style.opacity = '0';
+        setTimeout(() => {
+            stream.innerText = "Architecture Complete!";
+            stream.style.color = "#34d399"; // Success green
+            stream.style.opacity = '1';
+            
+            setTimeout(() => {
+                renderDashboard(data);
+                
+                // Reset loading UI internally allowing future generates
+                btn.style.display = 'flex';
+                select.disabled = false;
+                thinkingContainer.style.display = 'none';
+                fill.style.width = '0%';
+                stream.style.color = "var(--accent-color)";
+                stream.innerText = THOUGHTS[0];
+            }, 800);
+        }, 300);
         
     } catch (e) {
         alert("Request error: " + e.message);
-    } finally {
-        btn.disabled = false;
-        btn.querySelector('span').innerText = 'Generate Intelligence';
+        clearInterval(simInterval);
+        clearInterval(thoughtInterval);
+        btn.style.display = 'flex';
+        select.disabled = false;
+        thinkingContainer.style.display = 'none';
     }
 }
 
