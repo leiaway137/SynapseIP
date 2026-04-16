@@ -2,7 +2,9 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 import os
 import json
+import asyncio
 from dotenv import load_dotenv
+from docx import Document
 from google import genai
 from typing import List
 
@@ -75,6 +77,9 @@ class AnalyzeRequest(BaseModel):
 
 class BulkDeleteRequest(BaseModel):
     source_ids: list[int]
+
+class OutlineSchema(BaseModel):
+    chapters: list[str]
 
 class SourceResponse(BaseModel):
     id: int
@@ -255,5 +260,91 @@ def get_latest_report(db: Session = Depends(get_db)):
     if report:
         return json.loads(report.report_data)
     return None
+
+async def generate_architect_report(source_texts: str, platform: str):
+    await manager.broadcast(json.dumps({"type": "progress", "message": "Initializing Architect Framework...", "progress": 10}))
+    
+    outline_prompt = f"""
+    You are an expert technical and business architect. Analyze these raw notes and generate a comprehensive structural outline for a massive professional blueprint.
+    Target platform: {platform}
+    
+    Raw Notes:
+    {source_texts}
+    """
+    
+    try:
+        outline_res = gemini_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=outline_prompt,
+            config={
+                'response_mime_type': 'application/json',
+                'response_schema': OutlineSchema,
+            },
+        )
+        outline_data = json.loads(outline_res.text)
+        chapters = outline_data.get('chapters', [])
+    except Exception as e:
+        await manager.broadcast(json.dumps({"type": "error", "message": f"Outline generation failed: {str(e)}"}))
+        return
+
+    doc = Document()
+    doc.add_heading('SynapseIP Master Blueprint', 0)
+    
+    total_chapters = len(chapters)
+    await manager.broadcast(json.dumps({"type": "progress", "message": f"Outline verified. Writing {total_chapters} chapters...", "progress": 20}))
+    
+    for i, chapter_title in enumerate(chapters):
+        prog = 20 + int((i / total_chapters) * 70)
+        await manager.broadcast(json.dumps({"type": "progress", "message": f"Drafting Chapter {i+1}: {chapter_title}...", "progress": prog}))
+        
+        chapter_prompt = f"""
+        You are an expert architect writing a deep-dive, professional chapter for a massive blueprint document.
+        
+        Document Outline: {json.dumps(chapters)}
+        Current Chapter to Write: '{chapter_title}'
+        Target Platform: {platform}
+        
+        Based ONLY on the following raw notes, write a highly detailed, 4-page equivalent professional business and technical guide for this specific chapter. 
+        Use professional maturity. DO NOT write an introduction to the whole document, just write the chapter itself.
+        
+        Raw Notes:
+        {source_texts}
+        """
+        
+        try:
+            chap_res = gemini_client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=chapter_prompt
+            )
+            doc.add_heading(chapter_title, level=1)
+            doc.add_paragraph(chap_res.text)
+            doc.add_page_break()
+        except Exception as e:
+            print(f"Skipping chapter {chapter_title} due to error: {e}")
+        
+        # THROTTLE FOR 429
+        await asyncio.sleep(4)
+
+    os.makedirs('static/reports', exist_ok=True)
+    file_path = "static/reports/SynapseIP_Master_Plan.docx"
+    doc.save(file_path)
+    
+    await manager.broadcast(json.dumps({
+        "type": "architect_complete",
+        "message": "Master Document compiled and saved.",
+        "progress": 100,
+        "download_url": f"/{file_path}"
+    }))
+
+@app.post("/api/architect/start")
+async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    sources = db.query(GeminiSource).all()
+    if not sources:
+        raise HTTPException(status_code=400, detail="No sources available. Sync some datanodes first.")
+        
+    combined_text = "\n\n---\n\n".join([f"TITLE: {s.title}\n{s.content}" for s in sources])
+    background_tasks.add_task(generate_architect_report, combined_text, req.target_platform)
+    
+    return {"status": "started", "message": "Architect pipeline initiated."}
 
 # To run: uvicorn main:app --reload

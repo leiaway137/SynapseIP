@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchLatestReport();
     
     document.getElementById('generate-btn').addEventListener('click', generateIntelligence);
+    document.getElementById('architect-btn').addEventListener('click', startArchitectPipeline);
     
     // Modal Close Logic
     document.getElementById('modal-close').addEventListener('click', () => {
@@ -178,6 +179,47 @@ function escapeHTML(str) {
 const ws = new WebSocket(`ws://${window.location.host}/ws`);
 
 ws.onmessage = function(event) {
+    try {
+        const data = JSON.parse(event.data);
+        if (data.type === "progress") {
+            const fill = document.getElementById('progress-bar-fill');
+            const stream = document.getElementById('consciousness-stream');
+            if (fill && stream) {
+                fill.style.width = `${data.progress}%`;
+                stream.style.opacity = '0';
+                setTimeout(() => {
+                    stream.innerText = data.message;
+                    stream.style.opacity = '1';
+                }, 150);
+            }
+        } else if (data.type === "architect_complete") {
+            const fill = document.getElementById('progress-bar-fill');
+            const stream = document.getElementById('consciousness-stream');
+            if (fill && stream) {
+                fill.style.width = `100%`;
+                stream.innerText = data.message;
+                stream.style.color = "#34d399";
+                
+                const btnContainer = document.querySelector('.command-bar');
+                if (btnContainer && !document.getElementById('download-doc-btn')) {
+                    const downloadBtn = document.createElement('a');
+                    downloadBtn.id = 'download-doc-btn';
+                    downloadBtn.href = data.download_url;
+                    downloadBtn.className = 'generate-btn';
+                    downloadBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                    downloadBtn.style.textDecoration = 'none';
+                    downloadBtn.style.marginTop = '12px';
+                    downloadBtn.style.display = 'flex';
+                    downloadBtn.innerHTML = `<span>Download Blueprint (.docx)</span>`;
+                    btnContainer.appendChild(downloadBtn);
+                }
+            }
+        }
+        return;
+    } catch (e) {
+        // String fallback handler
+    }
+
     if (event.data === "new_source") {
         console.log("Real-time update received! Refreshing sources...");
         fetchSources(); // Re-render the sidebar
@@ -209,6 +251,41 @@ async function fetchLatestReport() {
             }
         }
     } catch (e) { console.error("Error fetching report", e); }
+}
+
+async function startArchitectPipeline() {
+    const btn = document.getElementById('architect-btn');
+    const genBtn = document.getElementById('generate-btn');
+    const select = document.getElementById('vibe-tool');
+    const tool = select.value;
+    const thinkingContainer = document.getElementById('thinking-container');
+    const fill = document.getElementById('progress-bar-fill');
+    const stream = document.getElementById('consciousness-stream');
+    
+    genBtn.style.display = 'none';
+    btn.style.display = 'none';
+    select.disabled = true;
+    thinkingContainer.style.display = 'flex';
+    
+    fill.style.width = '0%';
+    stream.innerText = "Requesting Architect Thread...";
+    stream.style.color = "var(--accent-color)";
+    
+    try {
+        const response = await fetch('/api/architect/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ target_platform: tool })
+        });
+        
+        if (!response.ok) {
+            const err = await response.json();
+            alert("Analysis failed: " + (err.detail || "Server Error"));
+            return;
+        }
+    } catch (e) {
+        alert("Request error: " + e.message);
+    }
 }
 
 const THOUGHTS = [
