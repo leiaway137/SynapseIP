@@ -258,7 +258,7 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     """
     
     try:
-        response = gemini_client.models.generate_content(
+        response = await gemini_client.aio.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
             config={
@@ -300,7 +300,7 @@ async def generate_architect_report(source_texts: str, platform: str):
     """
     
     try:
-        outline_res = gemini_client.models.generate_content(
+        outline_res = await gemini_client.aio.models.generate_content(
             model='gemini-2.5-flash',
             contents=outline_prompt,
             config={
@@ -339,7 +339,7 @@ async def generate_architect_report(source_texts: str, platform: str):
         """
         
         try:
-            chap_res = gemini_client.models.generate_content(
+            chap_res = await gemini_client.aio.models.generate_content(
                 model='gemini-2.5-flash',
                 contents=chapter_prompt
             )
