@@ -63,6 +63,19 @@ function injectButtons() {
                 action: "sync_to_synapseip",
                 data: payload
             }, (response) => {
+                // Check for connection severing or other manifest errors
+                if (chrome.runtime.lastError) {
+                    console.error("SynapseIP Messenger Error:", chrome.runtime.lastError.message);
+                    btn.classList.add('error');
+                    btn.innerText = 'Failed ✗';
+                    setTimeout(() => {
+                        btn.classList.remove('error');
+                        btn.innerText = 'Sync to SynapseIP';
+                        btn.disabled = false;
+                    }, 3000);
+                    return;
+                }
+
                 // Background script returns a callback
                 if (response && response.status === "success") {
                     btn.classList.add('synced');
