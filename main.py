@@ -227,7 +227,7 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     
     try:
         response = gemini_client.models.generate_content(
-            model='gemini-2.5-pro',
+            model='gemini-2.5-flash',
             contents=prompt,
             config={
                 'response_mime_type': 'application/json',
