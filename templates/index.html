@@ -16,8 +16,22 @@
         <!-- Sidebar containing Sources -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <h1>Sources</h1>
-                <div class="sources-badge" id="source-count">0 Note(s)</div>
+                <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                    <h1>Sources</h1>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span class="sources-badge" id="source-count">0 Note(s)</span>
+                        <button id="toggle-trash-btn" class="icon-btn" title="Toggle Delete Mode">🗑️</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Delete Action Bar (Hidden) -->
+            <div id="delete-actions-bar" class="delete-actions-bar" style="display: none;">
+                <span id="delete-count-text">0 selected</span>
+                <div style="display: flex; gap: 8px;">
+                    <button id="cancel-delete-btn" class="cancel-btn">Cancel</button>
+                    <button id="confirm-delete-btn" class="confirm-btn">Delete</button>
+                </div>
             </div>
             
             <!-- Cards will be populated here -->
