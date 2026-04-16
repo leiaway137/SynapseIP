@@ -101,6 +101,7 @@ body {
 
 /* Source Card Styling */
 .source-card {
+  flex-shrink: 0;
   background: var(--card-bg);
   border: 1px solid var(--glass-border);
   border-radius: 12px;

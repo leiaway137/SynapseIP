@@ -90,7 +90,7 @@ async function fetchSources() {
         sourceCountBadge.innerText = `${data.length} Note(s)`;
 
         // Render each source as a card
-        data.forEach(source => {
+        data.forEach((source, index) => {
             const card = document.createElement('div');
             card.className = 'source-card';
             
@@ -123,7 +123,7 @@ async function fetchSources() {
             if (smartTitle.length < 3) smartTitle = "Synced Note";
 
             card.innerHTML = `
-                <div class="source-title">${escapeHTML(smartTitle)}</div>
+                <div class="source-title"><span style="color: var(--accent-color); margin-right: 6px;">#${index + 1}</span>${escapeHTML(smartTitle)}</div>
                 <div class="source-time">${sourceHost} &bull; ${date}</div>
                 <div class="source-preview">${escapeHTML(plainText)}</div>
             `;
