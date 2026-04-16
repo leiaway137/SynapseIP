@@ -35,20 +35,27 @@ function injectButtons() {
             const sourceUrl = window.location.href;
             
             // Grab the user's prompt by finding the closest preceding node
-            let userPromptHtml = "";
+            let userPromptText = "";
             try {
-                const allUserNodes = Array.from(document.querySelectorAll('[data-message-author="user"], user-query, [class*="user-"]'));
+                // Remove generic [class*="user-"] because it catches avatars and labels that just say "You said"
+                const allUserNodes = Array.from(document.querySelectorAll('user-query, [data-message-author="user"]'));
                 const previousUserNodes = allUserNodes.filter(n => 
                     n.compareDocumentPosition(container) & Node.DOCUMENT_POSITION_FOLLOWING
                 );
                 if (previousUserNodes.length > 0) {
-                    userPromptHtml = previousUserNodes[previousUserNodes.length - 1].innerHTML;
+                    const match = previousUserNodes[previousUserNodes.length - 1];
+                    // User prompts don't need raw HTML since they don't have bold/bullet formatting.
+                    // Extracting text prevents catching invisible web-components.
+                    let text = match.innerText || match.textContent;
+                    // Strip the visually-hidden "You said" accessibility label
+                    userPromptText = text.replace(/^(You said|You)\s*\n?/i, '').trim();
                 }
             } catch (e) { console.error(e); }
             
             let combinedContent = htmlContent;
-            if (userPromptHtml) {
-                combinedContent = `<div class="gemini-prompt"><strong>User Prompt:</strong><br>${userPromptHtml}</div><hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;"><div class="gemini-response"><strong>AI Response:</strong><br>${htmlContent}</div>`;
+            if (userPromptText) {
+                const escapeUser = userPromptText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                combinedContent = `<div class="gemini-prompt"><strong>User Prompt:</strong><br><p>${escapeUser}</p></div><hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;"><div class="gemini-response"><strong>AI Response:</strong><br>${htmlContent}</div>`;
             }
 
             // Send standard payload structure expected by the FastAPI backend
