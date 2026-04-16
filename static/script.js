@@ -23,6 +23,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteBar = document.getElementById('delete-actions-bar');
     const confirmBtn = document.getElementById('confirm-delete-btn');
     const cancelBtn = document.getElementById('cancel-delete-btn');
+    const selectAllBtn = document.getElementById('select-all-btn');
+    
+    selectAllBtn.addEventListener('click', () => {
+        if (!window.currentSources) return;
+        window.currentSources.forEach(s => selectedForDeletion.add(s.id));
+        document.querySelectorAll('.source-card').forEach(card => card.classList.add('selected-for-deletion'));
+        document.getElementById('delete-count-text').innerText = `${selectedForDeletion.size} selected`;
+    });
     
     function exitDeleteMode() {
         isDeleteMode = false;
@@ -84,8 +92,11 @@ async function fetchSources() {
 
         if (data.length === 0) {
             listContainer.innerHTML = '<div class="loading-state">No sources found.<br>Use your Chrome Extension to sync some!</div>';
+            window.currentSources = [];
             return;
         }
+
+        window.currentSources = data;
 
         // Update badge
         sourceCountBadge.innerText = `${data.length} Note(s)`;
