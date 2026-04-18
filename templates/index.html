@@ -3,29 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SynapseIP Integration Hub</title>
-    <!-- Use Google Fonts (Inter) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <!-- Marked.js for Markdown parsing -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- Our custom stylesheet -->
-    <link rel="stylesheet" href="/static/style.css">
+    <title>SynapseIP | AI Brain Engine</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
-    <!-- Authentication Gateway -->
-    <div id="login-gateway" style="position: fixed; inset: 0; background: var(--bg-color); z-index: 9999; display: flex; align-items: center; justify-content: center; background-image: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1), transparent 50%); flex-direction: column;">
-        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); backdrop-filter: blur(10px);">
+    <!-- Login Gateway -->
+    <div id="login-gateway" class="auth-gateway">
+        <div class="auth-card">
             <div style="text-align: center; margin-bottom: 24px;">
                 <h2 style="font-size: 2rem; font-weight: 800; background: linear-gradient(180deg, #ffffff 0%, #3b82f6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">SynapseIP</h2>
-                <p style="color: #94a3b8; margin-top: 8px; font-size: 0.95rem;">Authentication Gateway</p>
+                <p style="color: #94a3b8; margin-top: 8px; font-size: 0.95rem;">Global Infrastructure Login</p>
             </div>
-            
             <div style="display: flex; flex-direction: column; gap: 16px;">
                 <input type="text" id="auth-user" placeholder="Username" style="padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; outline: none; font-size: 1rem;">
                 <input type="password" id="auth-pass" placeholder="Password" style="padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; outline: none; font-size: 1rem;">
-                
                 <div style="display: flex; gap: 12px; margin-top: 8px;">
                     <button onclick="handleAuth('login')" style="flex: 1; background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600;">Sign In</button>
                     <button onclick="handleAuth('register')" style="flex: 1; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600;">Register</button>
@@ -35,12 +27,14 @@
         </div>
     </div>
 
+    <!-- Main App UI -->
     <div class="app-container" id="main-app" style="display: none;">
-        <!-- Sidebar containing Sources -->
+        
+        <!-- Sources Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                    <h1>Sources</h1>
+                    <h1>Project Memory</h1>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <span class="sources-badge" id="source-count">0 Note(s)</span>
                         <button id="toggle-trash-btn" class="icon-btn" title="Toggle Delete Mode">🗑️</button>
@@ -48,7 +42,6 @@
                 </div>
             </div>
             
-            <!-- Delete Action Bar (Hidden) -->
             <div id="delete-actions-bar" class="delete-actions-bar" style="display: none;">
                 <span id="delete-count-text">0 selected</span>
                 <div style="display: flex; gap: 8px;">
@@ -58,12 +51,11 @@
                 </div>
             </div>
             
-            <!-- Cards will be populated here -->
             <div class="sources-list" id="sources-list">
-                <div class="loading-state">Loading sources...</div>
+                <div class="loading-state" id="sidebar-loading-state">Loading project memory...</div>
             </div>
             
-            <div id="token-tracker" style="padding: 18px 24px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; color: #9ca3af; background: rgba(0,0,0,0.2); box-shadow: 0 -4px 10px rgba(0,0,0,0.1);">
+            <div id="token-tracker" style="padding: 18px 24px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; color: #9ca3af; background: rgba(0,0,0,0.2);">
                 <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; color: #6b7280; font-weight: 700;">Metrics</div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
                     <span>Session Tokens</span>
@@ -76,86 +68,113 @@
             </div>
         </aside>
 
-        <!-- Main Interaction Window -->
+        <!-- Main View Area -->
         <main class="main-content">
-            <div id="welcome-screen" class="chat-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; width: 100%; height: 100%; padding: 40px; box-sizing: border-box; max-width: 1200px;">
-                <div class="glass-orb" style="margin-bottom: 16px;"></div>
-                
-                <!-- Title Container -->
-                <div style="width: 100%; max-width: 800px; text-align: center; position: relative;">
-                    <h2 style="font-size: 5rem; margin-bottom: 8px; margin-top: 0; font-weight: 800; background: linear-gradient(180deg, #ffffff 0%, #3b82f6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">SynapseIP</h2>
-                    <div style="position: absolute; right: 0; bottom: -20px; text-align: right; color: rgba(255,255,255,0.8); font-size: 1.3rem; font-weight: 500; font-style: italic; line-height: 1.4;">
-                        You brainstorm.<br>We do the rest.<br>Turning flash ideas into MVPs.
+            
+            <!-- Dynamic Dashboard Header (Projects Dropdown & Avatar) -->
+            <header class="dashboard-nav">
+                <!-- Advanced Project Dropdown Menu -->
+                <div class="project-selector-wrapper">
+                    <button id="project-dropdown-btn" class="project-dropdown-btn">
+                        <span id="active-project-name">Loading Projects...</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    <div id="project-dropdown-menu" class="dropdown-menu">
+                        <div class="dropdown-header">
+                            <button id="new-project-btn" class="action-text-btn">+ Create New Project</button>
+                        </div>
+                        <ul id="project-list" class="fancy-list">
+                            <!-- Populated dynamically -->
+                        </ul>
                     </div>
                 </div>
                 
-                <!-- Chat Panel replaces forms -->
-                <div id="onboarding-chat-panel" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; margin-top: 60px; margin-bottom: 24px; width: 100%; max-width: 800px; text-align: left; display: flex; flex-direction: column; flex: 1; min-height: 450px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
-                    <div id="chat-history" style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
-                        <div style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 12px 16px; border-radius: 12px; align-self: flex-start; max-width: 85%; color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">
-                            <em>Initializing onboarding parameters...</em>
+                <!-- Profile Avatar Top Right -->
+                <div class="profile-wrapper">
+                    <div id="avatar-btn" class="avatar-circle">
+                        <span id="avatar-initial">U</span>
+                    </div>
+                    <div id="profile-dropdown-menu" class="dropdown-menu profile-menu">
+                        <div class="profile-header">
+                            <div class="p-name" id="profile-username">User</div>
+                            <div class="p-id" id="profile-id">ID: #000</div>
+                        </div>
+                        <div class="profile-body">
+                            <label style="font-size:0.8rem; color:#94a3b8; display:block; margin-bottom:4px;">Change Password</label>
+                            <input type="password" id="new-password" placeholder="New Password" style="width:100%; padding:8px; border-radius:4px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.3); color:white; box-sizing:border-box; margin-bottom:8px;">
+                            <button id="update-pass-btn" class="generate-btn" style="width:100%; font-size:13px; padding:6px; justify-content:center;">Update</button>
+                            <div id="pass-msg" style="font-size:0.75rem; margin-top:4px; text-align:center;"></div>
+                        </div>
+                        <div class="profile-footer">
+                            <button id="logout-btn" class="cancel-btn" style="width:100%; color:#f87171;">Sign Out</button>
                         </div>
                     </div>
-                    <div style="border-top: 1px solid rgba(255,255,255,0.05); padding: 12px; display: flex; gap: 8px; background: rgba(0,0,0,0.2);">
-                        <input type="text" id="chat-input" placeholder="Type your response..." style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #374151; background: #111827; color: white;" onkeypress="if(event.key === 'Enter') sendOnboardingMessage()">
-                        <button onclick="sendOnboardingMessage()" style="background: #3b82f6; color: white; border: none; padding: 0 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s;">Send</button>
-                    </div>
                 </div>
+            </header>
 
-                <!-- Hidden inputs to maintain compatibility with Generate buttons -->
-                <input type="hidden" id="config-designer" value="">
-                <input type="hidden" id="config-appname" value="">
-                <input type="hidden" id="config-purpose" value="">
-                
-                <div id="command-bar" class="command-bar" style="max-width: 650px; width: 100%; display: none;">
-                    <select id="vibe-tool" style="flex: 1; min-width: 200px;">
-                        <option value="Antigravity">Antigravity (Google DeepMind)</option>
-                        <option value="Cursor">Cursor AI</option>
-                        <option value="Claude Code">Claude Code CLI</option>
-                        <option value="Codex">Codex</option>
-                    </select>
-                    <button id="generate-btn" class="generate-btn" style="flex: 1; justify-content: center;">
-                        <span>Generate Intelligence</span>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    </button>
-                    <button id="architect-btn" class="generate-btn" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                        <span>Deploy Architect (.md)</span>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    </button>
-                </div>
-                
-                <div id="thinking-container" class="thinking-container" style="display: none;">
-                    <div class="progress-bar-track">
-                        <div id="progress-bar-fill" class="progress-bar-fill"></div>
+            <!-- Phase 1: Onboarding Screen -->
+            <div id="onboarding-screen" class="welcome-container" style="display: none;">
+                <div class="hero-section" style="padding-top: 10px; display: flex; flex-direction: column; align-items: center;">
+                    <div class="glass-orb" style="margin-bottom: 16px;"></div>
+                    
+                    <!-- Title Container -->
+                    <div style="width: 100%; max-width: 800px; text-align: center; position: relative; margin-bottom: 60px;">
+                        <h2 style="font-size: 5rem; margin-bottom: 8px; margin-top: 0; font-weight: 800; background: linear-gradient(180deg, #ffffff 0%, #3b82f6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">SynapseIP</h2>
+                        <div style="position: absolute; right: 0; bottom: -24px; text-align: right; color: rgba(255,255,255,0.8); font-size: 1.3rem; font-weight: 500; font-style: italic; line-height: 1.4;">
+                            You brainstorm.<br>We do the rest.<br>Turning flash ideas into MVPs.
+                        </div>
                     </div>
-                    <div id="consciousness-stream" class="consciousness-stream">Initializing SynapseIP Architecture...</div>
+                    
+                    <div class="chat-interface" style="text-align: left; width: 100%;">
+                        <div class="chat-history" id="chat-history"></div>
+                        <div class="chat-input-area">
+                            <input type="text" id="chat-input" placeholder="Describe the idea you want to build..." autocomplete="off">
+                            <button id="chat-send" class="icon-btn" style="background: var(--accent-color); color: white; padding: 12px; border-radius: 8px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="command-bar" id="command-bar" style="display: none; justify-content: center; margin-top: 30px;">
+                        <button id="generate-btn" class="generate-btn" style="width: 250px; justify-content: center;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                            <span>Draft Intelligence Report</span>
+                        </button>
+                        <!-- Hidden configs storing extracted UI -->
+                        <input type="hidden" id="config-designer">
+                        <input type="hidden" id="config-appname">
+                        <input type="hidden" id="config-purpose">
+                        <input type="hidden" id="vibe-tool" value="Antigravity">
+                    </div>
+                    
+                    <div id="thinking-container" class="thinking-container" style="display: none;">
+                        <div class="progress-bar-track"><div id="progress-bar-fill" class="progress-bar-fill"></div></div>
+                        <div id="consciousness-stream" class="consciousness-stream">Initializing Intelligence Pipeline...</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Analysis Dashboard (Hidden by Default) -->
-            <div id="analysis-dashboard" class="analysis-dashboard" style="display: none;">
+            <!-- Phase 2 & 4: Intelligence Dashboard & Branching -->
+            <div id="intelligence-dashboard" class="analysis-dashboard" style="display: none;">
                 <div class="dashboard-header" style="justify-content: space-between;">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <h2>Project Blueprint</h2>
-                        <div class="viability-badge" id="score-badge">--/100</div>
+                        <h2>Intelligence Report</h2>
+                        <div class="viability-badge" id="score-badge" style="display:none;">--/100</div>
                     </div>
-                    <div style="display: flex; gap: 8px;">
+                    <div>
                         <button id="btn-export-pdf" class="generate-btn" style="padding: 6px 12px; font-size: 13px; height: auto;">
                             <span>Export PDF</span>
-                        </button>
-                        <button id="btn-return-home" class="generate-btn" style="padding: 6px 12px; font-size: 13px; height: auto; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                            <span>Change Scope</span>
                         </button>
                     </div>
                 </div>
 
-                <div class="dashboard-scroll">
-                    <div class="card summary-card">
+                <div class="dashboard-scroll" style="height: calc(100vh - 120px);">
+                    <div class="card summary-card" id="card-sum">
                         <h3>Executive Summary</h3>
                         <p id="rep-summary">Loading...</p>
                     </div>
 
-                    <div class="card-grid">
+                    <div class="card-grid" id="card-grid-split">
                         <div class="card">
                             <h3>Market Analysis</h3>
                             <p id="rep-market" class="text-sm">Loading...</p>
@@ -166,39 +185,79 @@
                         </div>
                     </div>
 
-                    <div class="card">
+                    <div class="card" id="card-swot">
                         <h3>SWOT Analysis</h3>
                         <p id="rep-swot" class="text-sm">Loading...</p>
                     </div>
 
-                    <div class="card" style="border-left: 3px solid #8b5cf6;">
+                    <div class="card" id="card-blind" style="border-left: 3px solid #8b5cf6;">
                         <h3 style="color: #c4b5fd;">Brainstorming Blindspots</h3>
                         <p id="rep-blindspots" class="text-sm">Loading...</p>
                     </div>
 
-                    <div class="timeline-container">
-                        <h3>Vibe Coding Pipeline</h3>
-                        <div id="rep-timeline" class="timeline"></div>
+                    <div class="timeline-container" id="card-timeline">
+                        <h3>Proposed Vibe Coding Pipeline</h3>
+                        <div class="timeline" id="rep-timeline"></div>
+                    </div>
+                    
+                    <!-- Phase 3: Follow-Up Architecture Chat -->
+                    <div class="card" id="followup-card" style="margin-top: 30px; border: 1px solid rgba(59,130,246,0.3); background: rgba(59,130,246,0.05);">
+                        <h3 style="color: #60a5fa; display:flex; align-items:center; gap:8px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                            Follow-Up Strategist
+                        </h3>
+                        <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:16px;">The agent has analyzed this report. Ask it about what external APIs you might need or discuss the blindspots.</p>
+                        
+                        <div class="chat-interface" style="background: rgba(0,0,0,0.3); height: 300px;">
+                            <div class="chat-history" id="followup-chat-history"></div>
+                            <div class="chat-input-area">
+                                <input type="text" id="followup-chat-input" placeholder="What APIs do I need to register for?" autocomplete="off">
+                                <button id="followup-chat-send" class="icon-btn" style="background: #3b82f6; color: white; padding: 10px; border-radius: 8px;">Send</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Phase 4 Branching Choices -->
+                    <div class="command-bar" id="branching-bar" style="margin-top: 30px; padding-bottom: 50px; justify-content: center; gap: 20px;">
+                        <button id="regenerate-intel-btn" class="cancel-btn" style="padding: 14px 24px;">Regenerate Intel</button>
+                        <button id="build-blueprint-btn" class="generate-btn" style="padding: 14px 24px; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            Build Architect Blueprint (.md)
+                        </button>
                     </div>
                 </div>
             </div>
+            
+            <!-- Raw Blueprint Markdown Viewer Container (for historical blueprint viewing) -->
+            <div id="blueprint-viewer" class="analysis-dashboard" style="display: none;">
+                <div class="dashboard-header" style="justify-content: space-between;">
+                    <h2>Architecture Blueprint</h2>
+                    <div style="display:flex; gap:12px;">
+                        <a id="blueprint-download-link" href="#" class="generate-btn" style="text-decoration:none; padding:6px 12px; font-size:13px; height:auto; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">Download .md</a>
+                    </div>
+                </div>
+                <div class="dashboard-scroll" style="height: calc(100vh - 120px);">
+                    <div class="card markdown-content" id="blueprint-content" style="font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;">
+                        <!-- Markdown Injected Here -->
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
-    <!-- Expanded view Modal -->
+    <!-- Modals -->
     <div id="source-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title">Source Detail</h2>
-                <button id="modal-close" class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body" id="modal-body-text">
-                <!-- Content injected here -->
+        <div class="modal-card">
+            <h2 id="modal-title">Source Detail</h2>
+            <div id="modal-body-text" class="modal-body-scroll"></div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button id="modal-close" class="cancel-btn">Close</button>
             </div>
         </div>
     </div>
-    
-    <!-- Expanded view Modal -->
-    <script src="/static/script.js?v=3.2"></script>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/static/script.js"></script>
 </body>
 </html>

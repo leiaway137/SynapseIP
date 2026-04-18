@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Float, ForeignKey, Boolean
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from passlib.context import CryptContext
+import bcrypt
 from jose import JWTError, jwt
 
 # Initialize environment & LLM Client
@@ -65,7 +65,6 @@ def index_in_chroma(document_id: str, title: str, text: str):
 # ---------------------------------------------------------
 SECRET_KEY = "synapse_super_secret_matrix"
 ALGORITHM = "HS256"
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # ---------------------------------------------------------
@@ -84,11 +83,19 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     password_hash = Column(String)
 
+class Project(Base):
+    __tablename__ = "projects"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    name = Column(String, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
 class GeminiSource(Base):
     __tablename__ = "gemini_sources"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     title = Column(String, index=True)
     content = Column(Text)
     timestamp = Column(DateTime, default=datetime.utcnow)
@@ -100,7 +107,28 @@ class GeneratedReport(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     report_data = Column(Text) # Stored serialized JSON
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+class ArchitectBlueprint(Base):
+    __tablename__ = "architect_blueprints"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    blueprint_data = Column(Text)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+class ChatHistory(Base):
+    __tablename__ = "chat_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    phase = Column(String) # 'onboarding' or 'followup'
+    role = Column(String)
+    content = Column(Text)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 class TokenLog(Base):
@@ -122,6 +150,18 @@ class SourceCreate(BaseModel):
     title: str
     content: str
     source_url: str
+    project_id: Optional[int] = None
+
+class ProjectCreate(BaseModel):
+    name: str
+
+class ProjectResponse(BaseModel):
+    id: int
+    name: str
+    timestamp: datetime
+    
+    class Config:
+        from_attributes = True
 
 class PipelineStep(BaseModel):
     prompt_text: str = Field(description="The exact text to copy-paste into Antigravity/Cursor/Claude.")
@@ -157,12 +197,19 @@ class ChatMessage(BaseModel):
 class OnboardingRequest(BaseModel):
     history: list[ChatMessage]
 
+class FollowupRequest(BaseModel):
+    project_id: int
+    history: list[ChatMessage]
+
 class OnboardingResponseSchema(BaseModel):
     message: str = Field(description="Your conversational reply or evaluation.")
     is_complete: bool = Field(description="True if Designer Name, App Name, and Core Purpose are confidently identified. False otherwise.")
     designer_name: Optional[str] = Field(description="Extracted designer name.", default=None)
     app_name: Optional[str] = Field(description="Extracted app name.", default=None)
     core_purpose: Optional[str] = Field(description="Extracted core purpose.", default=None)
+
+class PasswordChangeRequest(BaseModel):
+    new_password: str
 
 class SourceResponse(BaseModel):
     id: int
@@ -188,10 +235,10 @@ class Token(BaseModel):
 # Security Helpers
 # ---------------------------------------------------------
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -375,6 +422,17 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
+@app.post("/api/auth/change-password")
+async def change_password(req: PasswordChangeRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    hashed_password = get_password_hash(req.new_password)
+    db.query(User).filter(User.id == current_user.id).update({"password_hash": hashed_password})
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/api/me")
+async def get_me(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return {"id": current_user.id, "username": current_user.username}
+
 # ---------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------
@@ -392,9 +450,39 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
+@app.get("/api/projects")
+def get_projects(db: Session = Depends(get_db)):
+    return db.query(Project).order_by(Project.timestamp.desc()).all()
+
+@app.post("/api/projects", response_model=ProjectResponse)
+def create_project(req: ProjectCreate, db: Session = Depends(get_db)):
+    p = Project(user_id=1, name=req.name)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return p
+
+@app.get("/api/projects/{project_id}/sources")
+def get_project_sources(project_id: int, response: Response, db: Session = Depends(get_db)):
+    """Return all ingested sources for a specific project."""
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    sources = db.query(GeminiSource).filter(GeminiSource.project_id == project_id).order_by(GeminiSource.timestamp.asc()).all()
+    return sources
+
+@app.get("/api/projects/{project_id}/documents")
+def get_project_documents(project_id: int, db: Session = Depends(get_db)):
+    """Returns lists of intelligence reports and architecture blueprints for this project."""
+    reports = db.query(GeneratedReport).filter(GeneratedReport.project_id == project_id).order_by(GeneratedReport.timestamp.desc()).all()
+    blueprints = db.query(ArchitectBlueprint).filter(ArchitectBlueprint.project_id == project_id).order_by(ArchitectBlueprint.timestamp.desc()).all()
+    
+    return {
+        "intelligence": [{"id": r.id, "timestamp": r.timestamp, "data": json.loads(r.report_data)} for r in reports],
+        "blueprints": [{"id": b.id, "timestamp": b.timestamp, "data": b.blueprint_data} for b in blueprints]
+    }
+
 @app.get("/api/sources")
 def get_sources(response: Response, db: Session = Depends(get_db)):
-    """Return all ingested sources ordered chronologically."""
+    # Fallback for old requests
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     sources = db.query(GeminiSource).order_by(GeminiSource.timestamp.asc()).all()
     return sources
@@ -421,9 +509,18 @@ async def bulk_delete_sources(req: BulkDeleteRequest, db: Session = Depends(get_
 
 @app.post("/ingest", response_model=SourceResponse)
 async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """Accepts JSON and saves it to the DB instantly."""
+    """Accepts JSON from Chrome Extension and saves it to the most recently created Project."""
     
+    active_project = db.query(Project).order_by(Project.timestamp.desc()).first()
+    if not active_project:
+        active_project = Project(user_id=1, name="Default Project")
+        db.add(active_project)
+        db.commit()
+        db.refresh(active_project)
+
     db_source = GeminiSource(
+        user_id=1,
+        project_id=active_project.id,
         title=source.title, # Respecting chronological numbering extracted by Chrome sub-agent
         content=source.content,
         source_url=source.source_url,
@@ -464,6 +561,51 @@ async def semantic_search(q: str):
             n_results=5  # Top 5 most semantically relevant memories
         )
         return {"status": "success", "results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/chat/followup")
+async def followup_chat(req: FollowupRequest, db: Session = Depends(get_db)):
+    if not gemini_client:
+        raise HTTPException(status_code=500, detail="Gemini SDK improperly configured.")
+    
+    # Identify the related Intelligence Report
+    report = db.query(GeneratedReport).filter(GeneratedReport.project_id == req.project_id).order_by(GeneratedReport.timestamp.desc()).first()
+    
+    if not report:
+        report_context = "No Intelligence Report generated yet."
+    else:
+        report_context = json.loads(report.report_data).get("swot", "No SWOT found.")
+        
+    history_str = "\n".join([f"{msg.role.upper()}: {msg.content}" for msg in req.history])
+    if not req.history:
+        history_str = "(Conversation just started. The user is waiting.)"
+        
+    prompt = f"""
+    You are the SynapseIP Follow-Up Architect. The user has just finished reading their Intelligence Report for this project.
+    Your mission is to act as both a Technical Advisor and a Business Strategist.
+    
+    Intelligence Context (SWOT / Weaknesses / Blindspots):
+    {report_context}
+    
+    Goals:
+    1. Discuss the weaknesses and blindspots of their app idea.
+    2. Suggest third-party APIs they might need to make this app function properly (e.g. Stripe, OpenAI, Google Maps).
+    3. If they need an API, provide them with instructions or links on how to register for those API keys. 
+    4. Remind them NOT to share their actual API keys with you in this chat, but assure them the Architect Blueprint will leave placeholders for their IDE.
+    
+    Current Conversation History:
+    {history_str}
+    
+    Respond exclusively as the agent speaking directly to the user in the conversational flow. Use Markdown.
+    """
+    
+    try:
+        response = gemini_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        return {"message": response.text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
