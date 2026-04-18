@@ -7,3 +7,4 @@ gemini_sources.db
 .env
 
 .DS_Store
+chroma_data/

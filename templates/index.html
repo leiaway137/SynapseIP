@@ -8,11 +8,34 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- Our custom stylesheet -->
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="app-container">
+    <!-- Authentication Gateway -->
+    <div id="login-gateway" style="position: fixed; inset: 0; background: var(--bg-color); z-index: 9999; display: flex; align-items: center; justify-content: center; background-image: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1), transparent 50%); flex-direction: column;">
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); backdrop-filter: blur(10px);">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h2 style="font-size: 2rem; font-weight: 800; background: linear-gradient(180deg, #ffffff 0%, #3b82f6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">SynapseIP</h2>
+                <p style="color: #94a3b8; margin-top: 8px; font-size: 0.95rem;">Authentication Gateway</p>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <input type="text" id="auth-user" placeholder="Username" style="padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; outline: none; font-size: 1rem;">
+                <input type="password" id="auth-pass" placeholder="Password" style="padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; outline: none; font-size: 1rem;">
+                
+                <div style="display: flex; gap: 12px; margin-top: 8px;">
+                    <button onclick="handleAuth('login')" style="flex: 1; background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600;">Sign In</button>
+                    <button onclick="handleAuth('register')" style="flex: 1; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600;">Register</button>
+                </div>
+                <div id="auth-error" style="color: #f87171; font-size: 0.85rem; text-align: center; display: none; margin-top: 8px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container" id="main-app" style="display: none;">
         <!-- Sidebar containing Sources -->
         <aside class="sidebar">
             <div class="sidebar-header">
@@ -39,28 +62,64 @@
             <div class="sources-list" id="sources-list">
                 <div class="loading-state">Loading sources...</div>
             </div>
+            
+            <div id="token-tracker" style="padding: 18px 24px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; color: #9ca3af; background: rgba(0,0,0,0.2); box-shadow: 0 -4px 10px rgba(0,0,0,0.1);">
+                <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; color: #6b7280; font-weight: 700;">Metrics</div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span>Session Tokens</span>
+                    <span id="tt-tokens" style="color: white; font-weight: 500;">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Estimated Cost</span>
+                    <span id="tt-cost" style="color: #10b981; font-weight: 500;">$0.0000</span>
+                </div>
+            </div>
         </aside>
 
         <!-- Main Interaction Window -->
         <main class="main-content">
-            <div id="welcome-screen" class="chat-placeholder">
-                <div class="glass-orb"></div>
-                <h2>SynapseIP <span>Command</span></h2>
-                <p>Knowledge base successfully connected.<br>Select target Vibe platform below to process all ingested nodes into a master plan.</p>
+            <div id="welcome-screen" class="chat-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; width: 100%; height: 100%; padding: 40px; box-sizing: border-box; max-width: 1200px;">
+                <div class="glass-orb" style="margin-bottom: 16px;"></div>
                 
-                <div class="command-bar">
-                    <select id="vibe-tool">
+                <!-- Title Container -->
+                <div style="width: 100%; max-width: 800px; text-align: center; position: relative;">
+                    <h2 style="font-size: 5rem; margin-bottom: 8px; margin-top: 0; font-weight: 800; background: linear-gradient(180deg, #ffffff 0%, #3b82f6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">SynapseIP</h2>
+                    <div style="position: absolute; right: 0; bottom: -20px; text-align: right; color: rgba(255,255,255,0.8); font-size: 1.3rem; font-weight: 500; font-style: italic; line-height: 1.4;">
+                        You brainstorm.<br>We do the rest.<br>Turning flash ideas into MVPs.
+                    </div>
+                </div>
+                
+                <!-- Chat Panel replaces forms -->
+                <div id="onboarding-chat-panel" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; margin-top: 60px; margin-bottom: 24px; width: 100%; max-width: 800px; text-align: left; display: flex; flex-direction: column; flex: 1; min-height: 450px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+                    <div id="chat-history" style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+                        <div style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 12px 16px; border-radius: 12px; align-self: flex-start; max-width: 85%; color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">
+                            <em>Initializing onboarding parameters...</em>
+                        </div>
+                    </div>
+                    <div style="border-top: 1px solid rgba(255,255,255,0.05); padding: 12px; display: flex; gap: 8px; background: rgba(0,0,0,0.2);">
+                        <input type="text" id="chat-input" placeholder="Type your response..." style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #374151; background: #111827; color: white;" onkeypress="if(event.key === 'Enter') sendOnboardingMessage()">
+                        <button onclick="sendOnboardingMessage()" style="background: #3b82f6; color: white; border: none; padding: 0 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s;">Send</button>
+                    </div>
+                </div>
+
+                <!-- Hidden inputs to maintain compatibility with Generate buttons -->
+                <input type="hidden" id="config-designer" value="">
+                <input type="hidden" id="config-appname" value="">
+                <input type="hidden" id="config-purpose" value="">
+                
+                <div id="command-bar" class="command-bar" style="max-width: 650px; width: 100%; display: none;">
+                    <select id="vibe-tool" style="flex: 1; min-width: 200px;">
                         <option value="Antigravity">Antigravity (Google DeepMind)</option>
                         <option value="Cursor">Cursor AI</option>
                         <option value="Claude Code">Claude Code CLI</option>
                         <option value="Codex">Codex</option>
                     </select>
-                    <button id="generate-btn" class="generate-btn">
+                    <button id="generate-btn" class="generate-btn" style="flex: 1; justify-content: center;">
                         <span>Generate Intelligence</span>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                     </button>
-                    <button id="architect-btn" class="generate-btn" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); margin-left: 12px;">
-                        <span>Deploy Architect (.docx)</span>
+                    <button id="architect-btn" class="generate-btn" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        <span>Deploy Architect (.md)</span>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                     </button>
                 </div>
@@ -75,9 +134,19 @@
 
             <!-- Analysis Dashboard (Hidden by Default) -->
             <div id="analysis-dashboard" class="analysis-dashboard" style="display: none;">
-                <div class="dashboard-header">
-                    <h2>Project Blueprint</h2>
-                    <div class="viability-badge" id="score-badge">--/100</div>
+                <div class="dashboard-header" style="justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <h2>Project Blueprint</h2>
+                        <div class="viability-badge" id="score-badge">--/100</div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="btn-export-pdf" class="generate-btn" style="padding: 6px 12px; font-size: 13px; height: auto;">
+                            <span>Export PDF</span>
+                        </button>
+                        <button id="btn-return-home" class="generate-btn" style="padding: 6px 12px; font-size: 13px; height: auto; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                            <span>Change Scope</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="dashboard-scroll">
@@ -102,6 +171,11 @@
                         <p id="rep-swot" class="text-sm">Loading...</p>
                     </div>
 
+                    <div class="card" style="border-left: 3px solid #8b5cf6;">
+                        <h3 style="color: #c4b5fd;">Brainstorming Blindspots</h3>
+                        <p id="rep-blindspots" class="text-sm">Loading...</p>
+                    </div>
+
                     <div class="timeline-container">
                         <h3>Vibe Coding Pipeline</h3>
                         <div id="rep-timeline" class="timeline"></div>
@@ -124,37 +198,7 @@
         </div>
     </div>
     
-    <!-- Architect Configuration Modal -->
-    <div id="config-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2>Deploy Vibe Coding Architect</h2>
-                <button id="config-close" class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p style="margin-top: 0; color: #9ca3af; font-size: 14px; margin-bottom: 20px;">
-                    Provide project specifics to constrain the Architect. It will output a highly structured, feature-by-feature MVP guide in Markdown format.
-                </p>
-                <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 14px; margin-bottom: 4px;">Designer Name</label>
-                    <input type="text" id="config-designer" class="config-input" placeholder="e.g. John Doe" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #374151; background: #1f2937; color: white;">
-                </div>
-                <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 14px; margin-bottom: 4px;">App Name</label>
-                    <input type="text" id="config-appname" class="config-input" placeholder="e.g. SynapseIP" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #374151; background: #1f2937; color: white;">
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 14px; margin-bottom: 4px;">Core Purpose (What it should do)</label>
-                    <textarea id="config-purpose" class="config-input" rows="3" placeholder="e.g. A desktop tool that synchronizes..." style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #374151; background: #1f2937; color: white;"></textarea>
-                </div>
-                <button id="config-submit" class="generate-btn" style="width: 100%; justify-content: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                    Start Engine ->
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Our logic script -->
-    <script src="/static/script.js"></script>
+    <!-- Expanded view Modal -->
+    <script src="/static/script.js?v=3.2"></script>
 </body>
 </html>

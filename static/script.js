@@ -1,12 +1,120 @@
 let isDeleteMode = false;
 let selectedForDeletion = new Set();
+let ws = null; // Declare websocket globally
+
+// Authentication Gateway Network Override
+const originalFetch = window.fetch;
+window.fetch = async function() {
+    let [resource, config] = arguments;
+    if(typeof resource === 'string' && resource.startsWith('/api')) {
+        const token = localStorage.getItem('synapseip_token');
+        if(token) {
+            config = config || {};
+            config.headers = config.headers || {};
+            if(!config.headers['Authorization']) {
+                config.headers['Authorization'] = `Bearer ${token}`;
+            }
+        }
+    }
+    const response = await originalFetch(resource, config);
+    if(response.status === 401 && typeof resource === 'string' && resource.startsWith('/api') && !resource.startsWith('/api/auth')) {
+        localStorage.removeItem('synapseip_token');
+        document.getElementById('main-app').style.display = 'none';
+        document.getElementById('login-gateway').style.display = 'flex';
+    }
+    return response;
+};
+
+async function handleAuth(type) {
+    const username = document.getElementById('auth-user').value.trim();
+    const password = document.getElementById('auth-pass').value.trim();
+    const errorDiv = document.getElementById('auth-error');
+    
+    if(!username || !password) {
+        errorDiv.textContent = 'Please enter both username and password';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    try {
+        let response;
+        if(type === 'login') {
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+            
+            response = await originalFetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData
+            });
+        } else {
+            response = await originalFetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+        }
+        
+        const data = await response.json();
+        
+        if(!response.ok) {
+            throw new Error(data.detail || 'Authentication failed');
+        }
+        
+        localStorage.setItem('synapseip_token', data.access_token);
+        document.getElementById('login-gateway').style.display = 'none';
+        document.getElementById('main-app').style.display = '';
+        
+        initApp(); // Boot up!
+        
+    } catch(err) {
+        errorDiv.textContent = err.message;
+        errorDiv.style.display = 'block';
+    }
+}
+
+function initApp() {
+    fetchSources();
+    fetchTokenStats();
+    setTimeout(() => {
+        sendOnboardingMessage(true);
+    }, 500);
+    initWebSocket();
+}
 
 document.addEventListener('DOMContentLoaded', () => {
-    fetchSources();
-    fetchLatestReport();
+    // Enable single line breaks in Markdown
+    marked.setOptions({ breaks: true });
+    
+    if(localStorage.getItem('synapseip_token')) {
+        document.getElementById('login-gateway').style.display = 'none';
+        document.getElementById('main-app').style.display = '';
+        initApp();
+    }
     
     document.getElementById('generate-btn').addEventListener('click', generateIntelligence);
-    document.getElementById('architect-btn').addEventListener('click', openArchitectConfig);
+    document.getElementById('architect-btn').addEventListener('click', startArchitectPipeline);
+    
+    document.getElementById('btn-return-home').addEventListener('click', () => {
+        document.getElementById('analysis-dashboard').style.display = 'none';
+        document.getElementById('welcome-screen').style.display = 'flex';
+    });
+    
+    document.getElementById('btn-export-pdf').addEventListener('click', () => {
+        const originalTitle = document.title;
+        const appName = document.getElementById('config-appname').value.trim() || 'SynapseIP';
+        const designer = document.getElementById('config-designer').value.trim() || 'Unknown';
+        const dateStr = new Date().toISOString().split('T')[0];
+        
+        document.title = `${appName} - ${designer} - ${dateStr}`;
+        
+        // Timeout is legally necessary in Chrome so it doesn't cache the old title during synchronous UI halting
+        setTimeout(() => {
+            window.print();
+            document.title = originalTitle;
+        }, 50);
+    });
     
     // Modal Close Logic
     document.getElementById('modal-close').addEventListener('click', () => {
@@ -93,6 +201,7 @@ async function fetchSources() {
         if (data.length === 0) {
             listContainer.innerHTML = '<div class="loading-state">No sources found.<br>Use your Chrome Extension to sync some!</div>';
             window.currentSources = [];
+            sourceCountBadge.innerText = `0 Note(s)`;
             return;
         }
 
@@ -143,8 +252,13 @@ async function fetchSources() {
             
             if (smartTitle.length > 55) smartTitle = smartTitle.substring(0, 55) + "...";
 
+            let badgeHTML = '';
+            if (source.processed === false) {
+                badgeHTML = `<span style="font-size: 0.75rem; background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">Queued ⏳</span>`;
+            }
+
             card.innerHTML = `
-                <div class="source-title"><span style="color: var(--accent-color); margin-right: 6px;">#${index + 1}</span>${escapeHTML(smartTitle)}</div>
+                <div class="source-title"><span style="color: var(--accent-color); margin-right: 6px;">#${index + 1}</span>${escapeHTML(smartTitle)}${badgeHTML}</div>
                 <div class="source-time">${sourceHost} &bull; ${date}</div>
                 <div class="source-preview">${escapeHTML(plainText)}</div>
             `;
@@ -196,62 +310,84 @@ function escapeHTML(str) {
 // ---------------------------------------------------------
 // WebSocket Real-time Updating
 // ---------------------------------------------------------
-const ws = new WebSocket(`ws://${window.location.host}/ws`);
+function initWebSocket() {
+    ws = new WebSocket(`ws://${window.location.host}/ws`);
 
-ws.onmessage = function(event) {
-    try {
-        const data = JSON.parse(event.data);
-        if (data.type === "progress") {
-            const fill = document.getElementById('progress-bar-fill');
-            const stream = document.getElementById('consciousness-stream');
-            if (fill && stream) {
-                fill.style.width = `${data.progress}%`;
-                stream.style.opacity = '0';
-                setTimeout(() => {
-                    stream.innerText = data.message;
-                    stream.style.opacity = '1';
-                }, 150);
-            }
-        } else if (data.type === "architect_complete") {
-            const fill = document.getElementById('progress-bar-fill');
-            const stream = document.getElementById('consciousness-stream');
-            if (fill && stream) {
-                fill.style.width = `100%`;
-                stream.innerText = data.message;
-                stream.style.color = "#34d399";
-                
-                const btnContainer = document.querySelector('.command-bar');
-                if (btnContainer && !document.getElementById('download-doc-btn')) {
-                    const downloadBtn = document.createElement('a');
-                    downloadBtn.id = 'download-doc-btn';
-                    downloadBtn.href = data.download_url;
-                    downloadBtn.className = 'generate-btn';
-                    downloadBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-                    downloadBtn.style.textDecoration = 'none';
-                    downloadBtn.style.marginTop = '12px';
-                    downloadBtn.style.display = 'flex';
-                    downloadBtn.innerHTML = `<span>Download Blueprint (.md)</span>`;
-                    btnContainer.appendChild(downloadBtn);
+    ws.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.type === "progress") {
+                const fill = document.getElementById('progress-bar-fill');
+                const stream = document.getElementById('consciousness-stream');
+                if (fill && stream) {
+                    fill.style.width = `${data.progress}%`;
+                    stream.style.opacity = '0';
+                    setTimeout(() => {
+                        stream.innerText = data.message;
+                        stream.style.opacity = '1';
+                    }, 150);
                 }
+            } else if (data.type === "architect_complete") {
+                const fill = document.getElementById('progress-bar-fill');
+                const stream = document.getElementById('consciousness-stream');
+                if (fill && stream) {
+                    fill.style.width = `100%`;
+                    stream.innerText = data.message;
+                    stream.style.color = "#34d399";
+                    
+                    const btnContainer = document.querySelector('.command-bar');
+                    if (btnContainer && !document.getElementById('download-doc-btn')) {
+                        const downloadBtn = document.createElement('a');
+                        downloadBtn.id = 'download-doc-btn';
+                        downloadBtn.href = data.download_url;
+                        downloadBtn.className = 'generate-btn';
+                        downloadBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                        downloadBtn.style.textDecoration = 'none';
+                        downloadBtn.style.marginTop = '12px';
+                        downloadBtn.style.display = 'flex';
+                        downloadBtn.innerHTML = `<span>Download Blueprint (.md)</span>`;
+                        btnContainer.appendChild(downloadBtn);
+                    }
+                }
+            } else if (data.type === "sources_deleted") {
+                fetchSources();
             }
+            return;
+        } catch (e) {
+            // String fallback handler
         }
-        return;
-    } catch (e) {
-        // String fallback handler
-    }
 
-    if (event.data === "new_source") {
-        console.log("Real-time update received! Refreshing sources...");
-        fetchSources(); // Re-render the sidebar
-    } else if (event.data === "new_report") {
-        console.log("New report broadcast received.");
-        fetchLatestReport();
-    }
-};
+        if (event.data === "new_source") {
+            console.log("Real-time update received! Debouncing fetch...");
+            if (window._syncTimer) clearTimeout(window._syncTimer);
+            window._syncTimer = setTimeout(() => {
+                fetchSources();
+            }, 300);
+        } else if (event.data === "new_report") {
+            console.log("New report broadcast received.");
+            fetchLatestReport();
+        } else if (event.data === "token_update") {
+            fetchTokenStats();
+        }
+    };
 
-ws.onclose = function(event) {
-    console.log("WebSocket connection closed.");
-};
+    ws.onclose = function() {
+        console.log("WebSocket connection closed.");
+    };
+}
+
+async function fetchTokenStats() {
+    try {
+        const res = await fetch('/api/stats/tokens');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        document.getElementById('tt-tokens').innerText = data.tokens.toLocaleString();
+        document.getElementById('tt-cost').innerText = "$" + data.cost.toFixed(4);
+    } catch(e) {
+        console.error("Token sync failed", e);
+    }
+}
 
 // Fallback polling
 setInterval(() => {
@@ -273,21 +409,10 @@ async function fetchLatestReport() {
     } catch (e) { console.error("Error fetching report", e); }
 }
 
-function openArchitectConfig() {
-    document.getElementById('config-modal').style.display = 'flex';
-}
-
-document.getElementById('config-close').addEventListener('click', () => {
-    document.getElementById('config-modal').style.display = 'none';
-});
-
 async function startArchitectPipeline() {
     const designer = document.getElementById('config-designer').value.trim();
     const appName = document.getElementById('config-appname').value.trim();
     const purpose = document.getElementById('config-purpose').value.trim();
-    
-    // Hide modal
-    document.getElementById('config-modal').style.display = 'none';
 
     const btn = document.getElementById('architect-btn');
     const genBtn = document.getElementById('generate-btn');
@@ -327,9 +452,6 @@ async function startArchitectPipeline() {
         alert("Request error: " + e.message);
     }
 }
-
-// Bind the config submit explicitly
-document.getElementById('config-submit').addEventListener('click', startArchitectPipeline);
 
 const THOUGHTS = [
     "Initializing SynapseIP Architecture...",
@@ -436,10 +558,18 @@ function renderDashboard(data) {
     else if (data.viability_score > 50) badge.style.color = '#fbbf24';
     else badge.style.color = '#f87171';
     
-    document.getElementById('rep-summary').innerHTML = escapeHTML(data.summary);
-    document.getElementById('rep-market').innerHTML = escapeHTML(data.market_analysis);
-    document.getElementById('rep-cost').innerHTML = escapeHTML(data.cost_benefit);
-    document.getElementById('rep-swot').innerHTML = escapeHTML(data.swot);
+    document.getElementById('rep-summary').innerHTML = marked.parse(data.summary);
+    document.getElementById('rep-market').innerHTML = marked.parse(data.market_analysis);
+    document.getElementById('rep-cost').innerHTML = marked.parse(data.cost_benefit);
+    document.getElementById('rep-swot').innerHTML = marked.parse(data.swot);
+    document.getElementById('rep-blindspots').innerHTML = marked.parse(data.blindspots || "No systemic blindspots identified.");
+    
+    // Add specific markdown styling class
+    document.getElementById('rep-summary').className = 'markdown-content';
+    document.getElementById('rep-market').className = 'markdown-content text-sm';
+    document.getElementById('rep-cost').className = 'markdown-content text-sm';
+    document.getElementById('rep-swot').className = 'markdown-content text-sm';
+    document.getElementById('rep-blindspots').className = 'markdown-content text-sm';
     
     const timeline = document.getElementById('rep-timeline');
     timeline.innerHTML = '';
@@ -451,11 +581,98 @@ function renderDashboard(data) {
             el.innerHTML = `
                 <h4>Step ${idx + 1}</h4>
                 <div class="step-prompt">${escapeHTML(step.prompt_text)}</div>
-                <div class="step-why"><strong>Why:</strong> ${escapeHTML(step.why)}</div>
-                <div class="step-expect"><strong>Expectation:</strong> ${escapeHTML(step.expectation)}</div>
-                <div class="step-error"><strong>Watch Out:</strong> ${escapeHTML(step.error_warnings)}</div>
+                <div class="step-why"><strong>Why:</strong> ${marked.parse(step.why)}</div>
+                <div class="step-expect"><strong>Expectation:</strong> ${marked.parse(step.expectation)}</div>
+                <div class="step-error"><strong>Watch Out:</strong> ${marked.parse(step.error_warnings)}</div>
             `;
             timeline.appendChild(el);
         });
+    }
+}
+
+// ------------------------------------------------------------------
+// Onboarding Chat Agent System
+// ------------------------------------------------------------------
+let onboardingHistory = [];
+
+async function sendOnboardingMessage(initial = false) {
+    const chatInput = document.getElementById('chat-input');
+    const chatHistoryEl = document.getElementById('chat-history');
+    if (!chatHistoryEl) return;
+    
+    const userText = chatInput ? chatInput.value.trim() : "";
+    
+    // Prevent empty sends from user
+    if (!initial && !userText) return;
+    
+    if (!initial) {
+        onboardingHistory.push({ role: "user", content: userText });
+        const userBubble = document.createElement('div');
+        userBubble.style.cssText = "background: rgba(255,255,255,0.1); padding: 12px 16px; border-radius: 12px; align-self: flex-end; max-width: 85%; color: white; font-size: 0.95rem; line-height: 1.5;";
+        userBubble.textContent = userText;
+        chatHistoryEl.appendChild(userBubble);
+        if (chatInput) chatInput.value = "";
+        chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+    } else {
+        chatHistoryEl.innerHTML = `
+            <div style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 12px 16px; border-radius: 12px; align-self: flex-start; max-width: 85%; color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">
+                <em>Evaluating sources...</em>
+            </div>
+        `;
+    }
+    
+    // Render loading state
+    const thinkingBubble = document.createElement('div');
+    thinkingBubble.id = "chat-thinking";
+    thinkingBubble.style.cssText = "align-self: flex-start; margin-left: 10px; color: #9ca3af; font-size: 0.85rem; font-style: italic;";
+    thinkingBubble.innerHTML = "Agent is typing <span class='loading-dots'>...</span>";
+    chatHistoryEl.appendChild(thinkingBubble);
+    chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+    
+    try {
+        const response = await fetch('/api/chat/onboarding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ history: onboardingHistory })
+        });
+        
+        chatHistoryEl.removeChild(thinkingBubble);
+        
+        if (!response.ok) {
+            throw new Error('API Error');
+        }
+        
+        const data = await response.json();
+        
+        if (initial) {
+            chatHistoryEl.innerHTML = ""; // Clear the evaluation placeholder
+        }
+        
+        onboardingHistory.push({ role: "model", content: data.message });
+        
+        const agentBubble = document.createElement('div');
+        agentBubble.style.cssText = "background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 12px 16px; border-radius: 12px; align-self: flex-start; max-width: 85%; color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;";
+        agentBubble.innerHTML = marked.parse(data.message);
+        chatHistoryEl.appendChild(agentBubble);
+        chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+        
+        // Handle successfully fulfilled configurations
+        if (data.is_complete) {
+            document.getElementById('config-designer').value = data.designer_name || "Unknown";
+            document.getElementById('config-appname').value = data.app_name || "SynapseIP";
+            document.getElementById('config-purpose').value = data.core_purpose || "";
+            
+            if (chatInput) {
+                chatInput.disabled = true;
+                chatInput.placeholder = "Configuration Complete.";
+                chatInput.style.opacity = "0.5";
+            }
+            
+            // Pop the action bar
+            document.getElementById('command-bar').style.display = 'flex';
+        }
+    } catch (e) {
+        if(document.getElementById("chat-thinking")) chatHistoryEl.removeChild(document.getElementById("chat-thinking"));
+        alert("Agent connection failed. Check backend.");
     }
 }
