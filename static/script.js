@@ -158,10 +158,15 @@ function renderProjectList(projects) {
             </div>
         `;
         
-        li.addEventListener('mouseenter', () => loadProjectDocuments(p.id));
+        // Removed hover, converted to Click-dependent Slide-Out Accordion
         li.addEventListener('click', (e) => {
             // Only select project if not clicking on nested menu items
             if (e.target.closest('.nested-menu')) return;
+            
+            // Slide out the nested documents menu!
+            li.classList.toggle('expanded');
+            if (li.classList.contains('expanded')) loadProjectDocuments(p.id);
+            
             selectProject(p.id, p.name);
         });
         
@@ -245,15 +250,15 @@ async function createNewProject() {
     } catch(e) { alert("Failed to create project."); }
 }
 
-function selectProject(projectId, projectName) {
+async function selectProject(projectId, projectName) {
     currentProjectId = projectId;
     currentProjectName = projectName;
     document.getElementById('active-project-name').innerText = escapeHTML(projectName);
     
-    // Clear screens and return to Onboarding funnel
+    // Default: Clear screens
     document.getElementById('blueprint-viewer').style.display = 'none';
     document.getElementById('intelligence-dashboard').style.display = 'none';
-    document.getElementById('onboarding-screen').style.display = 'flex';
+    document.getElementById('onboarding-screen').style.display = 'none';
     
     // Reset agent chats
     onboardingHistory = [];
@@ -266,7 +271,22 @@ function selectProject(projectId, projectName) {
     
     // Fetch project's specific sources
     fetchSources();
-    setTimeout(() => { sendOnboardingMessage(true); }, 500);
+    
+    try {
+        const res = await fetch(`/api/projects/${projectId}/documents`);
+        if (res.ok) {
+            const data = await res.json();
+            // Automatically surface the most recent intelligence report if it exists
+            if (data.intelligence && data.intelligence.length > 0) {
+                renderDashboard(data.intelligence[0].data);
+                return; // Halt selection pipeline before onboarding kicks in
+            }
+        }
+    } catch(e) { console.error("Error auto-loading project documents.", e); }
+    
+    // If no intelligence reports exist, launch the Onboarding funnel
+    document.getElementById('onboarding-screen').style.display = 'flex';
+    sendOnboardingMessage(true);
 }
 
 // ----------------------------------------------------
@@ -281,14 +301,25 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('new-project-btn').addEventListener('click', createNewProject);
     
     document.getElementById('chat-send').addEventListener('click', () => sendOnboardingMessage(false));
-    document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendOnboardingMessage(false); });
+    document.getElementById('chat-refresh-sources').addEventListener('click', () => sendOnboardingMessage(true));
+    document.getElementById('chat-input').addEventListener('keypress', (e) => { 
+        if(e.key === 'Enter' && !e.shiftKey) { 
+            e.preventDefault(); 
+            sendOnboardingMessage(false); 
+        } 
+    });
     
     document.getElementById('followup-chat-send').addEventListener('click', () => sendFollowupMessage());
-    document.getElementById('followup-chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendFollowupMessage(); });
+    document.getElementById('followup-chat-input').addEventListener('keypress', (e) => { 
+        if(e.key === 'Enter' && !e.shiftKey) { 
+            e.preventDefault(); 
+            sendFollowupMessage(); 
+        } 
+    });
     
     // Routing Generation Hooks
     document.getElementById('generate-btn').addEventListener('click', generateIntelligence);
-    document.getElementById('regenerate-intel-btn').addEventListener('click', () => selectProject(currentProjectId, currentProjectName));
+    document.getElementById('regenerate-intel-btn').addEventListener('click', regenerateIntelligence);
     document.getElementById('build-blueprint-btn').addEventListener('click', startArchitectPipeline);
     
     document.getElementById('btn-export-pdf').addEventListener('click', () => {
@@ -331,16 +362,16 @@ async function sendOnboardingMessage(initial = false) {
     chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
     
     try {
-        const response = await fetch('/api/chat/onboarding', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ history: onboardingHistory })
-        });
+        // MOCKED AI FOR TESTING
+        await new Promise(r => setTimeout(r, 300));
+        const data = {
+            message: "AI Onboarding temporarily disabled for extension testing. Proceeding natively...",
+            is_complete: true,
+            designer_name: "Testing Dev",
+            core_purpose: "Extension Architecture"
+        };
         
         chatHistoryEl.removeChild(thinkingBubble);
-        if (!response.ok) throw new Error('API Error');
-        
-        const data = await response.json();
         if (initial) chatHistoryEl.innerHTML = ""; 
         
         onboardingHistory.push({ role: "model", content: data.message });
@@ -353,7 +384,7 @@ async function sendOnboardingMessage(initial = false) {
         
         if (data.is_complete) {
             document.getElementById('config-designer').value = data.designer_name || currentUser.username;
-            document.getElementById('config-appname').value = data.app_name || currentProjectName;
+            document.getElementById('config-appname').value = currentProjectName;
             document.getElementById('config-purpose').value = data.core_purpose || "";
             if (chatInput) {
                 chatInput.disabled = true;
@@ -388,7 +419,13 @@ async function generateIntelligence() {
         const response = await fetch('/api/analyze', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ target_platform: "Antigravity" })
+            body: JSON.stringify({ 
+                target_platform: "Antigravity",
+                project_id: currentProjectId,
+                app_name: document.getElementById('config-appname').value,
+                designer_name: document.getElementById('config-designer').value,
+                app_purpose: document.getElementById('config-purpose').value
+            })
         });
         
         if (!response.ok) throw new Error("Analysis failed");
@@ -403,6 +440,13 @@ async function generateIntelligence() {
             btn.style.display = 'flex';
             thinkingContainer.style.display = 'none';
             stream.style.color = "var(--accent-color)";
+            
+            // Invalidate project sub-menu cache to force-push the newly generated document
+            const nested = document.getElementById(`nested-${currentProjectId}`);
+            if (nested) {
+                delete nested.dataset.loaded;
+                loadProjectDocuments(currentProjectId);
+            }
         }, 1000);
         
     } catch (e) {
@@ -410,6 +454,13 @@ async function generateIntelligence() {
         clearInterval(simInterval); clearInterval(thoughtInterval);
         btn.style.display = 'flex'; thinkingContainer.style.display = 'none';
     }
+}
+
+function regenerateIntelligence() {
+    document.getElementById('intelligence-dashboard').style.display = 'none';
+    document.getElementById('onboarding-screen').style.display = 'flex';
+    document.getElementById('command-bar').style.display = 'flex';
+    generateIntelligence();
 }
 
 function renderDashboard(data) {
@@ -424,12 +475,30 @@ function renderDashboard(data) {
     else if (data.viability_score > 50) badge.style.color = '#fbbf24';
     else badge.style.color = '#f87171';
     
-    // Attach markdown classes dynamically
-    ['summary', 'market', 'cost', 'swot', 'blindspots'].forEach(id => {
-        document.getElementById(`rep-${id}`).innerHTML = marked.parse(data[id] || "No data provided.");
-        document.getElementById(`rep-${id}`).className = `markdown-content text-sm`;
+    // Attach markdown classes dynamically using explicit schema mapping
+    const mappings = [
+        { id: 'summary', key: 'summary' },
+        { id: 'verdict', key: 'verdict' },
+        { id: 'harshtruth', key: 'the_harsh_truth' },
+        { id: 'pivotpath', key: 'the_pivot_path' },
+        { id: 'market', key: 'market_analysis' },
+        { id: 'cost', key: 'cost_benefit' },
+        { id: 'swot', key: 'swot' },
+        { id: 'blindspots', key: 'blindspots' }
+    ];
+    mappings.forEach(m => {
+        document.getElementById(`rep-${m.id}`).innerHTML = marked.parse(data[m.key] || "No data provided.");
+        if (m.id !== 'verdict') document.getElementById(`rep-${m.id}`).className = `markdown-content text-sm`;
     });
     
+    if (data.verdict) {
+        let vText = data.verdict.toUpperCase();
+        let vColor = 'white';
+        if (vText.includes('GREEN')) vColor = '#34d399';
+        else if (vText.includes('YELLOW')) vColor = '#fbbf24';
+        else if (vText.includes('RED') || vText.includes('ABANDON') || vText.includes('PIVOT')) vColor = '#f87171';
+        document.getElementById('rep-verdict').style.color = vColor;
+    }
     const timeline = document.getElementById('rep-timeline');
     timeline.innerHTML = '';
     if (data.vibe_coding_pipeline) {
@@ -505,7 +574,8 @@ async function startArchitectPipeline() {
                 target_platform: "Antigravity",
                 designer_name: currentUser ? currentUser.username : "Unknown",
                 app_name: currentProjectName,
-                app_purpose: "Automated via Follow-Up"
+                app_purpose: "Automated via Follow-Up",
+                project_id: currentProjectId
             })
         });
         if (!res.ok) throw new Error("Failed to start logic router.");
@@ -525,12 +595,34 @@ function showBlueprint(markdownText) {
     
     document.getElementById('blueprint-content').innerHTML = marked.parse(markdownText);
     
-    // Create downloadable blob
-    const blob = new Blob([markdownText], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const link = document.getElementById('blueprint-download-link');
-    link.href = url;
-    link.download = `Blueprint_${currentProjectName.replace(/\s+/g, '_')}.md`;
+    // Mount PDF Exporter
+    const btn = document.getElementById('blueprint-export-pdf');
+    // Clone trick to remove old event listeners
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    
+    newBtn.addEventListener('click', () => {
+        newBtn.innerText = "Exporting...";
+        newBtn.disabled = true;
+        
+        const element = document.getElementById('blueprint-content');
+        const opt = {
+            margin:       15,
+            filename:     `Blueprint_${currentProjectName.replace(/\s+/g, '_')}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(element).save().then(() => {
+            newBtn.innerText = "Export Blueprint PDF";
+            newBtn.disabled = false;
+        }).catch(err => {
+            console.error(err);
+            newBtn.innerText = "Export Failed";
+            newBtn.disabled = false;
+        });
+    });
 }
 
 // ----------------------------------------------------
@@ -556,6 +648,7 @@ async function fetchSources() {
         window.currentSources = data;
         badge.innerText = `${data.length} Note(s)`;
 
+        let hasProcessing = false;
         data.forEach((source, index) => {
             const card = document.createElement('div');
             card.className = 'source-card';
@@ -574,7 +667,15 @@ async function fetchSources() {
             }
             if (smartTitle.length > 55) smartTitle = smartTitle.substring(0, 55) + "...";
 
-            let bHTML = !source.processed ? `<span style="font-size:0.7rem; background:rgba(59,130,246,0.2); color:#60a5fa; padding:2px 6px; border-radius:4px; margin-left:8px;">Queued ⏳</span>` : '';
+            let bHTML = '';
+            if (!source.processed) {
+                if (!hasProcessing) {
+                    bHTML = `<span style="font-size:0.7rem; background:rgba(245,158,11,0.2); color:#fbbf24; padding:2px 6px; border-radius:4px; margin-left:8px;">Processing 🔄</span>`;
+                    hasProcessing = true;
+                } else {
+                    bHTML = `<span style="font-size:0.7rem; background:rgba(59,130,246,0.2); color:#60a5fa; padding:2px 6px; border-radius:4px; margin-left:8px;">Queued ⏳</span>`;
+                }
+            }
             card.innerHTML = `
                 <div class="source-title"><span style="color:var(--accent-color); margin-right:6px;">#${index+1}</span>${escapeHTML(smartTitle)}${bHTML}</div>
                 <div class="source-time">${sourceHost} &bull; ${date}</div>
@@ -607,14 +708,33 @@ function initWebSocket() {
             const data = JSON.parse(event.data);
             if (data.type === "architect_complete") {
                 const btn = document.getElementById('build-blueprint-btn');
-                btn.innerHTML = `Build Architect Blueprint (.md)`;
-                btn.disabled = false;
+                if (btn) {
+                    btn.innerHTML = `Build Architect Blueprint (PDF)`;
+                    btn.disabled = false;
+                }
                 
-                // Show modal overlay or direct logic
-                window.open(data.download_url, '_blank');
+                // Terminate global tracker
+                document.getElementById('global-activity-tracker').style.display = 'none';
                 
-                // Refresh project dropdown cache instantly so it appears
-                loadProjectDocuments(currentProjectId);
+                // Force invalidate and auto-refresh project dropdown cache
+                const nested = document.getElementById(`nested-${currentProjectId}`);
+                if (nested) {
+                    delete nested.dataset.loaded;
+                    loadProjectDocuments(currentProjectId);
+                }
+                
+                // Automatically open the PDF Architect Document View in UI
+                if (data.markdown_content) {
+                    showBlueprint(data.markdown_content);
+                }
+            } else if (data.type === "progress") {
+                // Ensure UI tracker is visible globally
+                const tracker = document.getElementById('global-activity-tracker');
+                tracker.style.display = 'flex';
+                document.getElementById('global-tracker-pct').innerText = `${data.progress}%`;
+                document.getElementById('global-tracker-msg').innerText = data.message;
+                document.getElementById('global-tracker-fill').style.width = `${data.progress}%`;
+                
             } else if (data.type === "sources_deleted") fetchSources();
             return;
         } catch (e) {}

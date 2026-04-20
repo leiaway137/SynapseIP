@@ -1,4 +1,4 @@
-console.log("SynapseIP Messenger: Content script loaded on Gemini.");
+console.log("SynapseIP Messenger: Content script loaded on", window.location.hostname);
 
 let syncedSources = [];
 chrome.runtime.sendMessage({ action: "fetch_synced_sources" }, (response) => {
@@ -10,10 +10,12 @@ chrome.runtime.sendMessage({ action: "fetch_synced_sources" }, (response) => {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "global_sync_update") {
-        syncedSources.push({
-            content: request.htmlContent
+        chrome.runtime.sendMessage({ action: "fetch_synced_sources" }, (response) => {
+            if (response && response.status === "success") {
+                syncedSources = response.sources;
+                updateSyncState();
+            }
         });
-        updateSyncState();
     } else if (request.action === "global_desync") {
         chrome.runtime.sendMessage({ action: "fetch_synced_sources" }, (response) => {
             if (response && response.status === "success") {
@@ -25,74 +27,62 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 function updateSyncState() {
-    const containers = document.querySelectorAll('message-content, .message-content, [data-message-author="model"], div[class*="model-response"]');
-    containers.forEach((container) => {
-        const btn = container.querySelector('.synapseip-sync-btn');
-        if (!btn) return;
-
-        const textClone = container.cloneNode(true);
-        const wrapperInClone = textClone.querySelector('.synapseip-btn-wrapper');
-        if (wrapperInClone) wrapperInClone.remove();
-        else {
-            const oldBtn = textClone.querySelector('.synapseip-sync-btn');
-            if (oldBtn) oldBtn.remove();
-        }
-
-        const snippet = textClone.innerText.trim().substring(0, 60).replace(/\s+/g, ' ');
-        
-        let syncedIndex = -1;
-        if (snippet.length > 5 && syncedSources) {
-            syncedIndex = syncedSources.findIndex(s => {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = s.content;
-                const plainText = (tempDiv.innerText || tempDiv.textContent || "").replace(/\s+/g, ' ');
-                return plainText.includes(snippet);
-            });
-        }
-
-        const allModelRuns = Array.from(document.querySelectorAll('.model-turn, message-content, [data-message-author="model"], div[class*="model-response"]'));
-        const uniqueNodes = allModelRuns.filter(n => !allModelRuns.some(other => other !== n && n.contains(other)));
-        const myIndex = uniqueNodes.findIndex(n => n.contains(container) || n === container);
-        const conversationalIndex = myIndex !== -1 ? myIndex + 1 : "?";
-
-        if (syncedIndex !== -1) {
-            btn.classList.add('synced');
-            btn.innerText = `Synced Conversation Note #${conversationalIndex} ✓`;
-            btn.disabled = true;
-        } else {
-            btn.classList.remove('synced');
-            btn.innerText = "Sync to SynapseIP";
-            btn.disabled = false;
-        }
-    });
+    const wrappers = document.querySelectorAll('.synapseip-btn-wrapper');
+    wrappers.forEach(w => w.remove());
+    injectButtons();
 }
 
 // Function to inject our Sync button
 function injectButtons() {
-    // Gemini frequently changes class names. A generic approach:
-    // Look for message containers. As of recently, AI responses often use `message-content` components
-    // or specific `model-response` classes inside the chat display area.
-    
-    // Find all potential response containers
-    // Note: We use querySelectorAll with common selectors. You might need to adjust this
-    // if Gemini's DOM changes. Looking for elements that likely hold a response.
-    const messageContainers = document.querySelectorAll('message-content, .message-content, [data-message-author="model"], div[class*="model-response"]');
+    // Synchronous check to see if the Extension was hot-reloaded by the user. 
+    // If the ID is gone, the context is dead. Kill the DOM Observer instantly.
+    if (!chrome.runtime || !chrome.runtime.id) {
+        console.warn("SynapseIP: Extension updated. Disconnecting DOM listener. Please refresh the page.");
+        if (typeof observer !== "undefined") observer.disconnect();
+        return;
+    }
 
-    messageContainers.forEach((container) => {
-        // Prevent adding multiple buttons to the same container
-        if (container.querySelector('.synapseip-sync-btn')) return;
+    try {
+        chrome.storage.local.get("extensionSelectors", (data) => {
+            if (chrome.runtime.lastError) return; // Silent fail if async context dies
+            
+            const activeHost = window.location.hostname.replace('www.', '');
+            let selectorString = 'message-content, .message-content, [data-message-author="model"], div[class*="model-response"], article, .prose, .ds-markdown, .markdown-body, .font-claude-message, .markdown, [data-testid="chat-message-text"], div[class*="conversation-msg"]';
+            if (data.extensionSelectors && data.extensionSelectors[activeHost]) {
+                selectorString = data.extensionSelectors[activeHost];
+            }
+
+            const messageContainers = document.querySelectorAll(selectorString);
+        
+        if (messageContainers.length === 0) {
+            if (!window.sentinelTriggered) {
+                setTimeout(() => {
+                    if (document.querySelectorAll(selectorString).length === 0) {
+                        triggerSentinelMode();
+                    }
+                }, 4000);
+            }
+            return;
+        }
+
+        messageContainers.forEach((container) => {
+            // Prevent adding multiple buttons to the same container
+            if (container.querySelector('.synapseip-sync-btn')) return;
 
         // Clean check for existing sync state
         const textClone = container.cloneNode(true);
-        const snippet = textClone.innerText.trim().substring(0, 60).replace(/\s+/g, ' ');
+        const snippet = textClone.innerText.trim().substring(0, 150).replace(/\s+/g, ' ');
+        const geminiId = container.closest('[data-message-id]')?.getAttribute('data-message-id') || container.getAttribute('data-message-id') || container.id || 'unknown';
         
         let syncedIndex = -1;
-        if (syncedSources.length > 0 && snippet.length > 5) {
+        if (syncedSources.length > 0) {
             syncedIndex = syncedSources.findIndex(s => {
+                if (geminiId !== 'unknown' && s.content.includes(`data-synth-id="${geminiId}"`)) return true;
+                
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = s.content;
                 const plainText = (tempDiv.innerText || tempDiv.textContent || "").replace(/\s+/g, ' ');
-                return plainText.includes(snippet);
+                return snippet.length > 25 && plainText.includes(snippet);
             });
         }
 
@@ -108,13 +98,30 @@ function injectButtons() {
         
         if (syncedIndex !== -1) {
             btn.classList.add('synced');
-            btn.innerText = `Synced Conversation Note #${conversationalIndex} ✓`;
-            btn.disabled = true;
+            btn.innerText = `Synced Note #${conversationalIndex} ✓ (Click to Desync)`;
+            btn.disabled = false;
+            
+            btn.addEventListener('click', () => {
+                btn.classList.add('synapseip-syncing');
+                btn.innerText = 'Desyncing...';
+                btn.disabled = true;
+                
+                chrome.runtime.sendMessage({ 
+                    action: "desync_from_synapseip", 
+                    data: { id: syncedSources[syncedIndex].id } 
+                }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        btn.classList.remove('synapseip-syncing');
+                        btn.innerText = 'Desync Failed ✗';
+                        setTimeout(() => { btn.disabled = false; btn.innerText = `Synced Note #${conversationalIndex} ✓ (Click to Desync)`; }, 2000);
+                    }
+                });
+            });
+            
         } else {
             btn.innerText = 'Sync to SynapseIP';
-        }
-        
-        btn.addEventListener('click', () => {
+            
+            btn.addEventListener('click', () => {
             btn.classList.add('synapseip-syncing');
             btn.innerText = 'Syncing...';
             btn.disabled = true;
@@ -135,17 +142,14 @@ function injectButtons() {
             // Grab the user's prompt by finding the closest preceding node
             let userPromptText = "";
             try {
-                // Remove generic [class*="user-"] because it catches avatars and labels that just say "You said"
-                const allUserNodes = Array.from(document.querySelectorAll('user-query, [data-message-author="user"]'));
+                // Generic catch for conversational user node prefixes matching industry defaults
+                const allUserNodes = Array.from(document.querySelectorAll('user-query, [data-message-author="user"], div[data-message-author="user"], [class*="user-message"]'));
                 const previousUserNodes = allUserNodes.filter(n => 
                     n.compareDocumentPosition(container) & Node.DOCUMENT_POSITION_FOLLOWING
                 );
                 if (previousUserNodes.length > 0) {
                     const match = previousUserNodes[previousUserNodes.length - 1];
-                    // User prompts don't need raw HTML since they don't have bold/bullet formatting.
-                    // Extracting text prevents catching invisible web-components.
                     let text = match.innerText || match.textContent;
-                    // Strip the visually-hidden "You said" accessibility label
                     userPromptText = text.replace(/^(You said|You)\s*\n?/i, '').trim();
                 }
             } catch (e) { console.error(e); }
@@ -153,12 +157,15 @@ function injectButtons() {
             let combinedContent = htmlContent;
             if (userPromptText) {
                 const escapeUser = userPromptText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                combinedContent = `<div class="gemini-prompt"><strong>User Prompt:</strong><br><p>${escapeUser}</p></div><hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;"><div class="gemini-response"><strong>AI Response:</strong><br>${htmlContent}</div>`;
+                combinedContent = `<div class="ai-prompt"><strong>User Prompt:</strong><br><p>${escapeUser}</p></div><hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;"><div class="ai-response"><strong>AI Response:</strong><br>${htmlContent}</div>`;
             }
+            
+            const nodeId = container.closest('[data-message-id]')?.getAttribute('data-message-id') || container.getAttribute('data-message-id') || container.id || "hash-" + Math.random().toString(36).substr(2, 9);
+            combinedContent += `<div style="display:none;" data-synth-id="${nodeId}"></div>`;
 
             // Send standard payload structure expected by the FastAPI backend
             const payload = {
-                title: `Gemini Source Node #${conversationalIndex} - ${new Date().toLocaleString()}`,
+                title: `AI Source Node #${conversationalIndex} - ${new Date().toLocaleString()}`,
                 content: combinedContent,
                 source_url: sourceUrl
             };
@@ -181,12 +188,15 @@ function injectButtons() {
 
                 if (response && response.status === "success") {
                     btn.classList.add('synced');
-                    btn.innerText = `Synced Conversation Note #${conversationalIndex} ✓`;
+                    const displayIdx = (response.backendResponse && response.backendResponse.total_count) ? response.backendResponse.total_count : conversationalIndex;
+                    btn.innerText = `Synced Conversation Note #${displayIdx} ✓`;
                     if (!syncedSources.some(s => s.content.includes(htmlContent.substring(0, 50)))) {
                         syncedSources.push({
+                            id: (response.backendResponse && response.backendResponse.id) ? response.backendResponse.id : -1,
                             content: `<div>${combinedContent}</div>`
                         });
                     }
+                    updateSyncState();
                 } else if (response && response.status === "error") {
                     console.error("SynapseIP Messenger Backend Error:", response.error);
                     btn.classList.add('error');
@@ -200,6 +210,7 @@ function injectButtons() {
                 }
             });
         });
+        } // Close the 'else' block
 
         // Wrap the button in a context container
         const wrapper = document.createElement('div');
@@ -240,7 +251,7 @@ function injectButtons() {
                 syncAllBtn.style.opacity = '1';
                 syncAllBtn.style.padding = '8px 16px';
                 syncAllBtn.style.pointerEvents = 'auto';
-            }, 5000); // 5 seconds wait per user request
+            }, 3000); // 3 seconds wait per user request
         });
         
         wrapper.addEventListener('mouseleave', () => {
@@ -380,7 +391,16 @@ function injectButtons() {
         });
 
         container.appendChild(wrapper);
-    });
+        });
+        });
+    } catch (e) {
+        if (e.message && e.message.includes("Extension context invalidated")) {
+            console.warn("SynapseIP: Extension updated. Disconnecting DOM listener. Please refresh the page.");
+            if (typeof observer !== "undefined") observer.disconnect();
+        } else {
+            console.error("SynapseIP Extension Error:", e);
+        }
+    }
 }
 
 // Observe DOM for new messages as Gemini is a Single Page Application
@@ -394,3 +414,47 @@ observer.observe(document.body, { childList: true, subtree: true });
 
 // Initial run
 injectButtons();
+
+function triggerSentinelMode() {
+    window.sentinelTriggered = true;
+    if (document.getElementById("synapseip-sentinel")) return;
+
+    const toast = document.createElement("div");
+    toast.id = "synapseip-sentinel";
+    toast.innerHTML = `
+        <div style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); color: white; padding: 16px 24px; border-radius: 12px; box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4); font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 20px; right: 20px; z-index: 999999; width: 350px; cursor: pointer; border: 1px solid rgba(255,255,255,0.2);">
+            <div>
+                <h4 style="margin: 0 0 4px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Layout Shift Detected</h4>
+                <p style="margin: 0; font-size: 13px; opacity: 0.9;">SynapseIP nodes disconnected. Click to auto-heal via AI.</p>
+            </div>
+            <div id="sentinel-loader" style="display: none; padding-left: 10px; font-weight: bold; font-size: 14px;">Wait...</div>
+        </div>
+    `;
+
+    toast.addEventListener('click', () => {
+        toast.querySelector('p').innerText = "Scanning Layout. AI Processing...";
+        toast.querySelector('#sentinel-loader').style.display = 'block';
+        toast.style.pointerEvents = 'none';
+
+        // Rip HTML payload safely
+        const payload = document.querySelector('main')?.innerHTML || document.body.innerHTML; 
+
+        const activeHost = window.location.hostname.replace('www.', '');
+
+        chrome.runtime.sendMessage({ 
+            action: "report_structural_change", 
+            html_payload: payload,
+            hostname: activeHost
+        }, (response) => {
+            if (response && response.status === "success") {
+                toast.innerHTML = `<div style="background: #10b981; color: white; padding: 16px; border-radius: 12px; text-align: center; width: 350px; position: fixed; top: 20px; right: 20px; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4); z-index: 999999; font-family: system-ui, sans-serif; font-weight: bold;">Healing Complete! Resyncing...</div>`;
+                setTimeout(() => { toast.remove(); window.sentinelTriggered = false; injectButtons(); }, 2000);
+            } else {
+                toast.innerHTML = `<div style="background: #6b7280; color: white; padding: 16px; border-radius: 12px; text-align: center; width: 350px; position: fixed; top: 20px; right: 20px; box-shadow: 0 10px 25px rgba(107, 114, 128, 0.4); z-index: 999999; font-family: system-ui, sans-serif;">Heal Failed. Check Logs.</div>`;
+                setTimeout(() => toast.remove(), 4000);
+            }
+        });
+    });
+
+    document.body.appendChild(toast);
+}

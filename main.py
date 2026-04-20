@@ -60,6 +60,30 @@ def index_in_chroma(document_id: str, title: str, text: str):
     except Exception as e:
         print(f"❌ ChromaDB Indexing Error: {e}")
 
+def generate_short_memory(source_id: str):
+    """Synchronous background task to compress raw source text into short-term memory."""
+    db = SessionLocal()
+    try:
+        source = db.query(GeminiSource).filter(GeminiSource.id == int(source_id)).first()
+        if not source or not source.content:
+            return
+            
+        prompt = f"Condense the following brainstorm note into an extremely concise 2-3 sentence executive summary capturing the core intent/mechanic:\n\n{source.content}"
+        
+        response = gemini_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        
+        source.short_memory = response.text.strip()
+        source.processed = True
+        db.commit()
+        print(f"✅ Generated Short-Term Memory for: [{source_id}]")
+    except Exception as e:
+        print(f"❌ Short-Term Memory Error: {e}")
+    finally:
+        db.close()
+
 # ---------------------------------------------------------
 # Security Setup
 # ---------------------------------------------------------
@@ -101,6 +125,7 @@ class GeminiSource(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     source_url = Column(String, index=True)
     processed = Column(Boolean, default=False)
+    short_memory = Column(Text, nullable=True)
 
 class GeneratedReport(Base):
     __tablename__ = "generated_reports"
@@ -119,6 +144,11 @@ class ArchitectBlueprint(Base):
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     blueprint_data = Column(Text)
     timestamp = Column(DateTime, default=datetime.utcnow)
+
+class SystemConfig(Base):
+    __tablename__ = "system_configs"
+    key = Column(String, primary_key=True, index=True)
+    value = Column(String)
 
 class ChatHistory(Base):
     __tablename__ = "chat_history"
@@ -176,6 +206,9 @@ class AnalysisSchema(BaseModel):
     cost_benefit: str = Field(description="Financial and operational tradeoff of building it.")
     blindspots: str = Field(description="Other areas the user should consider brainstorming about to make the product better or more complete.")
     viability_score: int = Field(description="Integer from 0-100 indicating sure-fire success vs flop.")
+    the_harsh_truth: str = Field(description="The single biggest 'Flop Risk' for this idea.")
+    the_pivot_path: str = Field(description="One structural change to the idea that would increase its health score by at least 20 points.")
+    verdict: str = Field(description="Either 'Green Light (Build)', 'Yellow Light (Refine)', or 'Red Light (Pivot/Abandon)'.")
     vibe_coding_pipeline: list[PipelineStep] = Field(description="Sequential timeline of implementation prompts.")
 
 class AnalyzeRequest(BaseModel):
@@ -183,6 +216,7 @@ class AnalyzeRequest(BaseModel):
     designer_name: str = ""
     app_name: str = ""
     app_purpose: str = ""
+    project_id: int
 
 class BulkDeleteRequest(BaseModel):
     source_ids: list[int]
@@ -195,6 +229,7 @@ class ChatMessage(BaseModel):
     content: str
 
 class OnboardingRequest(BaseModel):
+    project_id: int
     history: list[ChatMessage]
 
 class FollowupRequest(BaseModel):
@@ -230,6 +265,10 @@ class UserCreate(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class ReportChangeRequest(BaseModel):
+    hostname: str
+    html_payload: str
 
 # ---------------------------------------------------------
 # Security Helpers
@@ -484,7 +523,10 @@ def get_project_documents(project_id: int, db: Session = Depends(get_db)):
 def get_sources(response: Response, db: Session = Depends(get_db)):
     # Fallback for old requests
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    sources = db.query(GeminiSource).order_by(GeminiSource.timestamp.asc()).all()
+    active_project = db.query(Project).order_by(Project.timestamp.desc()).first()
+    if not active_project:
+        return []
+    sources = db.query(GeminiSource).filter(GeminiSource.project_id == active_project.id).order_by(GeminiSource.timestamp.asc()).all()
     return sources
 
 @app.delete("/api/sources/{source_id}")
@@ -533,8 +575,10 @@ async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks,
     
     # Send off to ChromaDB for vector math
     background_tasks.add_task(index_in_chroma, str(db_source.id), db_source.title, db_source.content)
+    # Background generation for short-term memory optimizations
+    background_tasks.add_task(generate_short_memory, str(db_source.id))
     
-    total = db.query(GeminiSource).count()
+    total = db.query(GeminiSource).filter(GeminiSource.project_id == active_project.id).count()
     
     # Notify connected real-time UI components
     await manager.broadcast("new_source")
@@ -613,9 +657,35 @@ async def followup_chat(req: FollowupRequest, db: Session = Depends(get_db)):
 async def onboarding_chat(req: OnboardingRequest, db: Session = Depends(get_db)):
     if not gemini_client:
         raise HTTPException(status_code=500, detail="Gemini SDK improperly configured. Check API key.")
-        
-    sources = db.query(GeminiSource).order_by(GeminiSource.timestamp.asc()).all()
-    context_text = "\n\n".join([f"Source: {s.title}\n{s.content}" for s in sources]) if sources else "No sources provided yet."
+    project = db.query(Project).filter(Project.id == req.project_id).first()
+    project_name = project.name if project else "SynapseIP Target App"
+
+    sources = db.query(GeminiSource).filter(GeminiSource.project_id == req.project_id).order_by(GeminiSource.timestamp.asc()).all()
+    
+    if len(req.history) == 0:
+        memories = []
+        for s in sources:
+            mem = s.short_memory if s.short_memory else "(Memory processing...)"
+            memories.append(f"Source Memory: {s.title}\n{mem}")
+        context_text = "\n\n".join(memories) if memories else "No sources provided yet."
+    else:
+        last_query = req.history[-1].content
+        relevant_ids = []
+        if collection is not None:
+            try:
+                results = collection.query(query_texts=[last_query], n_results=3)
+                relevant_ids = results.get("ids", [[]])[0]
+            except Exception as e:
+                print("Chroma warning on onboarding:", e)
+                
+        memories = []
+        for s in sources:
+            if str(s.id) in relevant_ids:
+                memories.append(f"RELEVANT FULL SOURCE: {s.title}\n{s.content}")
+            else:
+                mem = s.short_memory if s.short_memory else "(Memory processing...)"
+                memories.append(f"Source Outline: {s.title}\n{mem}")
+        context_text = "\n\n".join(memories) if memories else "No sources provided yet."
     
     history_str = "\n".join([f"{msg.role.upper()}: {msg.content}" for msg in req.history])
     if not req.history:
@@ -623,9 +693,12 @@ async def onboarding_chat(req: OnboardingRequest, db: Session = Depends(get_db))
     
     prompt = f"""
     You are the SynapseIP Onboarding Agent. Your mission is to chat with the user to extract 3 required parameters: Designer Name, App Name, and Core Purpose.
-    If the conversation just started, enthusiastically welcome them, quickly evaluate the summary of their brainstorm sources (below) in a sentence or two, and ask what they want to build and who is designing it.
+    CRITICAL OVERRIDE: The user has ALREADY officially designated the App Name as "{project_name}". 
+    You MUST NOT ask the user what the App Name is, and you MUST EXACTLY output "{project_name}" for the App Name parameter.
+    
+    If the conversation just started, enthusiastically welcome them, quickly evaluate the summary of their brainstorm sources (below) in a sentence or two, and ask who is designing it and what its core purpose is.
     If they've answered some but not all, ask probing questions for the remainder. 
-    Once all 3 fields are clearly established, set is_complete=True and output a concluding launch message.
+    Once Designer Name and Core Purpose are clearly established, set is_complete=True and output a concluding launch message.
     
     Database Brainstorm Context:
     {context_text}
@@ -649,7 +722,62 @@ async def onboarding_chat(req: OnboardingRequest, db: Session = Depends(get_db))
         await log_token_usage(db, "Onboarding Chat", "gemini-2.5-flash", res)
         return json.loads(res.text)
     except Exception as e:
-        print("Onboarding chat error:", e)
+        print("Logic router architecture unhandled:", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/config/selectors")
+def get_selectors_config(db: Session = Depends(get_db)):
+    configs = db.query(SystemConfig).filter(SystemConfig.key.startswith("selector_")).all()
+    if not configs:
+        defaults = {
+            "selector_chatgpt.com": "article",
+            "selector_claude.ai": ".font-claude-message",
+            "selector_gemini.google.com": "message-content, .message-content, [data-message-author=\"model\"], div[class*=\"model-response\"]",
+            "selector_www.perplexity.ai": ".prose",
+            "selector_chat.deepseek.com": ".ds-markdown",
+            "selector_kimi.moonshot.cn": ".markdown-body, .markdown",
+            "selector_www.doubao.com": ".markdown-body, .markdown, [data-testid='chat-message-text'], div[class*='message-content'], div[class*='conversation-msg']"
+        }
+        for k, v in defaults.items():
+            db.add(SystemConfig(key=k, value=v))
+        db.commit()
+        return {k.replace("selector_", ""): v for k, v in defaults.items()}
+        
+    return {c.key.replace("selector_", ""): c.value for c in configs}
+
+@app.post("/api/report-change")
+async def report_change(req: ReportChangeRequest, db: Session = Depends(get_db)):
+    if not gemini_client:
+        raise HTTPException(status_code=500, detail="Gemini backend unconfigured.")
+    
+    prompt = f"""
+    You are the SynapseIP Sentinel. The target website ({req.hostname}) changed its DOM scheme for the AI chat responses. 
+    I need you to identify the NEW CSS QuerySelector that encapsulates an individual AI text response. 
+    Here is the raw DOM HTML of the new website format:
+    
+    {req.html_payload}
+    
+    Examine the HTML. Output ONLY the raw CSS Selector string that selects the chat bubbles where the AI response lives, nothing else. Do not use markdown. Do not explain. Just the exact query selector string.
+    """
+    
+    try:
+        response = gemini_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        new_selector = response.text.strip().strip('`')
+        
+        target_key = f"selector_{req.hostname}"
+        config_entry = db.query(SystemConfig).filter(SystemConfig.key == target_key).first()
+        if not config_entry:
+            config_entry = SystemConfig(key=target_key, value=new_selector)
+            db.add(config_entry)
+        else:
+            config_entry.value = new_selector
+        db.commit()
+        
+        return {"status": "success", "new_selector": new_selector}
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/analyze")
@@ -657,14 +785,14 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     if not gemini_client:
         raise HTTPException(status_code=500, detail="Gemini SDK improperly configured. Check API key.")
         
-    sources = db.query(GeminiSource).order_by(GeminiSource.timestamp.asc()).all()
+    sources = db.query(GeminiSource).filter(GeminiSource.project_id == req.project_id).order_by(GeminiSource.timestamp.asc()).all()
     if not sources:
         raise HTTPException(status_code=400, detail="No sources found to analyze.")
         
     context_text = "\n\n".join([f"Source: {s.title}\n{s.content}" for s in sources])
     
     prompt = f"""
-    You are an elite Software Architect and Business Analyst.
+    You are SynapseIP, an objective Business Intelligence Architect. Your goal is to evaluate new business ideas using the 'Success vs. Flop' Rubric.
     Project Name: {req.app_name}
     Designer Name: {req.designer_name}
     Core Purpose: {req.app_purpose}
@@ -674,15 +802,24 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     The target vibe coding platform the user will use is [{req.target_platform}]. 
     Please tailor the 'vibe_coding_pipeline' prompts specifically for this platform so they can copy paste them directly into the tool.
     
+    For every idea submitted:
+    1. Calculate an Idea Health Score (viability_score) between 0-100 based strictly on these 4 pillars:
+       - Market Gravitational Pull (30 Points): Pain Intensity (15 pts: "hair on fire" vs "nice to have") + Market Growth (15 pts).
+       - The "Moat" Potential (25 Points): Uncopyability (15 pts) + Data/Workflow Lock-in (10 pts).
+       - Economic Scalability (25 Points): Unit Economics (15 pts) + Frequency/Retention (10 pts).
+       - Technical Feasibility (20 Points): Edge Reliability (10 pts) + Complexity (10 pts).
+    2. The Harsh Truth: Identify the single biggest 'Flop Risk' for this idea.
+    3. The Pivot Path: Suggest one structural change to the idea that would increase its health score by at least 20 points.
+    4. Verdict: Output as exactly 'Green Light (Build)', 'Yellow Light (Refine)', or 'Red Light (Pivot/Abandon)'.
+    
     Strict Formatting Rules:
     1. Use `#` ONLY for the Title of the entire document.
     2. Use `##` for Chapter Titles / Core Categories.
     3. Use `###` for all Sub-headers. 
     4. Use `---` (horizontal rules) to separate distinct logic blocks.
     5. All data points MUST be in a bulleted list (`*`) or a Markdown table.
-    6. DO NOT use bolding (`**`) for headers; use the appropriate `#` tag.
-    
-    CRITICAL for market_analysis: Format as an unordered bullet list and ALWAYS use `### Category/Competitor Name` at the start of each section instead of bolding it.
+    - CRITICAL for market_analysis: You MUST write a comprehensive, highly-detailed multi-paragraph assessment! Explore multiple competitors, deep service differences, and elaborate on the exact 'Blue Ocean' viability.
+    - Format `market_analysis` properly: Start each competitor section with a strict `### Target Competitor Name` header on its own line, followed by detailed bullet points underneath. Do NOT nest headers inside bullets!
     
     Brainstorm Context:
     {context_text}
@@ -704,7 +841,7 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     generated_json = response.text
     
     # Save generic generated report
-    new_report = GeneratedReport(report_data=generated_json, timestamp=datetime.utcnow())
+    new_report = GeneratedReport(project_id=req.project_id, report_data=generated_json, timestamp=datetime.utcnow())
     db.add(new_report)
     db.commit()
     
@@ -720,7 +857,7 @@ def get_latest_report(db: Session = Depends(get_db)):
         return json.loads(report.report_data)
     return None
 
-async def generate_architect_report(source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str):
+async def generate_architect_report(project_id: int, source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str):
     db = SessionLocal()
     try:
         await manager.broadcast(json.dumps({"type": "progress", "message": "Initializing Architect Framework...", "progress": 10}))
@@ -734,7 +871,11 @@ async def generate_architect_report(source_texts: str, platform: str, designer: 
     
         Analyze the raw notes below and output a strict structural outline. 
         The outline must be restricted to logical MVP feature building steps. CRITICAL: Do NOT ignore the UI. The first foundational steps MUST involve UI Exploration, evaluating standard layouts, and prompting the vibe coder to generate frontend scaffolding/mockups to ensure the MVP is immediately usable by humans.
-        Be concise.
+        
+        CRITICAL RULES FOR QUALITY OVER QUANTITY:
+        - Do NOT force a specific page count or arbitrary length. 
+        - Include only the absolute essential elements needed to realistically build this project. 
+        - Be highly precise. If this project only requires 3 core steps, output 3 steps. If it requires 15, output 15. Your goal is structural integrity, not fluff.
     
         Raw Notes:
         {source_texts}
@@ -828,12 +969,17 @@ async def generate_architect_report(source_texts: str, platform: str, designer: 
         file_path = "static/reports/SynapseIP_Master_Plan.md"
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(markdown_content)
+            
+        # Hook it into the actual database for persistence! 
+        new_bp = ArchitectBlueprint(project_id=project_id, report_data=markdown_content, timestamp=datetime.utcnow())
+        db.add(new_bp)
+        db.commit()
     
         await manager.broadcast(json.dumps({
             "type": "architect_complete",
-            "message": "Markdown MVP Document compiled and saved.",
+            "message": "Architect Framework fully mapped and saved to your project.",
             "progress": 100,
-            "download_url": f"/{file_path}"
+            "markdown_content": markdown_content
         }))
     
     finally:
@@ -858,7 +1004,7 @@ async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks
         raise HTTPException(status_code=400, detail="No sources available. Sync some datanodes first.")
         
     combined_text = "\n\n---\n\n".join([f"TITLE: {s.title}\n{s.content}" for s in sources])
-    background_tasks.add_task(generate_architect_report, combined_text, req.target_platform, req.designer_name, req.app_name, req.app_purpose)
+    background_tasks.add_task(generate_architect_report, req.project_id, combined_text, req.target_platform, req.designer_name, req.app_name, req.app_purpose)
     
     return {"status": "started", "message": "Architect pipeline initiated."}
 

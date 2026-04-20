@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SynapseIP | AI Brain Engine</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=3">
+    <link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
     <!-- Login Gateway -->
@@ -128,10 +128,14 @@
                     <div class="chat-interface" style="text-align: left; width: 100%;">
                         <div class="chat-history" id="chat-history"></div>
                         <div class="chat-input-area">
-                            <input type="text" id="chat-input" placeholder="Describe the idea you want to build..." autocomplete="off">
+                            <textarea id="chat-input" placeholder="Describe the idea you want to build..." autocomplete="off" rows="2"></textarea>
+                            <button id="chat-refresh-sources" class="icon-btn" title="Re-evaluate Extracted Context" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; padding: 12px; border-radius: 8px;">🔄</button>
                             <button id="chat-send" class="icon-btn" style="background: var(--accent-color); color: white; padding: 12px; border-radius: 8px;">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                             </button>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; text-align: center; margin-top: 8px;">
+                            Press <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Enter</kbd> to submit, <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Shift + Enter</kbd> for a new line.
                         </div>
                     </div>
                     
@@ -173,6 +177,22 @@
                         <h3>Executive Summary</h3>
                         <p id="rep-summary">Loading...</p>
                     </div>
+                    
+                    <div class="card" style="margin-bottom: 20px; text-align: center; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05);">
+                         <h3 style="color: #94a3b8; font-size: 0.8rem; text-transform: uppercase;">Final Verdict</h3>
+                         <p id="rep-verdict" style="font-weight: 800; font-size: 1.5rem; margin-top: 5px;">Loading...</p>
+                    </div>
+
+                    <div class="card-grid" id="card-grid-verdict" style="margin-bottom: 20px;">
+                        <div class="card" style="border-left: 3px solid #ef4444;">
+                            <h3 style="color: #fca5a5;">The Harsh Truth</h3>
+                            <p id="rep-harshtruth" class="text-sm">Loading...</p>
+                        </div>
+                        <div class="card" style="border-left: 3px solid #f59e0b;">
+                            <h3 style="color: #fcd34d;">The Pivot Path</h3>
+                            <p id="rep-pivotpath" class="text-sm">Loading...</p>
+                        </div>
+                    </div>
 
                     <div class="card-grid" id="card-grid-split">
                         <div class="card">
@@ -211,8 +231,11 @@
                         <div class="chat-interface" style="background: rgba(0,0,0,0.3); height: 300px;">
                             <div class="chat-history" id="followup-chat-history"></div>
                             <div class="chat-input-area">
-                                <input type="text" id="followup-chat-input" placeholder="What APIs do I need to register for?" autocomplete="off">
+                                <textarea id="followup-chat-input" placeholder="What APIs do I need to register for?" autocomplete="off" rows="2"></textarea>
                                 <button id="followup-chat-send" class="icon-btn" style="background: #3b82f6; color: white; padding: 10px; border-radius: 8px;">Send</button>
+                            </div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; text-align: center; margin-top: 8px;">
+                                Press <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Enter</kbd> to submit, <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Shift + Enter</kbd> for a new line.
                             </div>
                         </div>
                     </div>
@@ -221,7 +244,7 @@
                     <div class="command-bar" id="branching-bar" style="margin-top: 30px; padding-bottom: 50px; justify-content: center; gap: 20px;">
                         <button id="regenerate-intel-btn" class="cancel-btn" style="padding: 14px 24px;">Regenerate Intel</button>
                         <button id="build-blueprint-btn" class="generate-btn" style="padding: 14px 24px; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                            Build Architect Blueprint (.md)
+                            Build Architect Blueprint (PDF)
                         </button>
                     </div>
                 </div>
@@ -232,7 +255,7 @@
                 <div class="dashboard-header" style="justify-content: space-between;">
                     <h2>Architecture Blueprint</h2>
                     <div style="display:flex; gap:12px;">
-                        <a id="blueprint-download-link" href="#" class="generate-btn" style="text-decoration:none; padding:6px 12px; font-size:13px; height:auto; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">Download .md</a>
+                        <button id="blueprint-export-pdf" class="generate-btn" style="padding:6px 12px; font-size:13px; height:auto; background: linear-gradient(135deg, #10b981 0%, #059669 100%); cursor:pointer;">Export Blueprint PDF</button>
                     </div>
                 </div>
                 <div class="dashboard-scroll" style="height: calc(100vh - 120px);">
@@ -256,8 +279,33 @@
         </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- Firebase Configuration -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // Note: Production API Keys omitted for security
+        const firebaseConfig = {
+            apiKey: "AIzaSyC...",
+            authDomain: "synapseip-internal.firebaseapp.com",
+            projectId: "synapseip-internal"
+        };
+        firebase.initializeApp(firebaseConfig);
+    </script>
+
+    <div id="global-activity-tracker" style="display: none; position: fixed; bottom: 24px; left: 24px; background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); padding: 16px 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 9999; flex-direction: column; gap: 8px; width: 300px;">
+        <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; display: flex; justify-content: space-between;">
+            <span>Server Process</span>
+            <span id="global-tracker-pct" style="color: var(--accent-color);">0%</span>
+        </div>
+        <div id="global-tracker-msg" style="font-size: 0.85rem; color: #f8fafc; font-weight: 500;">Initializing...</div>
+        <div class="progress-bar-track" style="margin-top: 4px;"><div id="global-tracker-fill" class="progress-bar-fill" style="width: 0%;"></div></div>
+    </div>
+    
+    <!-- SynapseIP Core Application -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/static/script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="/static/script.js?v=6"></script>
 </body>
 </html>
