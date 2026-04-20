@@ -6,7 +6,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "sync_to_synapseip") {
     console.log("SynapseIP Messenger: Initiating sync request", request.data.title);
     
-    fetch("http://127.0.0.1:8000/ingest", {
+    fetch("http://localhost:8000/ingest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request.data)
@@ -36,7 +36,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     return true; // Keep the message channel open for async response
   } else if (request.action === "fetch_synced_sources") {
-    fetch("http://127.0.0.1:8000/api/sources", {
+    fetch("http://localhost:8000/api/sources", {
       method: "GET",
       cache: "no-store"
     })
@@ -48,7 +48,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true;
   } else if (request.action === "desync_from_synapseip") {
-    fetch("http://127.0.0.1:8000/api/sources/bulk-delete", {
+    fetch("http://localhost:8000/api/sources/bulk-delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ source_ids: [request.data.id] })
@@ -61,7 +61,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true;
   } else if (request.action === "report_structural_change") {
-    fetch("http://127.0.0.1:8000/api/report-change", {
+    fetch("http://localhost:8000/api/report-change", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ html_payload: request.html_payload, hostname: request.hostname })
@@ -87,7 +87,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Real-Time Desync Listener
 function connectWebSocket() {
-  const socket = new WebSocket('ws://127.0.0.1:8000/ws');
+  const socket = new WebSocket('ws://localhost:8000/ws');
   
   socket.onopen = function() {
       // Always resync when websocket connects/reconnects
@@ -132,7 +132,7 @@ connectWebSocket();
 
 // Sentinel Auto-Updater
 function fetchSystemConfig() {
-    fetch("http://127.0.0.1:8000/api/config/selectors", { cache: "no-store" })
+    fetch("http://localhost:8000/api/config/selectors", { cache: "no-store" })
     .then(res => res.json())
     .then(data => {
         if (Object.keys(data).length > 0) {

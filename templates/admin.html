@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SynapseIP Admin Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #0f1115;
+            --text-color: #f1f5f9;
+            --accent-color: #3b82f6;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        h1 {
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin: 0;
+            background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .kpi-container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .kpi-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            flex: 1;
+        }
+
+        .kpi-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+        }
+
+        .kpi-card .value {
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--glass-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            border-style: hidden;
+            box-shadow: 0 0 0 1px var(--glass-border);
+        }
+
+        th, td {
+            text-align: left;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        th {
+            background: rgba(0,0,0,0.2);
+            color: #94a3b8;
+            font-weight: 500;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        td {
+            font-size: 15px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .badge {
+            background: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+
+    <div>
+        <h1>SynapseIP <span style="font-weight:600; color:#3b82f6;">Admin</span></h1>
+    </div>
+
+    <div class="kpi-container">
+        <div class="kpi-card">
+            <h3>Total API Tokens</h3>
+            <div class="value" id="kpi-tokens">Loading...</div>
+        </div>
+        <div class="kpi-card">
+            <h3>Estimated Global Cost</h3>
+            <div class="value" id="kpi-cost">Loading...</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Project Name</th>
+                <th>Operation Type</th>
+                <th>Username</th>
+                <th>User ID</th>
+                <th>Tokens Used</th>
+                <th>Total Cost</th>
+            </tr>
+        </thead>
+        <tbody id="metrics-table-body">
+            <tr>
+                <td colspan="7" style="text-align:center; padding:40px; color:#64748b;">Crunching data...</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+        async function loadMetrics() {
+            try {
+                const token = localStorage.getItem('synapseip_token');
+                if (!token) {
+                    window.location.href = '/';
+                    return;
+                }
+                
+                const response = await fetch('/api/admin/metrics', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                
+                if (response.status === 401 || response.status === 403) {
+                    window.location.href = '/';
+                    return;
+                }
+                
+                if (!response.ok) throw new Error('Failed to load metrics');
+                
+                const data = await response.json();
+                
+                document.getElementById('kpi-tokens').innerText = data.kpis.total_tokens.toLocaleString();
+                document.getElementById('kpi-cost').innerText = '$' + data.kpis.total_cost.toFixed(4);
+                
+                const tbody = document.getElementById('metrics-table-body');
+                tbody.innerHTML = '';
+                
+                if(data.breakdown.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px; color:#64748b;">No analytics logged yet. Proceed to generate some tasks.</td></tr>';
+                    return;
+                }
+                
+                data.breakdown.forEach(row => {
+                    const tr = document.createElement('tr');
+                    
+                    const dateTd = document.createElement('td');
+                    dateTd.innerHTML = `<span style="color:#94a3b8; font-family:monospace;">${row.date}</span>`;
+                    
+                    const projectTd = document.createElement('td');
+                    projectTd.innerHTML = `<span style="font-weight:500;">${row.project}</span>`;
+                    
+                    const actionTd = document.createElement('td');
+                    actionTd.innerHTML = `<span class="badge">${row.action}</span>`;
+                    
+                    const usernameTd = document.createElement('td');
+                    usernameTd.innerText = row.username;
+                    
+                    const userTd = document.createElement('td');
+                    userTd.innerHTML = `<span style="color:#94a3b8;">#${row.user_id.toString().padStart(4, '0')}</span>`;
+                    
+                    const tokenTd = document.createElement('td');
+                    tokenTd.innerText = row.tokens.toLocaleString();
+                    
+                    const costTd = document.createElement('td');
+                    costTd.innerText = '$' + row.cost.toFixed(4);
+                    
+                    tr.appendChild(dateTd);
+                    tr.appendChild(projectTd);
+                    tr.appendChild(actionTd);
+                    tr.appendChild(usernameTd);
+                    tr.appendChild(userTd);
+                    tr.appendChild(tokenTd);
+                    tr.appendChild(costTd);
+                    
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error(e);
+                document.getElementById('metrics-table-body').innerHTML = '<tr><td colspan="7" style="color:#ef4444;text-align:center;">Failed to load metrics. Server might be restarting.</td></tr>';
+            }
+        }
+        
+        loadMetrics();
+    </script>
+</body>
+</html>

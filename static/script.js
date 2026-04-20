@@ -167,7 +167,7 @@ function renderProjectList(projects) {
             li.classList.toggle('expanded');
             if (li.classList.contains('expanded')) loadProjectDocuments(p.id);
             
-            selectProject(p.id, p.name);
+            selectProject(p.id, p.name, true);
         });
         
         list.appendChild(li);
@@ -186,47 +186,102 @@ async function loadProjectDocuments(projectId) {
         
         nested.innerHTML = '';
         
-        // Add Intelligence Models
-        const intLabel = document.createElement('div');
-        intLabel.style.cssText = "padding:10px 16px; font-size:0.75rem; color:#6b7280; border-bottom:1px solid rgba(255,255,255,0.05); text-transform:uppercase; font-weight:700;";
-        intLabel.innerText = "🧠 Intelligence Reports";
-        nested.appendChild(intLabel);
+        nested.innerHTML = '';
+        
+        const createHeaderStyle = () => "padding:12px 16px; font-size:0.85rem; color:#e2e8f0; border-bottom:1px solid rgba(255,255,255,0.05); font-weight:600; cursor:pointer; display:flex; gap:8px; align-items:center; transition:background 0.2s;";
+        
+        // -------------------------
+        // Intelligence Reports Folder
+        // -------------------------
+        const intelFolder = document.createElement('div');
+        intelFolder.className = 'nested-folder';
+        
+        const intelHeader = document.createElement('div');
+        intelHeader.style.cssText = createHeaderStyle();
+        intelHeader.innerHTML = `<span>📁</span> Intel Report(s)`;
+        
+        // Hover effect inline
+        intelHeader.onmouseover = () => intelHeader.style.background = 'rgba(255,255,255,0.05)';
+        intelHeader.onmouseout = () => intelHeader.style.background = 'transparent';
+        
+        intelFolder.appendChild(intelHeader);
+        
+        const intelContent = document.createElement('div');
+        intelContent.style.display = 'none'; // Hidden by default
+        intelContent.style.background = 'rgba(0,0,0,0.2)';
         
         if (data.intelligence.length === 0) {
-            nested.innerHTML += `<div class="nested-menu-item" style="opacity:0.5; cursor:default;">No records found</div>`;
+            intelContent.innerHTML = `<div class="nested-menu-item" style="opacity:0.5; cursor:default; padding-left: 24px;">No records found</div>`;
         } else {
             data.intelligence.forEach((report, idx) => {
                 const el = document.createElement('div');
                 el.className = "nested-menu-item";
-                el.innerText = `Report #${data.intelligence.length - idx} (${new Date(report.timestamp).toLocaleDateString()})`;
-                el.addEventListener('click', () => {
-                    selectProject(projectId, window.cachedProjects.find(p=>p.id===projectId)?.name || "Project");
+                el.style.paddingLeft = "24px";
+                const d = new Date(report.timestamp);
+                el.innerText = `IR - ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false})}`;
+                el.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (currentProjectId !== projectId) {
+                        await selectProject(projectId, window.cachedProjects.find(p=>p.id===projectId)?.name || "Project");
+                    }
                     renderDashboard(report.data);
                 });
-                nested.appendChild(el);
+                intelContent.appendChild(el);
             });
         }
+        intelFolder.appendChild(intelContent);
         
-        // Add Blueprints
-        const bpLabel = document.createElement('div');
-        bpLabel.style.cssText = "padding:10px 16px; font-size:0.75rem; color:#6b7280; border-bottom:1px solid rgba(255,255,255,0.05); border-top:1px solid rgba(255,255,255,0.05); text-transform:uppercase; font-weight:700;";
-        bpLabel.innerText = "🏗️ Architecture Blueprints";
-        nested.appendChild(bpLabel);
+        intelHeader.addEventListener('click', (e) => {
+            e.stopPropagation();
+            intelContent.style.display = intelContent.style.display === 'none' ? 'block' : 'none';
+        });
+        nested.appendChild(intelFolder);
+        
+        // -------------------------
+        // Architect Documents Folder
+        // -------------------------
+        const archFolder = document.createElement('div');
+        archFolder.className = 'nested-folder';
+        
+        const archHeader = document.createElement('div');
+        archHeader.style.cssText = createHeaderStyle();
+        archHeader.innerHTML = `<span>📁</span> Architect Document(s)`;
+        
+        archHeader.onmouseover = () => archHeader.style.background = 'rgba(255,255,255,0.05)';
+        archHeader.onmouseout = () => archHeader.style.background = 'transparent';
+        
+        archFolder.appendChild(archHeader);
+        
+        const archContent = document.createElement('div');
+        archContent.style.display = 'none'; // Hidden by default
+        archContent.style.background = 'rgba(0,0,0,0.2)';
         
         if (data.blueprints.length === 0) {
-            nested.innerHTML += `<div class="nested-menu-item" style="opacity:0.5; cursor:default;">No records found</div>`;
+            archContent.innerHTML = `<div class="nested-menu-item" style="opacity:0.5; cursor:default; padding-left: 24px;">No records found</div>`;
         } else {
             data.blueprints.forEach((bp, idx) => {
                 const el = document.createElement('div');
                 el.className = "nested-menu-item";
-                el.innerText = `Blueprint #${data.blueprints.length - idx} (${new Date(bp.timestamp).toLocaleDateString()})`;
-                el.addEventListener('click', () => {
-                    selectProject(projectId, window.cachedProjects.find(p=>p.id===projectId)?.name || "Project");
+                el.style.paddingLeft = "24px";
+                const d = new Date(bp.timestamp);
+                el.innerText = `AD - ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false})}`;
+                el.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (currentProjectId !== projectId) {
+                        await selectProject(projectId, window.cachedProjects.find(p=>p.id===projectId)?.name || "Project");
+                    }
                     showBlueprint(bp.data);
                 });
-                nested.appendChild(el);
+                archContent.appendChild(el);
             });
         }
+        archFolder.appendChild(archContent);
+        
+        archHeader.addEventListener('click', (e) => {
+            e.stopPropagation();
+            archContent.style.display = archContent.style.display === 'none' ? 'block' : 'none';
+        });
+        nested.appendChild(archFolder);
         
         nested.dataset.loaded = "true";
     } catch(e) { console.error("Error loading nested doc", e); }
@@ -250,7 +305,7 @@ async function createNewProject() {
     } catch(e) { alert("Failed to create project."); }
 }
 
-async function selectProject(projectId, projectName) {
+async function selectProject(projectId, projectName, silent = false) {
     currentProjectId = projectId;
     currentProjectName = projectName;
     document.getElementById('active-project-name').innerText = escapeHTML(projectName);
@@ -276,6 +331,14 @@ async function selectProject(projectId, projectName) {
         const res = await fetch(`/api/projects/${projectId}/documents`);
         if (res.ok) {
             const data = await res.json();
+            
+            if (silent) return; // Wait! If it's a silent select, skip the auto-redirection block entirely!
+            
+            // Automatically surface the most recent blueprint if it exists
+            if (data.blueprints && data.blueprints.length > 0) {
+                showBlueprint(data.blueprints[0].data);
+                return;
+            }
             // Automatically surface the most recent intelligence report if it exists
             if (data.intelligence && data.intelligence.length > 0) {
                 renderDashboard(data.intelligence[0].data);
@@ -606,19 +669,30 @@ function showBlueprint(markdownText) {
         newBtn.disabled = true;
         
         const element = document.getElementById('blueprint-content');
+        
+        // Create an unconstrained clone to prevent height/scroll cropping by html2canvas
+        const printContainer = document.createElement('div');
+        printContainer.className = 'markdown-content';
+        printContainer.style.cssText = "font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; padding: 20px; width: 800px; position: absolute; left: -9999px; top: 0; background: white; color: black;";
+        printContainer.innerHTML = element.innerHTML;
+        document.body.appendChild(printContainer);
+        
         const opt = {
             margin:       15,
             filename:     `Blueprint_${currentProjectName.replace(/\s+/g, '_')}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+            html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: 800 },
+            jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' },
+            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
         };
         
-        html2pdf().set(opt).from(element).save().then(() => {
+        html2pdf().set(opt).from(printContainer).save().then(() => {
+            document.body.removeChild(printContainer);
             newBtn.innerText = "Export Blueprint PDF";
             newBtn.disabled = false;
         }).catch(err => {
             console.error(err);
+            if(document.body.contains(printContainer)) document.body.removeChild(printContainer);
             newBtn.innerText = "Export Failed";
             newBtn.disabled = false;
         });

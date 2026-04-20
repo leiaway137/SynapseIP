@@ -8,3 +8,4 @@ gemini_sources.db
 
 .DS_Store
 chroma_data/
+synapse.db

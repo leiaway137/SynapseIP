@@ -52,7 +52,9 @@ function injectButtons() {
                 selectorString = data.extensionSelectors[activeHost];
             }
 
-            const messageContainers = document.querySelectorAll(selectorString);
+            let rawContainers = Array.from(document.querySelectorAll(selectorString));
+            // De-duplicate nested matches! If a site wraps its markdown in an <article> and both match, only target the innermost payload!
+            const messageContainers = rawContainers.filter(n => !rawContainers.some(other => other !== n && n.contains(other)));
         
         if (messageContainers.length === 0) {
             if (!window.sentinelTriggered) {
@@ -86,10 +88,8 @@ function injectButtons() {
             });
         }
 
-        // Derive exact chronological index by checking surrounding tree without double-counting nested wrappers
-        const allModelRuns = Array.from(document.querySelectorAll('.model-turn, message-content, [data-message-author="model"], div[class*="model-response"]'));
-        const uniqueNodes = allModelRuns.filter(n => !allModelRuns.some(other => other !== n && n.contains(other)));
-        const myIndex = uniqueNodes.findIndex(n => n.contains(container) || n === container);
+        // Derive exact chronological index natively from the pre-processed array
+        const myIndex = messageContainers.indexOf(container);
         const conversationalIndex = myIndex !== -1 ? myIndex + 1 : "?";
 
         // Create the button
@@ -98,7 +98,8 @@ function injectButtons() {
         
         if (syncedIndex !== -1) {
             btn.classList.add('synced');
-            btn.innerText = `Synced Note #${conversationalIndex} ✓ (Click to Desync)`;
+            const displayIdx = syncedSources[syncedIndex].id && syncedSources[syncedIndex].id > 0 ? syncedSources[syncedIndex].id : conversationalIndex;
+            btn.innerText = `Synced Note #${displayIdx} ✓ (Click to Desync)`;
             btn.disabled = false;
             
             btn.addEventListener('click', () => {
@@ -126,14 +127,24 @@ function injectButtons() {
             btn.innerText = 'Syncing...';
             btn.disabled = true;
 
-            // Extract the text of THIS specific response only
-            // We clone the container and remove the button itself from the text extraction
-            const clone = container.cloneNode(true);
+            // Extract the text!
+            let cloneTarget = container;
+            if (window.location.hostname.includes("notebooklm")) {
+                const bubble = container.closest('article, div[class*="message"], .chat-bubble') || container.parentElement.parentElement.parentElement;
+                if (bubble) cloneTarget = bubble;
+            }
+            const clone = cloneTarget.cloneNode(true);
+            
             const wrapperInClone = clone.querySelector('.synapseip-btn-wrapper');
             if (wrapperInClone) wrapperInClone.remove();
             else {
                 const oldBtn = clone.querySelector('.synapseip-sync-btn');
                 if (oldBtn) oldBtn.remove();
+            }
+            
+            if (window.location.hostname.includes("notebooklm")) {
+                // Scrub Google's native SVGs and action icons so they don't pollute your synced document text
+                Array.from(clone.querySelectorAll('button, mat-icon, [role="button"]')).forEach(b => b.remove());
             }
 
             const htmlContent = clone.innerHTML;
@@ -390,7 +401,42 @@ function injectButtons() {
             }, 3000);
         });
 
-        container.appendChild(wrapper);
+        let targetAppendNode = container;
+        
+        try {
+            if (window.location.hostname.includes("notebooklm")) {
+                // Look upwards to the overarching message block
+                const globalMessageLevel = container.closest('article, div[class*="message"], .chat-bubble') || container.parentElement.parentElement.parentElement;
+                if (globalMessageLevel) {
+                    const buttons = Array.from(globalMessageLevel.querySelectorAll('button, [role="button"]'));
+                    const anchorBtn = buttons.find(b => {
+                        const t = (b.innerText || "").toLowerCase();
+                        const a = (b.getAttribute('aria-label') || "").toLowerCase();
+                        const title = (b.getAttribute('title') || "").toLowerCase();
+                        const tooltip = (b.getAttribute('mattooltip') || "").toLowerCase();
+                        return t.includes('save to note') || t.includes('export') || a.includes('bad') || title.includes('bad') || tooltip.includes('bad');
+                    });
+                    
+                    const finalAnchor = anchorBtn || buttons[buttons.length - 1];
+                    
+                    if (finalAnchor && finalAnchor.parentElement) {
+                        targetAppendNode = finalAnchor.parentElement;
+                        // Restyle wrapper to sit inline with the action bar cleanly
+                        wrapper.style.marginTop = '0';
+                        wrapper.style.marginLeft = '16px';
+                        wrapper.style.transform = 'scale(0.9)';
+                    } else {
+                        // If no action bar exists in this message block, this is the user's prompt. Do not attach a sync button.
+                        return;
+                    }
+                }
+            }
+        } catch(e) { console.warn("SynapseIP: Failed to parse native action bar", e); }
+        
+        // Hard-enforcement: Only ever inject ONE button per visual action row natively!
+        if (!targetAppendNode.querySelector('.synapseip-btn-wrapper')) {
+            targetAppendNode.appendChild(wrapper);
+        }
         });
         });
     } catch (e) {

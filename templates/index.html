@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SynapseIP | AI Brain Engine</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=5">
+    <link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
     <!-- Login Gateway -->
@@ -270,12 +270,12 @@
 
     <!-- Modals -->
     <div id="source-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-card">
-            <h2 id="modal-title">Source Detail</h2>
-            <div id="modal-body-text" class="modal-body-scroll"></div>
-            <div style="text-align: right; margin-top: 20px;">
-                <button id="modal-close" class="cancel-btn">Close</button>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Source Detail</h2>
+                <button id="modal-close" class="modal-close" title="Close window">&times;</button>
             </div>
+            <div id="modal-body-text" class="modal-body"></div>
         </div>
     </div>
 
@@ -306,6 +306,6 @@
     <!-- SynapseIP Core Application -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="/static/script.js?v=6"></script>
+    <script src="/static/script.js?v=8"></script>
 </body>
 </html>

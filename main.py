@@ -106,6 +106,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     password_hash = Column(String)
+    is_admin = Column(Boolean, default=False)
 
 class Project(Base):
     __tablename__ = "projects"
@@ -166,6 +167,7 @@ class TokenLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     action = Column(String, index=True)
     model_name = Column(String)
     prompt_tokens = Column(Integer, default=0)
@@ -383,7 +385,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-async def log_token_usage(db: Session, action: str, model: str, res):
+async def log_token_usage(db: Session, action: str, model: str, res, project_id: int = None, user_id: int = 1):
     if hasattr(res, 'usage_metadata') and res.usage_metadata:
         in_toks = getattr(res.usage_metadata, 'prompt_token_count', 0) or 0
         out_toks = getattr(res.usage_metadata, 'candidates_token_count', 0) or 0
@@ -394,7 +396,15 @@ async def log_token_usage(db: Session, action: str, model: str, res):
         elif "pro" in model.lower():
             cost = (in_toks / 1000000.0) * 1.25 + (out_toks / 1000000.0) * 5.00
             
+        final_user_id = user_id
+        if project_id:
+            proj = db.query(Project).filter(Project.id == project_id).first()
+            if proj and proj.user_id:
+                final_user_id = proj.user_id
+            
         record = TokenLog(
+            user_id=final_user_id,
+            project_id=project_id,
             action=action,
             model_name=model,
             prompt_tokens=in_toks,
@@ -719,7 +729,7 @@ async def onboarding_chat(req: OnboardingRequest, db: Session = Depends(get_db))
                 'response_schema': OnboardingResponseSchema,
             }
         )
-        await log_token_usage(db, "Onboarding Chat", "gemini-2.5-flash", res)
+        await log_token_usage(db, "Onboarding Chat", "gemini-2.5-flash", res, project_id=req.project_id)
         return json.loads(res.text)
     except Exception as e:
         print("Logic router architecture unhandled:", e)
@@ -834,11 +844,10 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
                 'response_schema': AnalysisSchema,
             },
         )
-        await log_token_usage(db, "Analyze Blueprint", "gemini-2.5-flash", response)
+        await log_token_usage(db, "Analyze Blueprint", "gemini-2.5-flash", response, project_id=req.project_id)
+        generated_json = response.text
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-        
-    generated_json = response.text
     
     # Save generic generated report
     new_report = GeneratedReport(project_id=req.project_id, report_data=generated_json, timestamp=datetime.utcnow())
@@ -890,7 +899,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     'response_schema': OutlineSchema,
                 },
             )
-            await log_token_usage(db, "Architect Outlining", "gemini-2.5-flash", outline_res)
+            await log_token_usage(db, "Architect Generation", "gemini-2.5-flash", outline_res, project_id=project_id)
             outline_data = json.loads(outline_res.text)
             chapters = outline_data.get('chapters', [])
         except Exception as e:
@@ -956,7 +965,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     model='gemini-2.5-flash',
                     contents=chapter_prompt
                 )
-                await log_token_usage(db, f"Architect Step {i+1}", "gemini-2.5-flash", chap_res)
+                await log_token_usage(db, "Architect Generation", "gemini-2.5-flash", chap_res, project_id=project_id)
                 markdown_content += f"## {chapter_title}\n\n"
                 markdown_content += f"{chap_res.text}\n\n---\n\n"
             except Exception as e:
@@ -965,13 +974,23 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             # THROTTLE FOR 429
             await asyncio.sleep(4)
 
-        os.makedirs('static/reports', exist_ok=True)
-        file_path = "static/reports/SynapseIP_Master_Plan.md"
+        # Save locally in a structured project folder
+        safe_app_name = app_name.replace(' ', '_').replace('/', '')
+        reports_dir = os.path.join(os.getcwd(), 'Reports', safe_app_name)
+        os.makedirs(reports_dir, exist_ok=True)
+        
+        file_path = os.path.join(reports_dir, f"{safe_app_name}_Master_Blueprint_{current_date}.md")
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(markdown_content)
             
+        # Also keep a static copy for local testing
+        os.makedirs('static/reports', exist_ok=True)
+        static_file_path = "static/reports/SynapseIP_Master_Plan.md"
+        with open(static_file_path, "w", encoding="utf-8") as static_file:
+            static_file.write(markdown_content)
+            
         # Hook it into the actual database for persistence! 
-        new_bp = ArchitectBlueprint(project_id=project_id, report_data=markdown_content, timestamp=datetime.utcnow())
+        new_bp = ArchitectBlueprint(project_id=project_id, blueprint_data=markdown_content, timestamp=datetime.utcnow())
         db.add(new_bp)
         db.commit()
     
@@ -982,6 +1001,13 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             "markdown_content": markdown_content
         }))
     
+    except Exception as e:
+        print(f"Architect pipeline crashed: {e}")
+        try:
+            await manager.broadcast(json.dumps({"type": "error", "message": f"Architect Pipeline Error: {str(e)}"}))
+        except Exception:
+            pass
+
     finally:
         db.close()
 
@@ -996,6 +1022,48 @@ def get_token_stats(db: Session = Depends(get_db)):
         "tokens": total_prompt + total_comp,
         "cost": total_cost
     }
+
+@app.get("/api/admin/metrics")
+def admin_metrics(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    from sqlalchemy import func
+    
+    total_tokens = db.query(func.sum(TokenLog.prompt_tokens) + func.sum(TokenLog.completion_tokens)).scalar() or 0
+    total_cost = db.query(func.sum(TokenLog.cost)).scalar() or 0.0
+    
+    results = db.query(
+        func.date(TokenLog.timestamp).label("date"),
+        TokenLog.action,
+        Project.name.label("project_name"),
+        User.id.label("user_id"),
+        User.username.label("username"),
+        func.sum(TokenLog.prompt_tokens + TokenLog.completion_tokens).label("tokens"),
+        func.sum(TokenLog.cost).label("cost")
+    ).outerjoin(Project, TokenLog.project_id == Project.id)\
+     .outerjoin(User, TokenLog.user_id == User.id)\
+     .group_by(func.date(TokenLog.timestamp), TokenLog.action, Project.name, User.id, User.username).all()
+     
+    breakdown = []
+    for r in results:
+        breakdown.append({
+            "date": r.date or "N/A",
+            "action": r.action,
+            "project": r.project_name or "Global / Unassigned",
+            "user_id": r.user_id or 1,
+            "username": r.username or "Anonymous User",
+            "tokens": r.tokens or 0,
+            "cost": r.cost or 0.0
+        })
+        
+    return {
+        "kpis": {"total_tokens": total_tokens, "total_cost": round(total_cost, 4)},
+        "breakdown": breakdown
+    }
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    return templates.TemplateResponse("admin.html", {"request": request})
 
 @app.post("/api/architect/start")
 async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):

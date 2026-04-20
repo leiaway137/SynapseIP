@@ -794,7 +794,7 @@ body {
   box-shadow: 0 10px 40px rgba(0,0,0,0.5);
   display: none;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   animation: fade-in 0.15s ease-out;
 }
 .project-selector-wrapper:hover .dropdown-menu {
@@ -817,7 +817,7 @@ body {
 }
 .action-text-btn:hover { color: #60a5fa; }
 
-.fancy-list {list-style: none; padding: 0; margin: 0; max-height: 400px; overflow-y: auto;}
+.fancy-list {list-style: none; padding: 0; margin: 0; overflow: visible;}
 .fancy-list li {
   padding: 14px 16px;
   border-bottom: 1px solid rgba(255,255,255,0.03);
@@ -834,29 +834,26 @@ body {
   color: white;
 }
 
-/* Slide Out Nested Menu */
+/* Inline Accordion Nested Menu */
+.fancy-list li {
+  flex-wrap: wrap; /* Allows content to drop below */
+}
 .fancy-list li .nested-menu {
-  position: absolute;
-  top: 0;
-  left: 100%;
-  background: var(--bg-color);
-  border: 1px solid var(--glass-border);
-  border-radius: 0 12px 12px 0;
-  width: 250px;
-  display: flex;
+  width: 100%;
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05);
+  margin-top: 12px;
+  display: none;
   flex-direction: column;
-  box-shadow: 10px 0 30px rgba(0,0,0,0.4);
-  z-index: 60;
-  margin-left: 1px;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-10px);
-  transition: all 0.25s ease-out;
+  overflow: hidden;
 }
 .fancy-list li.expanded .nested-menu {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(0);
+  display: flex;
+}
+.nested-folder {
+  display: flex;
+  flex-direction: column;
 }
 .nested-menu-item {
   padding: 12px 16px;

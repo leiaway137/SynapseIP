@@ -15,7 +15,8 @@
     "https://chat.deepseek.com/*",
     "https://kimi.moonshot.cn/*",
     "https://www.doubao.com/*",
-    "http://127.0.0.1:8000/*"
+    "https://notebooklm.google.com/*",
+    "http://localhost:8000/*"
   ],
   "content_scripts": [
     {
@@ -26,7 +27,8 @@
         "https://www.perplexity.ai/*",
         "https://chat.deepseek.com/*",
         "https://kimi.moonshot.cn/*",
-        "https://www.doubao.com/*"
+        "https://www.doubao.com/*",
+        "https://notebooklm.google.com/*"
       ],
       "js": ["content.js"],
       "css": ["styles.css"]
