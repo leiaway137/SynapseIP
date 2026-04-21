@@ -224,6 +224,7 @@ class AnalyzeRequest(BaseModel):
     target_audience: str = ""
     app_type: str = "Commercial"
     budget_constraints: str = "Free Tier Only"
+    ai_integration: str = "None"
     standout_features: list[str] = []
     project_id: int
 
@@ -257,6 +258,7 @@ class OnboardingResponseSchema(BaseModel):
     target_audience: Optional[str] = Field(description="Extracted target audience and target region/location.", default=None)
     app_type: Optional[str] = Field(description="Must be exactly either 'Personal' or 'Commercial'.", default=None)
     budget_constraints: Optional[str] = Field(description="Extracted budget and hosting constraints (e.g. 'Free Tier Only', 'Paid Enterprise', 'Undecided').", default=None)
+    ai_integration: Optional[str] = Field(description="Extracted AI integration role, functionality, and thinking processes (or 'None' if standard deterministic app).", default=None)
     standout_features: list[str] = Field(description="List of specific features that make this app stand out.", default_factory=list)
 
 class PasswordChangeRequest(BaseModel):
@@ -730,14 +732,14 @@ async def onboarding_chat(req: OnboardingRequest, db: Session = Depends(get_db))
         history_str = "(Conversation just started. The user is waiting.)"
     
     prompt = f"""
-    You are the SynapseIP Onboarding Agent. Your mission is to chat with the user to extract 7 required parameters: Designer Name, App Name, Core Purpose, Target Audience (with location/region), App Type ('Personal' or 'Commercial'), Budget/Subscription Tier (e.g. Free Tier prototyping vs Paid Enterprise), and Standout Features.
+    You are the SynapseIP Onboarding Agent. Your mission is to chat with the user to extract 8 required parameters: Designer Name, App Name, Core Purpose, Target Audience (with location/region), App Type ('Personal' or 'Commercial'), Budget/Subscription Tier (e.g. Free Tier prototyping vs Paid Enterprise), AI Integration/Function, and Standout Features.
     CRITICAL OVERRIDE: The user has ALREADY officially designated the App Name as "{project_name}". 
     You MUST NOT ask the user what the App Name is, and you MUST EXACTLY output "{project_name}" for the App Name parameter.
     
     If the conversation just started, enthusiastically welcome them, quickly evaluate the summary of their brainstorm sources (below) in a sentence or two, and elegantly ask who is designing it, what its core purpose is, and who the target audience is (including their region, like USA vs China).
     If they've answered some but not all, ask probing but friendly questions for the remainder. 
-    Crucially, determine if the app is purely for "Personal" utility/efficiency or "Commercial" mass market, and ask what their budget constraints are for hosting/database infrastructure (do they strictly want free-tiers or are they willing to pay?). Finally, ask what core features make it stand out.
-    Once ALL 7 required parameters are clearly established, set is_complete=True and output a concluding launch message.
+    Crucially, determine if the app is purely for "Personal" utility/efficiency or "Commercial" mass market, and ask what their budget constraints are for hosting/database infrastructure (do they strictly want free-tiers or are they willing to pay?). Ask if the app will utilize AI natively. If so, probe specifically for what exact functions, roles, and thinking logic the AI will perform. If not, establish it is a purely deterministic app. Finally, ask what core features make it stand out.
+    Once ALL 8 required parameters are clearly established, set is_complete=True and output a concluding launch message.
     
     Database Brainstorm Context:
     {context_text}
@@ -956,7 +958,7 @@ async def generate_mockup_prompt(req: MockupPromptRequest, db: Session = Depends
         raise HTTPException(status_code=500, detail=str(e))
     return None
 
-async def generate_architect_report(project_id: int, source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str, budget_constraints: str):
+async def generate_architect_report(project_id: int, source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str, budget_constraints: str, ai_integration: str):
     db = SessionLocal()
     try:
         await manager.broadcast(json.dumps({"type": "progress", "message": "Initializing Architect Framework...", "progress": 10}))
@@ -968,6 +970,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         Designer: {designer}
         Target Vibe Coding Platform: {platform}
         Budget / Hosting Constraints: {budget_constraints}
+        AI Role & Functionality: {ai_integration}
     
         Analyze the raw notes below and output a strict structural outline. 
         The outline must be restricted to logical MVP feature building steps following 2026 Vibe Coding best practices (Intent -> Plan -> Generate -> Vibe-Check). Include chronological layer-building: Data schema first -> API next -> UI/Frontend components last.
@@ -979,6 +982,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         - Do NOT force a specific page count or arbitrary length. 
         - Include only the absolute essential elements needed to realistically build this project. 
         - Because you know the Budget/Hosting Constraints: During the infrastructure architecture phase, you MUST explicitly recommend whether they should use platforms like Render, Vercel, Supabase, Pinecone, or other alternatives based exactly on their Budget ({budget_constraints}) and Target Audience. Explain the tradeoff briefly.
+        - Because you know the AI Role & Functionality: You MUST explicitly recommend which specific AI foundation models (e.g., Claude 3.5 Sonnet, Gemini 2.5 Flash/Pro, GPT-4o, Llama 3) would be mathematically ideal for these isolated tasks. If multiple AI models are needed, explain which AI is most efficient at each specific task.
         - Be highly precise. If this project only requires 3 core steps, output 3 steps. If it requires 15, output 15. Your goal is structural integrity, not fluff.
     
         Raw Notes:
@@ -1167,7 +1171,7 @@ async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks
         raise HTTPException(status_code=400, detail="No sources available. Sync some datanodes first.")
         
     combined_text = "\n\n---\n\n".join([f"TITLE: {s.title}\n{s.content}" for s in sources])
-    background_tasks.add_task(generate_architect_report, req.project_id, combined_text, req.target_platform, req.designer_name, req.app_name, req.app_purpose, req.budget_constraints)
+    background_tasks.add_task(generate_architect_report, req.project_id, combined_text, req.target_platform, req.designer_name, req.app_name, req.app_purpose, req.budget_constraints, req.ai_integration)
     
     return {"status": "started", "message": "Architect pipeline initiated."}
 

@@ -459,6 +459,7 @@ async function sendOnboardingMessage(initial = false) {
             document.getElementById('config-audience').value = data.target_audience || "";
             document.getElementById('config-apptype').value = data.app_type || "Commercial";
             document.getElementById('config-budget').value = data.budget_constraints || "Free Tier Only";
+            document.getElementById('config-ai_integration').value = data.ai_integration || "None";
             document.getElementById('config-features').value = JSON.stringify(data.standout_features || []);
             if (chatInput) {
                 chatInput.disabled = true;
@@ -502,6 +503,7 @@ async function generateIntelligence() {
                 target_audience: document.getElementById('config-audience').value,
                 app_type: document.getElementById('config-apptype').value,
                 budget_constraints: document.getElementById('config-budget').value,
+                ai_integration: document.getElementById('config-ai_integration').value,
                 standout_features: JSON.parse(document.getElementById('config-features').value || "[]")
             })
         });
