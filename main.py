@@ -863,8 +863,11 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     CRITICAL VIBE-CODING PROMPT ENGINEERING RULES (2026 Standards):
     1. The "Vibe Core" Workflow: Your prompts must dictate OUTCOMES (Intent), ask the agent to PLAN before coding, and include explicit VIBE-CHECKS ("verify this handles edge cases").
     2. Layered Construction: Do not ask for a full app in one prompt. Chain your prompts chronologically: Data Layer (Schema) -> API Layer (Endpoints) -> UI Layer (Components).
-    3. Agentic Memory: Explicitly instruct the agent to create a `.cursorrules` or `AGENTS.md` file in the very first prompt to lock in the tech stack (e.g. Tailwind, React).
+    3. Agentic Memory & Cursor Rules: Explicitly instruct the agent to create a `.cursorrules` or `AGENTS.md` file in the very first prompt to lock in the tech stack (e.g. Tailwind, React) and set strict safeguards: "No Silent Deletions, always run tsc".
     4. Test-Driven Vibe Development (TDVD): Prompts should periodically instruct the agent to write tests FIRST, and then write the code to make those tests pass.
+    5. Atomic Scoping: Prompts MUST be vertical slices ("Single Responsibility"). Never combine massive features. Build one small functional path at a time to limit the blast radius.
+    6. Impact Analysis (Pre-Flight Checks): Before letting an agent write complex code, instruct it to FIRST analyze dependencies explicitly: "Which files will be modified? What are the potential breaking changes to feature X?"
+    7. Safeguards & Micro-Commits: Force the agent to perform a `git commit -m "vibe: [task]"` after EVERY successful sequential step to act as an instantaneous undo checkpoint.
     
     For every idea submitted:
     {rubric_text}
@@ -932,7 +935,9 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         The outline must be restricted to logical MVP feature building steps following 2026 Vibe Coding best practices (Intent -> Plan -> Generate -> Vibe-Check). Include chronological layer-building: Data schema first -> API next -> UI/Frontend components last.
         
         CRITICAL RULES FOR QUALITY OVER QUANTITY:
-        - Do NOT ignore Agentic Memory. The very first step MUST be establishing `.cursorrules` or `AGENTS.md` context files.
+        - Do NOT ignore Agentic Memory. The very first step MUST be establishing `.cursorrules` or `AGENTS.md` context files with strict guardrails ("No silent deletions").
+        - Build Atomically. Your steps must represent vertical, single-responsibility slices to aggressively limit the AI's blast radius during generation.
+        - Dictate explicitly where the user should execute a "Pre-Flight Impact Analysis" before risking regression on core components.
         - Do NOT force a specific page count or arbitrary length. 
         - Include only the absolute essential elements needed to realistically build this project. 
         - Because you know the Budget/Hosting Constraints: During the infrastructure architecture phase, you MUST explicitly recommend whether they should use platforms like Render, Vercel, Supabase, Pinecone, or other alternatives based exactly on their Budget ({budget_constraints}) and Target Audience. Explain the tradeoff briefly.
