@@ -858,7 +858,13 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     Your priority is to ensure the resulting MVP is not just technically sound, but features a beautiful, highly usable, and modern User Interface for human users. Start the pipeline with UI exploration and scaffolding.
     Analyze the following brainstorm notes and output a rigorous structured analysis based on the exact JSON schema requested.
     The target vibe coding platform the user will use is [{req.target_platform}]. 
-    Please tailor the 'vibe_coding_pipeline' prompts specifically for this platform so they can copy paste them directly into the tool.
+    Please tailor the 'vibe_coding_pipeline' prompts specifically for this platform so they can copy paste them directly into their agentic IDE.
+    
+    CRITICAL VIBE-CODING PROMPT ENGINEERING RULES (2026 Standards):
+    1. The "Vibe Core" Workflow: Your prompts must dictate OUTCOMES (Intent), ask the agent to PLAN before coding, and include explicit VIBE-CHECKS ("verify this handles edge cases").
+    2. Layered Construction: Do not ask for a full app in one prompt. Chain your prompts chronologically: Data Layer (Schema) -> API Layer (Endpoints) -> UI Layer (Components).
+    3. Agentic Memory: Explicitly instruct the agent to create a `.cursorrules` or `AGENTS.md` file in the very first prompt to lock in the tech stack (e.g. Tailwind, React).
+    4. Test-Driven Vibe Development (TDVD): Prompts should periodically instruct the agent to write tests FIRST, and then write the code to make those tests pass.
     
     For every idea submitted:
     {rubric_text}
@@ -923,9 +929,10 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         Budget / Hosting Constraints: {budget_constraints}
     
         Analyze the raw notes below and output a strict structural outline. 
-        The outline must be restricted to logical MVP feature building steps. CRITICAL: Do NOT ignore the UI. The first foundational steps MUST involve UI Exploration, evaluating standard layouts, and prompting the vibe coder to generate frontend scaffolding/mockups to ensure the MVP is immediately usable by humans.
+        The outline must be restricted to logical MVP feature building steps following 2026 Vibe Coding best practices (Intent -> Plan -> Generate -> Vibe-Check). Include chronological layer-building: Data schema first -> API next -> UI/Frontend components last.
         
         CRITICAL RULES FOR QUALITY OVER QUANTITY:
+        - Do NOT ignore Agentic Memory. The very first step MUST be establishing `.cursorrules` or `AGENTS.md` context files.
         - Do NOT force a specific page count or arbitrary length. 
         - Include only the absolute essential elements needed to realistically build this project. 
         - Because you know the Budget/Hosting Constraints: During the infrastructure architecture phase, you MUST explicitly recommend whether they should use platforms like Render, Vercel, Supabase, Pinecone, or other alternatives based exactly on their Budget ({budget_constraints}) and Target Audience. Explain the tradeoff briefly.
