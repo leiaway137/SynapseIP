@@ -185,7 +185,8 @@ function injectButtons() {
             };
 
             // Send message to background script
-            chrome.runtime.sendMessage({ action: "sync_to_synapseip", data: payload }, (response) => {
+            try {
+                chrome.runtime.sendMessage({ action: "sync_to_synapseip", data: payload }, (response) => {
                 // Check for connection severing or other manifest errors
                 if (chrome.runtime.lastError) {
                     console.error("SynapseIP Messenger Error:", chrome.runtime.lastError.message);
@@ -223,6 +224,17 @@ function injectButtons() {
                     }, 3000);
                 }
             });
+            } catch (err) {
+                console.error("SynapseIP Context Error:", err);
+                btn.classList.add('error');
+                btn.innerText = 'Please Refresh Tab ✗';
+                setTimeout(() => {
+                    btn.classList.remove('error');
+                    btn.classList.remove('synapseip-syncing');
+                    btn.innerText = 'Sync to SynapseIP';
+                    btn.disabled = false;
+                }, 4000);
+            }
         });
         } // Close the 'else' block
 
