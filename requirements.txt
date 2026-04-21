@@ -7,3 +7,8 @@ websockets>=11.0.3
 google-genai>=0.2.2
 python-dotenv>=1.0.0
 python-docx
+pinecone
+psycopg2-binary
+bcrypt
+python-jose
+python-multipart

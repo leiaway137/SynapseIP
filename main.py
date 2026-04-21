@@ -27,38 +27,35 @@ except Exception:
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 
 # ---------------------------------------------------------
-# Chroma Vector DB Setup
+# Pinecone Cloud Vector DB Setup
 # ---------------------------------------------------------
 try:
-    import chromadb
-    import chromadb.utils.embedding_functions as embedding_functions
-
-    chroma_client = chromadb.PersistentClient(path="./chroma_data")
-    google_ef = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
-        api_key=os.getenv("GEMINI_API_KEY"),
-        task_type="RETRIEVAL_DOCUMENT"
-    )
-    collection = chroma_client.get_or_create_collection(
-        name="synapseip_notes",
-        embedding_function=google_ef
-    )
-    print("🧠 ChromaDB Initialized & Ready")
+    from pinecone import Pinecone
+    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+    # The host URL comes straight from the .env to bypass index lookups
+    pinecone_index = pc.Index(host=os.getenv("PINECONE_HOST"))
+    print("🧠 Pinecone Cloud DB Initialized & Ready")
 except Exception as e:
-    print(f"⚠️ Warning: ChromaDB initialization failed: {e}")
-    collection = None
+    print(f"⚠️ Warning: Pinecone initialization failed: {e}")
+    pinecone_index = None
 
-def index_in_chroma(document_id: str, title: str, text: str):
-    """Synchronous background task to hit Gemini Embedding API and store directly into Chroma."""
-    if collection is None: return
+def index_in_pinecone(document_id: str, title: str, text: str):
+    """Synchronous background task to hit Gemini Embedding API and store directly into Pinecone."""
+    if pinecone_index is None or gemini_client is None: return
     try:
-        collection.add(
-            ids=[document_id],
-            documents=[text],
-            metadatas=[{"title": title}]
+        response = gemini_client.models.embed_content(
+            model='text-embedding-004',
+            contents=text,
         )
-        print(f"✅ ChromaDB Indexed: [{document_id}]")
+        vector = response.embeddings[0].values
+        
+        pinecone_index.upsert(
+            vectors=[(document_id, vector, {"title": title, "content": text})],
+            namespace="synapseip_notes"
+        )
+        print(f"✅ Pinecone Indexed: [{document_id}]")
     except Exception as e:
-        print(f"❌ ChromaDB Indexing Error: {e}")
+        print(f"❌ Pinecone Indexing Error: {e}")
 
 def generate_short_memory(source_id: str):
     """Synchronous background task to compress raw source text into short-term memory."""
@@ -94,10 +91,16 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 # ---------------------------------------------------------
 # Database Setup Setup
 # ---------------------------------------------------------
-SQLALCHEMY_DATABASE_URL = "sqlite:///./gemini_sources.db"
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+DATA_DIR = os.environ.get("DATA_DIR", ".")
+SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if not SQLALCHEMY_DATABASE_URL:
+    SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.join(DATA_DIR, 'gemini_sources.db')}"
+
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -218,6 +221,9 @@ class AnalyzeRequest(BaseModel):
     designer_name: str = ""
     app_name: str = ""
     app_purpose: str = ""
+    target_audience: str = ""
+    app_type: str = "Commercial"
+    standout_features: list[str] = []
     project_id: int
 
 class BulkDeleteRequest(BaseModel):
@@ -240,10 +246,13 @@ class FollowupRequest(BaseModel):
 
 class OnboardingResponseSchema(BaseModel):
     message: str = Field(description="Your conversational reply or evaluation.")
-    is_complete: bool = Field(description="True if Designer Name, App Name, and Core Purpose are confidently identified. False otherwise.")
+    is_complete: bool = Field(description="True if Designer Name, App Name, Core Purpose, Target Audience, App Type, and Standout Features are confidently identified. False otherwise.")
     designer_name: Optional[str] = Field(description="Extracted designer name.", default=None)
     app_name: Optional[str] = Field(description="Extracted app name.", default=None)
     core_purpose: Optional[str] = Field(description="Extracted core purpose.", default=None)
+    target_audience: Optional[str] = Field(description="Extracted target audience and target region/location.", default=None)
+    app_type: Optional[str] = Field(description="Must be exactly either 'Personal' or 'Commercial'.", default=None)
+    standout_features: list[str] = Field(description="List of specific features that make this app stand out.", default_factory=list)
 
 class PasswordChangeRequest(BaseModel):
     new_password: str
@@ -584,7 +593,7 @@ async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks,
     db.refresh(db_source)
     
     # Send off to ChromaDB for vector math
-    background_tasks.add_task(index_in_chroma, str(db_source.id), db_source.title, db_source.content)
+    background_tasks.add_task(index_in_pinecone, str(db_source.id), db_source.title, db_source.content)
     # Background generation for short-term memory optimizations
     background_tasks.add_task(generate_short_memory, str(db_source.id))
     
@@ -606,15 +615,23 @@ async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks,
 @app.get("/api/search")
 async def semantic_search(q: str):
     """Hits the vector database, dynamically maps query text to math via Gemini, and finds connections."""
-    if collection is None:
-        raise HTTPException(status_code=500, detail="Chroma DB is natively disabled.")
+    if pinecone_index is None or gemini_client is None:
+        raise HTTPException(status_code=500, detail="Pinecone DB is natively disabled.")
     
     try:
-        results = collection.query(
-            query_texts=[q],
-            n_results=5  # Top 5 most semantically relevant memories
+        res = gemini_client.models.embed_content(
+            model='text-embedding-004',
+            contents=q,
         )
-        return {"status": "success", "results": results}
+        vector = res.embeddings[0].values
+        
+        results = pinecone_index.query(
+            vector=vector,
+            top_k=5,
+            namespace="synapseip_notes",
+            include_metadata=True
+        )
+        return {"status": "success", "results": results.to_dict()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -681,12 +698,17 @@ async def onboarding_chat(req: OnboardingRequest, db: Session = Depends(get_db))
     else:
         last_query = req.history[-1].content
         relevant_ids = []
-        if collection is not None:
+        if pinecone_index is not None and gemini_client is not None:
             try:
-                results = collection.query(query_texts=[last_query], n_results=3)
-                relevant_ids = results.get("ids", [[]])[0]
+                res = gemini_client.models.embed_content(
+                    model='text-embedding-004',
+                    contents=last_query,
+                )
+                vector = res.embeddings[0].values
+                pinecone_query = pinecone_index.query(vector=vector, top_k=3, namespace="synapseip_notes")
+                relevant_ids = [str(match['id']) for match in pinecone_query.get('matches', [])]
             except Exception as e:
-                print("Chroma warning on onboarding:", e)
+                print("Pinecone warning on onboarding:", e)
                 
         memories = []
         for s in sources:
@@ -702,13 +724,14 @@ async def onboarding_chat(req: OnboardingRequest, db: Session = Depends(get_db))
         history_str = "(Conversation just started. The user is waiting.)"
     
     prompt = f"""
-    You are the SynapseIP Onboarding Agent. Your mission is to chat with the user to extract 3 required parameters: Designer Name, App Name, and Core Purpose.
+    You are the SynapseIP Onboarding Agent. Your mission is to chat with the user to extract 6 required parameters: Designer Name, App Name, Core Purpose, Target Audience (with location/region), App Type ('Personal' or 'Commercial'), and Standout Features.
     CRITICAL OVERRIDE: The user has ALREADY officially designated the App Name as "{project_name}". 
     You MUST NOT ask the user what the App Name is, and you MUST EXACTLY output "{project_name}" for the App Name parameter.
     
-    If the conversation just started, enthusiastically welcome them, quickly evaluate the summary of their brainstorm sources (below) in a sentence or two, and ask who is designing it and what its core purpose is.
-    If they've answered some but not all, ask probing questions for the remainder. 
-    Once Designer Name and Core Purpose are clearly established, set is_complete=True and output a concluding launch message.
+    If the conversation just started, enthusiastically welcome them, quickly evaluate the summary of their brainstorm sources (below) in a sentence or two, and elegantly ask who is designing it, what its core purpose is, and who the target audience is (including their region, like USA vs China).
+    If they've answered some but not all, ask probing but friendly questions for the remainder. 
+    Crucially, determine if the app is purely for "Personal" utility/efficiency or "Commercial" mass market. Ask them directly if unclear. Finally, ask what core features make it stand out.
+    Once ALL required parameters are clearly established, set is_complete=True and output a concluding launch message.
     
     Database Brainstorm Context:
     {context_text}
@@ -801,11 +824,33 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
         
     context_text = "\n\n".join([f"Source: {s.title}\n{s.content}" for s in sources])
     
+    if req.app_type and req.app_type.lower() == "personal":
+        rubric_text = """
+    1. Calculate a Utility Health Score (viability_score) between 0-100 based strictly on these 4 pillars for Personal Apps:
+       - Workflow Friction (30 Points): Initial Pain Intensity (15 pts: "extremely annoying manual task" vs "mild inconvenience") + Task Frequency (15 pts).
+       - Automation Potential (25 Points): Data Consistency (15 pts) + API Accessibility (10 pts).
+       - Personal ROI (25 Points): Time Saved (15 pts) + Cognitive Load Reduction (10 pts).
+       - Technical Feasibility (20 Points): Edge Reliability (10 pts) + Complexity (10 pts).
+    - CRITICAL for market_analysis: Since this is for PERSONAL USE, do NOT focus on Blue Ocean revenue loops. Instead, analyze existing off-the-shelf tooling (like Excel, Notion, zapier) and explicitly argue why a custom-coded vibe-app is far superior to those generic tools for the user's specific workflow.
+        """
+    else:
+        rubric_text = """
+    1. Calculate an Idea Health Score (viability_score) between 0-100 based strictly on these 4 pillars for Commercial Apps:
+       - Market Gravitational Pull (30 Points): Pain Intensity (15 pts: "hair on fire" vs "nice to have") + Market Growth (15 pts).
+       - The "Moat" Potential (25 Points): Uncopyability (15 pts) + Data/Workflow Lock-in (10 pts).
+       - Economic Scalability (25 Points): Unit Economics (15 pts) + Frequency/Retention (10 pts).
+       - Technical Feasibility (20 Points): Edge Reliability (10 pts) + Complexity (10 pts).
+    - CRITICAL for market_analysis: You MUST write a comprehensive, highly-detailed multi-paragraph assessment! Explore multiple competitors, deep service differences, and elaborate on the exact 'Blue Ocean' viability.
+        """
+
     prompt = f"""
-    You are SynapseIP, an objective Business Intelligence Architect. Your goal is to evaluate new business ideas using the 'Success vs. Flop' Rubric.
+    You are SynapseIP, an objective Business Intelligence Architect. Your goal is to evaluate new app concepts.
     Project Name: {req.app_name}
     Designer Name: {req.designer_name}
     Core Purpose: {req.app_purpose}
+    Target Audience/Region: {req.target_audience}
+    App Type: {req.app_type}
+    Standout Features: {", ".join(req.standout_features)}
     
     Your priority is to ensure the resulting MVP is not just technically sound, but features a beautiful, highly usable, and modern User Interface for human users. Start the pipeline with UI exploration and scaffolding.
     Analyze the following brainstorm notes and output a rigorous structured analysis based on the exact JSON schema requested.
@@ -813,12 +858,8 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     Please tailor the 'vibe_coding_pipeline' prompts specifically for this platform so they can copy paste them directly into the tool.
     
     For every idea submitted:
-    1. Calculate an Idea Health Score (viability_score) between 0-100 based strictly on these 4 pillars:
-       - Market Gravitational Pull (30 Points): Pain Intensity (15 pts: "hair on fire" vs "nice to have") + Market Growth (15 pts).
-       - The "Moat" Potential (25 Points): Uncopyability (15 pts) + Data/Workflow Lock-in (10 pts).
-       - Economic Scalability (25 Points): Unit Economics (15 pts) + Frequency/Retention (10 pts).
-       - Technical Feasibility (20 Points): Edge Reliability (10 pts) + Complexity (10 pts).
-    2. The Harsh Truth: Identify the single biggest 'Flop Risk' for this idea.
+    {rubric_text}
+    2. The Harsh Truth: Identify the single biggest 'Flop Risk' or 'Utility Failure Risk' for this build.
     3. The Pivot Path: Suggest one structural change to the idea that would increase its health score by at least 20 points.
     4. Verdict: Output as exactly 'Green Light (Build)', 'Yellow Light (Refine)', or 'Red Light (Pivot/Abandon)'.
     
@@ -828,8 +869,7 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     3. Use `###` for all Sub-headers. 
     4. Use `---` (horizontal rules) to separate distinct logic blocks.
     5. All data points MUST be in a bulleted list (`*`) or a Markdown table.
-    - CRITICAL for market_analysis: You MUST write a comprehensive, highly-detailed multi-paragraph assessment! Explore multiple competitors, deep service differences, and elaborate on the exact 'Blue Ocean' viability.
-    - Format `market_analysis` properly: Start each competitor section with a strict `### Target Competitor Name` header on its own line, followed by detailed bullet points underneath. Do NOT nest headers inside bullets!
+    - Format `market_analysis` properly: Start each competitor/alternative section with a strict `### Target Competitor Name` header on its own line, followed by detailed bullet points underneath. Do NOT nest headers inside bullets!
     
     Brainstorm Context:
     {context_text}

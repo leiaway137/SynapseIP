@@ -323,6 +323,8 @@ async function selectProject(projectId, projectName, silent = false) {
     document.getElementById('chat-input').disabled = false;
     document.getElementById('chat-input').placeholder = "Describe the idea you want to build...";
     document.getElementById('chat-input').style.opacity = "1";
+    document.getElementById('onboarding-pre-start').style.display = 'block';
+    document.getElementById('onboarding-active').style.display = 'none';
     
     // Fetch project's specific sources
     fetchSources();
@@ -347,8 +349,13 @@ async function selectProject(projectId, projectName, silent = false) {
         }
     } catch(e) { console.error("Error auto-loading project documents.", e); }
     
-    // If no intelligence reports exist, launch the Onboarding funnel
+    // If no intelligence reports exist, launch the Onboarding funnel shell
     document.getElementById('onboarding-screen').style.display = 'flex';
+}
+
+function startManualOnboarding() {
+    document.getElementById('onboarding-pre-start').style.display = 'none';
+    document.getElementById('onboarding-active').style.display = 'block';
     sendOnboardingMessage(true);
 }
 
@@ -449,6 +456,9 @@ async function sendOnboardingMessage(initial = false) {
             document.getElementById('config-designer').value = data.designer_name || currentUser.username;
             document.getElementById('config-appname').value = currentProjectName;
             document.getElementById('config-purpose').value = data.core_purpose || "";
+            document.getElementById('config-audience').value = data.target_audience || "";
+            document.getElementById('config-apptype').value = data.app_type || "Commercial";
+            document.getElementById('config-features').value = JSON.stringify(data.standout_features || []);
             if (chatInput) {
                 chatInput.disabled = true;
                 chatInput.placeholder = "Configuration Complete.";
@@ -487,7 +497,10 @@ async function generateIntelligence() {
                 project_id: currentProjectId,
                 app_name: document.getElementById('config-appname').value,
                 designer_name: document.getElementById('config-designer').value,
-                app_purpose: document.getElementById('config-purpose').value
+                app_purpose: document.getElementById('config-purpose').value,
+                target_audience: document.getElementById('config-audience').value,
+                app_type: document.getElementById('config-apptype').value,
+                standout_features: JSON.parse(document.getElementById('config-features').value || "[]")
             })
         });
         
@@ -638,6 +651,9 @@ async function startArchitectPipeline() {
                 designer_name: currentUser ? currentUser.username : "Unknown",
                 app_name: currentProjectName,
                 app_purpose: "Automated via Follow-Up",
+                target_audience: "N/A",
+                app_type: "Commercial",
+                standout_features: [],
                 project_id: currentProjectId
             })
         });

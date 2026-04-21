@@ -125,17 +125,29 @@
                         </div>
                     </div>
                     
-                    <div class="chat-interface" style="text-align: left; width: 100%;">
-                        <div class="chat-history" id="chat-history"></div>
-                        <div class="chat-input-area">
-                            <textarea id="chat-input" placeholder="Describe the idea you want to build..." autocomplete="off" rows="2"></textarea>
-                            <button id="chat-refresh-sources" class="icon-btn" title="Re-evaluate Extracted Context" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; padding: 12px; border-radius: 8px;">🔄</button>
-                            <button id="chat-send" class="icon-btn" style="background: var(--accent-color); color: white; padding: 12px; border-radius: 8px;">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                            </button>
-                        </div>
-                        <div style="font-size: 0.75rem; color: #94a3b8; text-align: center; margin-top: 8px;">
-                            Press <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Enter</kbd> to submit, <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Shift + Enter</kbd> for a new line.
+                    <div id="onboarding-pre-start" style="text-align: center; margin-top: 50px; width: 100%; background: var(--glass-bg); padding: 40px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                        <h3 style="margin-top: 0; color: #f1f5f9; font-weight: 500; font-size: 1.4rem;">Ready to process?</h3>
+                        <p style="color: #94a3b8; font-size: 1rem; max-width: 600px; margin: 0 auto 30px; line-height: 1.6;">
+                            After your brainstorming and you are ready for the sources to be processed, please press the button below to start the onboarding process.
+                        </p>
+                        <button id="start-onboarding-btn" class="glass-btn primary" style="font-size: 1.1rem; padding: 14px 32px;" onclick="startManualOnboarding()">
+                            Start Onboarding Process
+                        </button>
+                    </div>
+
+                    <div id="onboarding-active" style="display: none; width: 100%;">
+                        <div class="chat-interface" style="text-align: left; width: 100%;">
+                            <div class="chat-history" id="chat-history"></div>
+                            <div class="chat-input-area">
+                                <textarea id="chat-input" placeholder="Describe the idea you want to build..." autocomplete="off" rows="2"></textarea>
+                                <button id="chat-refresh-sources" class="icon-btn" title="Re-evaluate Extracted Context" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; padding: 12px; border-radius: 8px;">🔄</button>
+                                <button id="chat-send" class="icon-btn" style="background: var(--accent-color); color: white; padding: 12px; border-radius: 8px;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                </button>
+                            </div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; text-align: center; margin-top: 8px;">
+                                Press <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Enter</kbd> to submit, <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Shift + Enter</kbd> for a new line.
+                            </div>
                         </div>
                     </div>
                     
@@ -148,6 +160,9 @@
                         <input type="hidden" id="config-designer">
                         <input type="hidden" id="config-appname">
                         <input type="hidden" id="config-purpose">
+                        <input type="hidden" id="config-audience">
+                        <input type="hidden" id="config-apptype">
+                        <input type="hidden" id="config-features">
                         <input type="hidden" id="vibe-tool" value="Antigravity">
                     </div>
                     
