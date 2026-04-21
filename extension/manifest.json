@@ -16,7 +16,7 @@
     "https://kimi.moonshot.cn/*",
     "https://www.doubao.com/*",
     "https://notebooklm.google.com/*",
-    "http://localhost:8000/*"
+    "https://synapseip-1ncu.onrender.com/*"
   ],
   "content_scripts": [
     {

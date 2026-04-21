@@ -70,6 +70,9 @@ function injectButtons() {
         messageContainers.forEach((container) => {
             // Prevent adding multiple buttons to the same container
             if (container.querySelector('.synapseip-sync-btn')) return;
+            
+            // Explicitly ignore bubbles authored by the User natively to prevent dual injection on right-aligned text
+            if (container.closest('[data-message-author="user"], user-query, [class*="user-message"]')) return;
 
         // Clean check for existing sync state
         const textClone = container.cloneNode(true);

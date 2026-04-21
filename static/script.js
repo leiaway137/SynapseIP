@@ -217,7 +217,7 @@ async function loadProjectDocuments(projectId) {
                 const el = document.createElement('div');
                 el.className = "nested-menu-item";
                 el.style.paddingLeft = "24px";
-                const d = new Date(report.timestamp);
+                const d = new Date(report.timestamp + (!report.timestamp.endsWith('Z') ? 'Z' : ''));
                 el.innerText = `IR - ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false})}`;
                 el.addEventListener('click', async (e) => {
                     e.stopPropagation();
@@ -263,7 +263,7 @@ async function loadProjectDocuments(projectId) {
                 const el = document.createElement('div');
                 el.className = "nested-menu-item";
                 el.style.paddingLeft = "24px";
-                const d = new Date(bp.timestamp);
+                const d = new Date(bp.timestamp + (!bp.timestamp.endsWith('Z') ? 'Z' : ''));
                 el.innerText = `AD - ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false})}`;
                 el.addEventListener('click', async (e) => {
                     e.stopPropagation();
@@ -743,7 +743,7 @@ async function fetchSources() {
             const card = document.createElement('div');
             card.className = 'source-card';
             
-            const date = new Date(source.timestamp).toLocaleDateString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+            const date = new Date(source.timestamp + (!source.timestamp.endsWith('Z') ? 'Z' : '')).toLocaleDateString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
             let sourceHost = "Extension";
             if(source.source_url) { try { sourceHost = new URL(source.source_url).hostname; } catch(e){} }
 
