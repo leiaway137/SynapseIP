@@ -498,7 +498,7 @@ async def get_me(db: Session = Depends(get_db), current_user: User = Depends(get
 @app.get("/", response_class=HTMLResponse)
 def read_root(request: Request):
     """Serve the NotebookLM-style frontend interaction page."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -1104,7 +1104,7 @@ def admin_metrics(db: Session = Depends(get_db), current_user: User = Depends(ge
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
-    return templates.TemplateResponse("admin.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="admin.html")
 
 @app.post("/api/architect/start")
 async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
