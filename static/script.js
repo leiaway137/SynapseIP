@@ -890,3 +890,56 @@ function bindDeleteMechanics() {
         } catch(e){} finally{ cfm.innerText="Delete"; }
     });
 }
+
+// --- UI Mockup Generator ---
+document.getElementById('btn-generate-mockup').addEventListener('click', async () => {
+    if (!currentProjectId) {
+        alert("Please select a project first.");
+        return;
+    }
+    const btn = document.getElementById('btn-generate-mockup');
+    const span = btn.querySelector('span');
+    const originalText = span.innerText;
+    span.innerText = "Generating Prompt...";
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/mockup/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_id: currentProjectId })
+        });
+        
+        if (!response.ok) throw new Error("Generation failed.");
+        const data = await response.json();
+        
+        document.getElementById('mockup-prompt-text').value = data.prompt;
+        document.getElementById('mockup-modal').style.display = 'flex';
+        
+    } catch (e) {
+        alert(e.message);
+    } finally {
+        span.innerText = originalText;
+        btn.disabled = false;
+    }
+});
+
+document.getElementById('close-mockup-modal').addEventListener('click', () => {
+    document.getElementById('mockup-modal').style.display = 'none';
+});
+
+document.getElementById('btn-copy-mockup').addEventListener('click', async () => {
+    const text = document.getElementById('mockup-prompt-text').value;
+    try {
+        await navigator.clipboard.writeText(text);
+        const copyBtn = document.getElementById('btn-copy-mockup');
+        copyBtn.innerText = "Copied!";
+        copyBtn.style.background = "#34d399";
+        setTimeout(() => {
+            copyBtn.innerText = "Copy to Clipboard";
+            copyBtn.style.background = "";
+        }, 2000);
+    } catch (err) {
+        alert("Failed to copy clipboard");
+    }
+});

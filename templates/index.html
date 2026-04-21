@@ -182,6 +182,9 @@
                         <div class="viability-badge" id="score-badge" style="display:none;">--/100</div>
                     </div>
                     <div>
+                        <button id="btn-generate-mockup" class="generate-btn" style="padding: 6px 12px; font-size: 13px; height: auto; background: #8b5cf6; margin-right: 8px;">
+                            <span>🎨 Generate UI Mockup Prompt</span>
+                        </button>
                         <button id="btn-export-pdf" class="generate-btn" style="padding: 6px 12px; font-size: 13px; height: auto;">
                             <span>Export PDF</span>
                         </button>
@@ -319,6 +322,21 @@
         <div class="progress-bar-track" style="margin-top: 4px;"><div id="global-tracker-fill" class="progress-bar-fill" style="width: 0%;"></div></div>
     </div>
     
+    <!-- UI Mockup Modal -->
+    <div id="mockup-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; padding: 30px; width: 600px; max-width: 90vw;">
+            <h3 style="margin-top: 0; color: #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                <span>UI Mockup Generator</span>
+                <button id="close-mockup-modal" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.2rem;">&times;</button>
+            </h3>
+            <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px;">Copy and paste this synthesized prompt directly into DALL-E, Midjourney, or Gemini Advanced to generate high-fidelity UI mockups for this project.</p>
+            <textarea id="mockup-prompt-text" readonly style="width: 100%; height: 200px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; color: #cbd5e1; font-family: monospace; font-size: 0.85rem; resize: none; margin-bottom: 16px;"></textarea>
+            <button id="btn-copy-mockup" class="glass-btn primary" style="width: 100%; padding: 12px; font-weight: 600;">
+                Copy to Clipboard
+            </button>
+        </div>
+    </div>
+
     <!-- SynapseIP Core Application -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>

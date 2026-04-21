@@ -227,6 +227,9 @@ class AnalyzeRequest(BaseModel):
     standout_features: list[str] = []
     project_id: int
 
+class MockupPromptRequest(BaseModel):
+    project_id: int
+
 class BulkDeleteRequest(BaseModel):
     source_ids: list[int]
 
@@ -916,6 +919,41 @@ def get_latest_report(db: Session = Depends(get_db)):
     report = db.query(GeneratedReport).order_by(GeneratedReport.timestamp.desc()).first()
     if report:
         return json.loads(report.report_data)
+    return None
+
+@app.post("/api/mockup/generate")
+async def generate_mockup_prompt(req: MockupPromptRequest, db: Session = Depends(get_db)):
+    if not gemini_client:
+        raise HTTPException(status_code=500, detail="Gemini SDK improperly configured.")
+    
+    report = db.query(GeneratedReport).filter(GeneratedReport.project_id == req.project_id).order_by(GeneratedReport.timestamp.desc()).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="No intelligence report found for this project.")
+        
+    report_data = json.loads(report.report_data)
+    summary = report_data.get('summary', 'No summary available.')
+    standout_features = report_data.get('standout_features', [])
+    
+    prompt = f"""
+    Act as a Master AI Image Prompt Engineer. You are bridging a backend MVP blueprint into a visual mockup.
+    I need you to write a single, highly-detailed prompt meant to be pasted directly into DALL-E 3, Midjourney, or Gemini Advanced.
+    
+    The prompt should command the image AI to generate a '3-shot Dribbble-style UI presentation frame'. It must feature modern UI glassmorphism elements, vibrant deep gradients, and high fidelity.
+    
+    App Summary context:
+    {summary}
+    
+    Output ONLY the raw image-generation prompt text. Do not include any conversational filler, markdown formatting, or quotes around the prompt itself. It must be instantly ready to copy-paste.
+    """
+    
+    try:
+        response = gemini_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        return {"prompt": response.text.strip()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     return None
 
 async def generate_architect_report(project_id: int, source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str, budget_constraints: str):
