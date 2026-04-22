@@ -35,7 +35,7 @@ function getMessageContainers() {
             });
         
         rawContainers = actionButtons.map(btn => {
-            return btn.closest('article, div[class*="message"], [role="listitem"]') || btn.parentElement.parentElement.parentElement.parentElement || btn.parentElement.parentElement.parentElement;
+            return btn.closest('article, div[class*="message"]:not([class*="messages"]):not([class*="wrapper"]):not([class*="container"]):not([class*="list"]), [role="listitem"]') || btn.parentElement.parentElement.parentElement.parentElement || btn.parentElement.parentElement.parentElement;
         }).filter(Boolean);
     }
     
@@ -126,7 +126,7 @@ document.addEventListener('click', (e) => {
     if (t.includes('copy') || a.includes('copy') || title.includes('copy') || tooltip.includes('copy')) {
         // Intercepted a Copy action!
         const messageContainers = getMessageContainers();
-        let container = btn.closest('article, div[class*="message"], [role="listitem"]');
+        let container = btn.closest('article, div[class*="message"]:not([class*="messages"]):not([class*="wrapper"]):not([class*="container"]):not([class*="list"]), [role="listitem"]');
         
         if (!container) {
             // Find which message container this button belongs to
@@ -164,12 +164,23 @@ document.addEventListener('click', (e) => {
         
         let userPromptText = "";
         try {
-            const allUserNodes = Array.from(document.querySelectorAll('user-query, [data-message-author="user"], div[data-message-author="user"], [class*="user-message"]'));
-            const previousUserNodes = allUserNodes.filter(n => n.compareDocumentPosition(container) & Node.DOCUMENT_POSITION_FOLLOWING);
-            if (previousUserNodes.length > 0) {
-                const match = previousUserNodes[previousUserNodes.length - 1];
+            const userSelectors = 'user-query, [data-message-author="user"], div[data-message-author="user"], [class*="user-message"], [class*="UserMessage"], .query-text, [class*="query"], [class*="user-bubble"]';
+            let match = container.querySelector(userSelectors);
+            
+            if (match) {
                 let text = match.innerText || match.textContent;
                 userPromptText = text.replace(/^(You said|You)\s*\n?/i, '').trim();
+                // Remove from clone to avoid duplication in AI Response
+                const promptInClone = clone.querySelector(userSelectors);
+                if (promptInClone) promptInClone.remove();
+            } else {
+                const allUserNodes = Array.from(document.querySelectorAll(userSelectors));
+                const previousUserNodes = allUserNodes.filter(n => n.compareDocumentPosition(container) & Node.DOCUMENT_POSITION_FOLLOWING);
+                if (previousUserNodes.length > 0) {
+                    match = previousUserNodes[previousUserNodes.length - 1];
+                    let text = match.innerText || match.textContent;
+                    userPromptText = text.replace(/^(You said|You)\s*\n?/i, '').trim();
+                }
             }
         } catch (e) { console.error(e); }
         
@@ -192,18 +203,22 @@ document.addEventListener('click', (e) => {
             source_url: sourceUrl
         };
 
-        chrome.runtime.sendMessage({ action: "sync_to_synapseip", data: payload }, (response) => {
-            if (chrome.runtime.lastError) return;
-            if (response && response.status === "success") {
-                if (!syncedSources.some(s => s.content.includes(htmlContent.substring(0, 50)))) {
-                    syncedSources.push({
-                        id: (response.backendResponse && response.backendResponse.id) ? response.backendResponse.id : -1,
-                        content: `<div>${combinedContent}</div>`
-                    });
+        try {
+            chrome.runtime.sendMessage({ action: "sync_to_synapseip", data: payload }, (response) => {
+                if (chrome.runtime.lastError) return;
+                if (response && response.status === "success") {
+                    if (!syncedSources.some(s => s.content.includes(htmlContent.substring(0, 50)))) {
+                        syncedSources.push({
+                            id: (response.backendResponse && response.backendResponse.id) ? response.backendResponse.id : -1,
+                            content: `<div>${combinedContent}</div>`
+                        });
+                    }
+                    decorateSyncedNodes();
                 }
-                decorateSyncedNodes();
-            }
-        });
+            });
+        } catch (e) {
+            console.error("SynapseIP Extension Error: Please refresh this page. The extension was reloaded.", e);
+        }
     }
 }, true); // Use capture phase to ensure we catch it before React stops propagation!
 
