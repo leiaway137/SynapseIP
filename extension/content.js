@@ -54,14 +54,9 @@ function decorateSyncedNodes() {
     if (!chrome.runtime || !chrome.runtime.id) return;
 
     const messageContainers = getMessageContainers();
-    
-    // Clear old decorations
-    document.querySelectorAll('.synapseip-persistent-badge').forEach(b => b.remove());
-    document.querySelectorAll('.synapseip-synced-container').forEach(c => c.classList.remove('synapseip-synced-container'));
-
     let claimedIndices = new Set();
+    
     messageContainers.forEach((container, index) => {
-        if (container.classList.contains('synapseip-synced-container')) return;
         if (container.closest('[data-message-author="user"], user-query, [class*="user-message"]')) return;
 
         const textClone = container.cloneNode(true);
@@ -75,7 +70,6 @@ function decorateSyncedNodes() {
                 if (geminiId !== 'unknown' && s.content.includes(`data-synth-id="${geminiId}"`)) return true;
                 
                 const tempDiv = document.createElement('div');
-                // Force spacing between block elements so textContent doesn't crush words together
                 tempDiv.innerHTML = s.content.replace(/<\/(p|div|h[1-6]|li|ul|ol|br|strong|b)>/gi, ' </$1> ');
                 const plainText = (tempDiv.innerText || tempDiv.textContent || "").replace(/\s+/g, ' ');
                 return snippet.length > 25 && plainText.includes(snippet);
@@ -84,17 +78,23 @@ function decorateSyncedNodes() {
         }
 
         if (syncedIndex !== -1) {
-            // It IS synced!
+            const displayIdx = syncedSources[syncedIndex].id && syncedSources[syncedIndex].id > 0 ? syncedSources[syncedIndex].id : (index + 1);
+            const expectedText = `✓ SynapseIP Synced #${displayIdx}`;
+            
+            const existingBadge = container.querySelector('.synapseip-persistent-badge');
+            if (existingBadge && existingBadge.innerText.includes(`Synced #${displayIdx}`)) {
+                container.classList.add('synapseip-synced-container');
+                return; // Already correct
+            }
+            if (existingBadge) existingBadge.remove(); // Remove outdated badge
+
             container.classList.add('synapseip-synced-container');
             const badge = document.createElement('div');
             badge.className = 'synapseip-persistent-badge';
             
-            const displayIdx = syncedSources[syncedIndex].id && syncedSources[syncedIndex].id > 0 ? syncedSources[syncedIndex].id : (index + 1);
-            
-            badge.innerHTML = `<span style="font-size: 11px; font-weight: 600;">✓ SynapseIP Synced #${displayIdx}</span>`;
+            badge.innerHTML = `<span style="font-size: 11px; font-weight: 600;">${expectedText}</span>`;
             badge.style.cssText = "display: inline-flex; align-items: center; justify-content: center; background: rgba(16, 185, 129, 0.15); color: #059669; padding: 4px 8px; border-radius: 12px; margin-top: 8px; margin-bottom: 8px; font-family: system-ui, sans-serif; border: 1px solid rgba(16, 185, 129, 0.3); pointer-events: none;";
             
-            // Try to put it near the action bar, or at the bottom of the container
             let appendTarget = container;
             const actionBars = Array.from(container.querySelectorAll('button, [role="button"]'));
             if (actionBars.length > 0) {
