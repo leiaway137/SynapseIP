@@ -830,6 +830,31 @@ window.retrySourceProcessing = async function(id, event) {
     }
 }
 
+window.reprocessMissedCards = async function() {
+    if (!currentProjectId) return;
+    try {
+        const btn = document.getElementById('reprocess-missed-btn');
+        const oldText = btn.innerText;
+        btn.innerText = "⏳";
+        btn.disabled = true;
+        
+        const res = await fetch(`/api/projects/${currentProjectId}/retry-missed`, {
+            method: 'POST'
+        });
+        
+        if (res.ok) {
+            btn.innerText = "✅";
+            setTimeout(() => { btn.innerText = oldText; btn.disabled = false; }, 2000);
+            loadSources();
+        } else {
+            btn.innerText = "❌";
+            setTimeout(() => { btn.innerText = oldText; btn.disabled = false; }, 2000);
+        }
+    } catch(e) {
+        console.error("Bulk retry failed:", e);
+    }
+}
+
 function initWebSocket() {
     ws = new WebSocket(`ws://${window.location.host}/ws`);
     ws.onmessage = function(event) {
