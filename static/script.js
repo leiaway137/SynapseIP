@@ -1003,7 +1003,6 @@ function bindDeleteMechanics() {
             });
             if(res.ok){ exitDel(); fetchSources(); }
         } catch(e){} finally{ cfm.innerText="Delete"; }
-}
     });
 }
 
