@@ -81,6 +81,24 @@ def generate_short_memory(source_id: str):
     finally:
         db.close()
 
+@app.post("/api/sources/{source_id}/reprocess")
+def reprocess_source(source_id: int, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        source = db.query(GeminiSource).filter(GeminiSource.id == source_id).first()
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        # Ensure only project owners or admins can reprocess
+        project = db.query(Project).filter(Project.id == source.project_id).first()
+        if project.owner_id != current_user.id and not current_user.is_admin:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        source.processed = False
+        db.commit()
+        return {"status": "success", "message": "Source queued for reprocessing"}
+    finally:
+        db.close()
+
 # ---------------------------------------------------------
 # Security Setup
 # ---------------------------------------------------------
@@ -100,7 +118,14 @@ if not SQLALCHEMY_DATABASE_URL:
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 else:
-    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+    # Memory-optimized Postgres configuration for 512MB instances
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        pool_size=2,         # Keep maximum 2 connections alive
+        max_overflow=3,      # Allow up to 3 extra connections during spikes
+        pool_timeout=30,     # Time out quickly if DB is busy
+        pool_recycle=1800    # Recycle connections every 30 minutes to prevent stale memory bloat
+    )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -117,6 +142,7 @@ class Project(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     name = Column(String, index=True)
     suggested_themes = Column(Text, nullable=True)
+    notes_since_last_check = Column(Integer, default=0)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 class GeminiSource(Base):
@@ -235,6 +261,8 @@ class AnalyzeRequest(BaseModel):
     app_type: str = "Commercial"
     budget_constraints: str = "Free Tier Only"
     ai_integration: str = "None"
+    security_auth: str = ""
+    build_environment: str = "Greenfield (New)"
     standout_features: list[str] = []
     project_id: int
 
@@ -261,7 +289,7 @@ class FollowupRequest(BaseModel):
 
 class OnboardingResponseSchema(BaseModel):
     message: str = Field(description="Your conversational reply or evaluation.")
-    is_complete: bool = Field(description="True if Designer Name, App Name, Core Purpose, Target Audience, App Type, Budget/Hosting Constraints, and Standout Features are confidently identified. False otherwise.")
+    is_complete: bool = Field(description="True if Designer Name, App Name, Core Purpose, Target Audience, App Type, Budget/Hosting Constraints, Security Strategy, and Standout Features are confidently identified. False otherwise.")
     designer_name: Optional[str] = Field(description="Extracted designer name.", default=None)
     app_name: Optional[str] = Field(description="Extracted app name.", default=None)
     core_purpose: Optional[str] = Field(description="Extracted core purpose.", default=None)
@@ -269,6 +297,8 @@ class OnboardingResponseSchema(BaseModel):
     app_type: Optional[str] = Field(description="Must be exactly either 'Personal' or 'Commercial'.", default=None)
     budget_constraints: Optional[str] = Field(description="Extracted budget and hosting constraints (e.g. 'Free Tier Only', 'Paid Enterprise', 'Undecided').", default=None)
     ai_integration: Optional[str] = Field(description="Extracted AI integration role, functionality, and thinking processes (or 'None' if standard deterministic app).", default=None)
+    security_auth: Optional[str] = Field(description="Extracted Security and Authentication strategy (e.g. 'Clerk OAuth', 'JWT Custom', 'None required').", default=None)
+    build_environment: Optional[str] = Field(description="Must be exactly either 'Greenfield (New)' or 'Brownfield (Existing)'.", default=None)
     standout_features: list[str] = Field(description="List of specific features that make this app stand out.", default_factory=list)
 
 class PasswordChangeRequest(BaseModel):
@@ -322,27 +352,52 @@ async def background_processor():
     while True:
         try:
             db = SessionLocal()
-            unprocessed = db.query(GeminiSource).filter(GeminiSource.processed == False).order_by(GeminiSource.timestamp.asc()).first()
-            if not unprocessed:
+            project_id_to_check = None
+            try:
+                unprocessed = db.query(GeminiSource).filter(GeminiSource.processed == False).order_by(GeminiSource.timestamp.asc()).first()
+                if not unprocessed:
+                    # Check for consistency check
+                    project_to_check = db.query(Project).filter(Project.notes_since_last_check >= 5).first()
+                    if project_to_check:
+                        project_id_to_check = project_to_check.id
+                else:
+                    # Detach payload from DB transaction to prevent SQLite full-table lock
+                    target_id = unprocessed.id
+                    raw_title = unprocessed.title
+                    raw_content = unprocessed.content
+                    target_project_id = unprocessed.project_id
+            finally:
                 db.close()
+
+            if not unprocessed:
+                if project_id_to_check:
+                    try:
+                        await perform_consistency_check(project_id_to_check)
+                    except Exception as e:
+                        print("Automated Consistency Check failed:", e)
+                    
+                    # Reset counter
+                    db_reset = SessionLocal()
+                    try:
+                        p = db_reset.query(Project).filter(Project.id == project_id_to_check).first()
+                        if p:
+                            p.notes_since_last_check = 0
+                            db_reset.commit()
+                    finally:
+                        db_reset.close()
                 await asyncio.sleep(2)
                 continue
-            
-            # Detach payload from DB transaction to prevent SQLite full-table lock
-            target_id = unprocessed.id
-            raw_title = unprocessed.title
-            raw_content = unprocessed.content
-            target_project_id = unprocessed.project_id
-            db.close()
 
             smart_title = raw_title
             if gemini_client:
                 try:
                     # 1. Fetch existing themes
                     db_themes = SessionLocal()
-                    existing_themes = db_themes.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id).all()
-                    theme_names = [t.theme_name for t in existing_themes]
-                    db_themes.close()
+                    try:
+                        existing_themes = db_themes.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id).all()
+                        theme_names = [t.theme_name for t in existing_themes]
+                    finally:
+                        db_themes.close()
                     
                     # 2. Categorize or Create New Theme
                     categorize_prompt = f"""
@@ -376,70 +431,74 @@ async def background_processor():
                         
                     # 3. Merge or Create Theme
                     db_merge = SessionLocal()
-                    theme_record = db_merge.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id, ProjectTheme.theme_name == chosen_theme).first()
-                    
-                    if theme_record:
-                        # Intelligent Merge
-                        merge_prompt = f"""
-                        You are a highly analytical AI Synthesizer. Your job is to update an existing architecture document theme with new information.
-                        Do NOT lose any important technical details, requirements, or insights from either text.
-                        Seamlessly weave the new note's insights into the existing theme document. Do not just append it to the end; synthesize it logically.
+                    try:
+                        theme_record = db_merge.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id, ProjectTheme.theme_name == chosen_theme).first()
                         
-                        EXISTING THEME DOCUMENT:
-                        {theme_record.content}
-                        
-                        NEW NOTE TO INTEGRATE:
-                        {raw_content}
-                        
-                        Output ONLY the newly synthesized and merged Markdown document.
-                        """
-                        merge_res = await gemini_client.aio.models.generate_content(
-                            model='gemini-2.5-flash',
-                            contents=merge_prompt
-                        )
-                        theme_record.content = merge_res.text.strip()
-                    else:
-                        # New Theme
-                        theme_record = ProjectTheme(
-                            project_id=target_project_id,
-                            theme_name=chosen_theme,
-                            content=f"## {chosen_theme}\n\n{raw_content}"
-                        )
-                        db_merge.add(theme_record)
-                        
-                    db_merge.commit()
-                    db_merge.close()
+                        if theme_record:
+                            # Intelligent Merge
+                            merge_prompt = f"""
+                            You are a highly analytical AI Synthesizer. Your job is to update an existing architecture document theme with new information.
+                            Do NOT lose any important technical details, requirements, or insights from either text.
+                            Seamlessly weave the new note's insights into the existing theme document. Do not just append it to the end; synthesize it logically.
+                            
+                            EXISTING THEME DOCUMENT:
+                            {theme_record.content}
+                            
+                            NEW NOTE TO INTEGRATE:
+                            {raw_content}
+                            
+                            Output ONLY the newly synthesized and merged Markdown document.
+                            """
+                            merge_res = await gemini_client.aio.models.generate_content(
+                                model='gemini-2.5-flash',
+                                contents=merge_prompt
+                            )
+                            theme_record.content = merge_res.text.strip()
+                        else:
+                            # New Theme
+                            theme_record = ProjectTheme(
+                                project_id=target_project_id,
+                                theme_name=chosen_theme,
+                                content=f"## {chosen_theme}\n\n{raw_content}"
+                            )
+                            db_merge.add(theme_record)
+                            
+                        db_merge.commit()
+                    finally:
+                        db_merge.close()
                     
                     # 4. Generate Suggested Themes
                     db_sugg = SessionLocal()
-                    current_themes = db_sugg.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id).all()
-                    current_theme_names = [t.theme_name for t in current_themes]
-                    
-                    sugg_prompt = f"""
-                    You are an expert app architect.
-                    Currently captured themes for this app project: {current_theme_names}
-                    
-                    What are 3-4 critical architectural themes that are MISSING and still need to be brainstormed?
-                    Examples could include: "Authentication & Security", "Monetization", "Database Schema", "UI/UX System", "Third-party APIs".
-                    Output ONLY a raw JSON array of strings representing the missing theme names. No markdown blocks, no explanation.
-                    """
-                    
-                    sugg_res = await gemini_client.aio.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=sugg_prompt
-                    )
-                    
-                    clean_sugg = sugg_res.text.strip()
-                    if clean_sugg.startswith("```json"):
-                        clean_sugg = clean_sugg[7:-3].strip()
-                    elif clean_sugg.startswith("```"):
-                        clean_sugg = clean_sugg[3:-3].strip()
+                    try:
+                        current_themes = db_sugg.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id).all()
+                        current_theme_names = [t.theme_name for t in current_themes]
                         
-                    project = db_sugg.query(Project).filter(Project.id == target_project_id).first()
-                    if project:
-                        project.suggested_themes = clean_sugg
-                        db_sugg.commit()
-                    db_sugg.close()
+                        sugg_prompt = f"""
+                        You are an expert app architect.
+                        Currently captured themes for this app project: {current_theme_names}
+                        
+                        What are 3-4 critical architectural themes that are MISSING and still need to be brainstormed?
+                        Examples could include: "Authentication & Security", "Monetization", "Database Schema", "UI/UX System", "Third-party APIs".
+                        Output ONLY a raw JSON array of strings representing the missing theme names. No markdown blocks, no explanation.
+                        """
+                        
+                        sugg_res = await gemini_client.aio.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=sugg_prompt
+                        )
+                        
+                        clean_sugg = sugg_res.text.strip()
+                        if clean_sugg.startswith("```json"):
+                            clean_sugg = clean_sugg[7:-3].strip()
+                        elif clean_sugg.startswith("```"):
+                            clean_sugg = clean_sugg[3:-3].strip()
+                            
+                        project = db_sugg.query(Project).filter(Project.id == target_project_id).first()
+                        if project:
+                            project.suggested_themes = clean_sugg
+                            db_sugg.commit()
+                    finally:
+                        db_sugg.close()
                     
                     await manager.broadcast("themes_updated")
                     
@@ -448,12 +507,19 @@ async def background_processor():
             
             # Reopen connection for swift instantaneous commit
             db2 = SessionLocal()
-            finished_item = db2.query(GeminiSource).filter(GeminiSource.id == target_id).first()
-            if finished_item:
-                finished_item.title = smart_title
-                finished_item.processed = True
-                db2.commit()
-            db2.close()
+            try:
+                finished_item = db2.query(GeminiSource).filter(GeminiSource.id == target_id).first()
+                if finished_item:
+                    finished_item.title = smart_title
+                    finished_item.processed = True
+                    
+                    p = db2.query(Project).filter(Project.id == target_project_id).first()
+                    if p:
+                        p.notes_since_last_check += 1
+                        
+                    db2.commit()
+            finally:
+                db2.close()
 
             # Notify UI to update instantly
             await manager.broadcast("new_source")
@@ -634,6 +700,66 @@ def create_project(req: ProjectCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(p)
     return p
+
+async def perform_consistency_check(project_id: int):
+    db = SessionLocal()
+    try:
+        themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project_id).all()
+        if not themes:
+            return {"status": "error", "message": "No themes found for consistency check"}
+        
+        compiled_themes = ""
+        for t in themes:
+            compiled_themes += f"\n\n--- THEME: {t.theme_name} ---\n{t.content}"
+
+        prompt = f"""
+        You are an expert systems architect. The following are distinct architectural themes generated asynchronously for a project.
+        Because they were generated separately, there may be overlaps, redundant information, or direct technical contradictions across them.
+        
+        Your job is to perform a Global Consistency Check.
+        1. Resolve any contradictions (e.g., if one theme says PostgreSQL and another says MongoDB, synthesize a unified approach or flag the discrepancy clearly if unresolvable).
+        2. Deduplicate overlapping sections cleanly.
+        3. Ensure the macro-architecture is cohesive.
+        
+        CURRENT THEMES:
+        {compiled_themes}
+        
+        Return a raw JSON object where the keys are the EXACT original theme names, and the values are the newly cleaned, consistent markdown content for that theme. Do not include markdown block wrappers like ```json. Return ONLY the raw JSON.
+        """
+
+        res = await gemini_client.aio.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
+        
+        clean_res = res.text.strip()
+        if clean_res.startswith("```json"):
+            clean_res = clean_res[7:-3].strip()
+        elif clean_res.startswith("```"):
+            clean_res = clean_res[3:-3].strip()
+            
+        updated_data = json.loads(clean_res)
+        
+        for t in themes:
+            if t.theme_name in updated_data:
+                t.content = updated_data[t.theme_name]
+                
+        db.commit()
+        await manager.broadcast("themes_updated")
+        return {"status": "success"}
+    finally:
+        db.close()
+
+@app.post("/api/projects/{project_id}/consistency-check")
+async def run_consistency_check(project_id: int, db: Session = Depends(get_db)):
+    try:
+        result = await perform_consistency_check(project_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return result
+    except Exception as e:
+        print("Consistency Check Failed:", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/projects/{project_id}/sources")
 def get_project_sources(project_id: int, response: Response, db: Session = Depends(get_db)):
@@ -858,14 +984,16 @@ async def onboarding_chat(req: OnboardingRequest, db: Session = Depends(get_db))
         history_str = "(Conversation just started. The user is waiting.)"
     
     prompt = f"""
-    You are the SynapseIP Onboarding Agent. Your mission is to chat with the user to extract 8 required parameters: Designer Name, App Name, Core Purpose, Target Audience (with location/region), App Type ('Personal' or 'Commercial'), Budget/Subscription Tier (e.g. Free Tier prototyping vs Paid Enterprise), AI Integration/Function, and Standout Features.
+    You are the SynapseIP Onboarding Agent. Your mission is to chat with the user to extract 10 required parameters: Designer Name, App Name, Core Purpose, Target Audience (with location/region), App Type ('Personal' or 'Commercial'), Budget/Subscription Tier (e.g. Free Tier prototyping vs Paid Enterprise), AI Integration/Function, Security & Authentication Strategy, Build Environment (Greenfield vs Brownfield), and Standout Features.
     CRITICAL OVERRIDE: The user has ALREADY officially designated the App Name as "{project_name}". 
     You MUST NOT ask the user what the App Name is, and you MUST EXACTLY output "{project_name}" for the App Name parameter.
     
     If the conversation just started, enthusiastically welcome them, quickly evaluate the summary of their brainstorm sources (below) in a sentence or two, and elegantly ask who is designing it, what its core purpose is, and who the target audience is (including their region, like USA vs China).
     If they've answered some but not all, ask probing but friendly questions for the remainder. 
-    Crucially, determine if the app is purely for "Personal" utility/efficiency or "Commercial" mass market, and ask what their budget constraints are for hosting/database infrastructure (do they strictly want free-tiers or are they willing to pay?). Ask if the app will utilize AI natively. If so, probe specifically for what exact functions, roles, and thinking logic the AI will perform. If not, establish it is a purely deterministic app. Finally, ask what core features make it stand out.
-    Once ALL 8 required parameters are clearly established, set is_complete=True and output a concluding launch message.
+    Crucially, determine if the app is purely for "Personal" utility/efficiency or "Commercial" mass market, and ask what their budget constraints are for hosting/database infrastructure (do they strictly want free-tiers or are they willing to pay?). Ask if the app will utilize AI natively. If so, probe specifically for what exact functions, roles, and thinking logic the AI will perform. If not, establish it is a purely deterministic app. Ask what their Security & Authentication strategy is (e.g., standard email/password, OAuth with Google, Clerk, none).
+    CRITICALLY: Ask if this is a "Greenfield" project (building an entirely new codebase from scratch) or a "Brownfield" project (integrating these features into an existing, established codebase).
+    Finally, ask what core features make it stand out.
+    Once ALL 10 required parameters are clearly established, set is_complete=True and output a concluding launch message.
     
     Database Brainstorm Context:
     {context_text}
@@ -984,6 +1112,7 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     Core Purpose: {req.app_purpose}
     Target Audience/Region: {req.target_audience}
     App Type: {req.app_type}
+    Security & Authentication: {req.security_auth}
     Standout Features: {", ".join(req.standout_features)}
     
     Your priority is to ensure the resulting MVP is not just technically sound, but features a beautiful, highly usable, and modern User Interface for human users. Start the pipeline with UI exploration and scaffolding.
@@ -1084,7 +1213,7 @@ async def generate_mockup_prompt(req: MockupPromptRequest, db: Session = Depends
         raise HTTPException(status_code=500, detail=str(e))
     return None
 
-async def generate_architect_report(project_id: int, source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str, budget_constraints: str, ai_integration: str):
+async def generate_architect_report(project_id: int, source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str, budget_constraints: str, ai_integration: str, security_auth: str, build_environment: str):
     db = SessionLocal()
     try:
         await manager.broadcast(json.dumps({"type": "progress", "message": "Initializing Architect Framework...", "progress": 10}))
@@ -1097,11 +1226,14 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         Target Vibe Coding Platform: {platform}
         Budget / Hosting Constraints: {budget_constraints}
         AI Role & Functionality: {ai_integration}
+        Security & Authentication Strategy: {security_auth}
+        Build Environment: {build_environment}
     
         Analyze the raw notes below and output a strict structural outline. 
         The outline must be restricted to logical MVP feature building steps following 2026 Vibe Coding best practices (Intent -> Plan -> Generate -> Vibe-Check). Include chronological layer-building: Data schema first -> API next -> UI/Frontend components last.
         
         CRITICAL RULES FOR QUALITY OVER QUANTITY:
+        - Build Environment Rule: You must tailor your steps to the "{build_environment}" classification. If it is "Greenfield (New)", provide foundational setup instructions (e.g., 'Initialize Next.js project', 'Setup base database schemas'). If it is "Brownfield (Existing)", you MUST assume the core project already exists. Focus your outline exclusively on safely integrating new features into the existing architecture, requiring adapter patterns, non-breaking schema migrations, and heavy regression-testing rules.
         - Do NOT ignore Agentic Memory. The very first step MUST be establishing `.cursorrules` or `AGENTS.md` context files with strict guardrails ("Never edit >3 files without confirmed plan. Always run tsc").
         - Build Atomically. Your steps must represent vertical, single-responsibility slices to aggressively limit the AI's blast radius during generation.
         - Artifact Locking: Dictate explicitly where the user should execute a "Pre-Flight Impact Analysis" to force the agent to write an `implementation_plan.md` detailing "Dependency Risks" and "Verification Strategy" before risking regression on core components.
@@ -1164,6 +1296,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             App Purpose: {app_purpose}
             Current Feature to Write: '{chapter_title}'
             Target Platform: {platform}
+            Build Environment: {build_environment}
         
             Based ONLY on the following raw notes, write a highly concise, systematic, ordered step-by-step logic guide to build this specific feature.
         
@@ -1172,6 +1305,31 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             2. Provide exactly what to expect if it works or fails.
             3. If this feature involves user interaction, YOU MUST explicitly include instructions for creating a beautiful, usable, modern UI component for it.
             4. Include a specific, detailed prompt that the designer can copy and paste directly into {platform} to build this.
+            
+            FEW-SHOT PROMPT TEMPLATE EXAMPLE:
+            Here is a "Known Good" template of a highly effective prompt for {platform}. Your generated prompts MUST mimic this level of detail, structure, and safety constraints:
+            
+            ```text
+            [System Context]
+            We are building a React Native mobile application using Expo and Supabase for authentication.
+            
+            [Objective]
+            Implement the UI component for the "Forgot Password" screen (`ForgotPassword.tsx`).
+            
+            [Artifact Locking & Pre-Flight]
+            Before writing ANY code, please perform an Impact Analysis. Review our existing `Login.tsx` and `AppNavigator.tsx` to understand the current routing and styling context.
+            Output an `implementation_plan.md` detailing:
+            1. Which files will be modified.
+            2. The state management approach for the email input.
+            3. The exact Auth API call you intend to use.
+            DO NOT generate code until I explicitly approve the implementation plan.
+            
+            [Execution Constraints]
+            - Use Tailwind for styling. Follow the existing exact color tokens from `theme.js`.
+            - The UI MUST be beautifully modern: use subtle animations when the submit button is pressed.
+            - Provide clear error handling (e.g., "Email not found") visible to the user as a toast notification.
+            - Write a Jest unit test for the email validation logic BEFORE implementing the component (Test-Driven Vibe Development).
+            ```
             
             Strict Formatting Rules:
             1. Use `#` ONLY for the Title of the entire document.
@@ -1303,7 +1461,7 @@ async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks
     else:
         combined_text = "\n\n---\n\n".join([f"THEME: {t.theme_name}\n{t.content}" for t in themes])
         
-    background_tasks.add_task(generate_architect_report, req.project_id, combined_text, req.target_platform, req.designer_name, req.app_name, req.app_purpose, req.budget_constraints, req.ai_integration)
+    background_tasks.add_task(generate_architect_report, req.project_id, combined_text, req.target_platform, req.designer_name, req.app_name, req.app_purpose, req.budget_constraints, req.ai_integration, req.security_auth, req.build_environment)
     
     return {"status": "started", "message": "Architect pipeline initiated."}
 

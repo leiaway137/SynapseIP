@@ -127,10 +127,15 @@
                     
                     <!-- Brainstorming Compass -->
                     <div id="brainstorming-compass" style="display: none; width: 100%; max-width: 800px; margin-bottom: 30px; text-align: left;">
-                        <h3 style="color: #f1f5f9; margin-top: 0; margin-bottom: 16px; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
-                            Brainstorming Compass
-                        </h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h3 style="color: #f1f5f9; margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
+                                Brainstorming Compass
+                            </h3>
+                            <button id="btn-consistency-check" class="generate-btn" style="padding: 6px 12px; font-size: 12px; height: auto; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: #93c5fd;">
+                                ✨ Run Global Consistency Check
+                            </button>
+                        </div>
                         <div style="display: flex; gap: 20px;">
                             <div style="flex: 1; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 20px;">
                                 <h4 style="color: #10b981; margin-top: 0; margin-bottom: 12px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Captured Themes</h4>
@@ -187,6 +192,8 @@
                         <input type="hidden" id="config-features">
                         <input type="hidden" id="config-budget">
                         <input type="hidden" id="config-ai_integration">
+                        <input type="hidden" id="config-security">
+                        <input type="hidden" id="config-environment">
                         <input type="hidden" id="vibe-tool" value="Antigravity">
                     </div>
                     

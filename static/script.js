@@ -464,6 +464,8 @@ async function sendOnboardingMessage(initial = false) {
             document.getElementById('config-apptype').value = data.app_type || "Commercial";
             document.getElementById('config-budget').value = data.budget_constraints || "Free Tier Only";
             document.getElementById('config-ai_integration').value = data.ai_integration || "None";
+            document.getElementById('config-security').value = data.security_auth || "Basic";
+            document.getElementById('config-environment').value = data.build_environment || "Greenfield (New)";
             document.getElementById('config-features').value = JSON.stringify(data.standout_features || []);
             if (chatInput) {
                 chatInput.disabled = true;
@@ -508,6 +510,8 @@ async function generateIntelligence() {
                 app_type: document.getElementById('config-apptype').value,
                 budget_constraints: document.getElementById('config-budget').value,
                 ai_integration: document.getElementById('config-ai_integration').value,
+                security_auth: document.getElementById('config-security').value,
+                build_environment: document.getElementById('config-environment').value,
                 standout_features: JSON.parse(document.getElementById('config-features').value || "[]")
             })
         });
@@ -661,6 +665,7 @@ async function startArchitectPipeline() {
                 app_purpose: "Automated via Follow-Up",
                 target_audience: "N/A",
                 app_type: "Commercial",
+                build_environment: document.getElementById('config-environment') ? document.getElementById('config-environment').value : "Greenfield (New)",
                 standout_features: [],
                 project_id: currentProjectId
             })
@@ -773,6 +778,8 @@ async function fetchSources() {
                 } else {
                     bHTML = `<span style="font-size:0.7rem; background:rgba(59,130,246,0.2); color:#60a5fa; padding:2px 6px; border-radius:4px; margin-left:8px;">Queued ⏳</span>`;
                 }
+            } else if (source.title && source.title.startsWith("AI Source Node")) {
+                bHTML = `<button class="retry-ai-btn" data-id="${source.id}" onclick="retrySourceProcessing(${source.id}, event)" style="font-size:0.65rem; background:rgba(16,185,129,0.2); color:#10b981; border:1px solid rgba(16,185,129,0.3); padding:2px 6px; border-radius:4px; margin-left:8px; cursor:pointer; transition:all 0.2s;">Retry AI 🔄</button>`;
             }
             card.innerHTML = `
                 <div class="source-title"><span style="color:var(--accent-color); margin-right:6px;">#${index+1}</span>${escapeHTML(smartTitle)}${bHTML}</div>
@@ -797,6 +804,30 @@ async function fetchSources() {
         });
 
     } catch (error) { listContainer.innerHTML = '<div class="loading-state" style="color: #ef4444;">Connection failed.</div>'; }
+}
+
+window.retrySourceProcessing = async function(id, event) {
+    event.stopPropagation();
+    try {
+        const btn = event.target;
+        btn.innerText = "Queuing...";
+        btn.disabled = true;
+        
+        const res = await fetch(`/api/sources/${id}/reprocess`, {
+            method: 'POST'
+        });
+        
+        if (res.ok) {
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#60a5fa';
+            btn.style.borderColor = 'rgba(59,130,246,0.3)';
+            btn.innerText = "Queued ⏳";
+        } else {
+            btn.innerText = "Failed ✗";
+        }
+    } catch(e) {
+        console.error("Retry failed:", e);
+    }
 }
 
 function initWebSocket() {
@@ -844,6 +875,20 @@ function initWebSocket() {
             loadThemesCompass();
         } else if (event.data === "token_update") fetchTokenStats();
     };
+    
+    const handleDisconnect = () => {
+        if (!document.getElementById('ws-warning')) {
+            const warning = document.createElement('div');
+            warning.id = 'ws-warning';
+            warning.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #ef4444; color: white; text-align: center; padding: 10px; z-index: 9999; font-weight: bold; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.5);';
+            warning.innerHTML = '⚠️ Live connection lost. Click here to refresh the page.';
+            warning.onclick = () => window.location.reload();
+            document.body.appendChild(warning);
+        }
+    };
+    
+    ws.onclose = handleDisconnect;
+    ws.onerror = handleDisconnect;
 }
 
 async function fetchTokenStats() {
@@ -855,7 +900,6 @@ async function fetchTokenStats() {
         document.getElementById('tt-cost').innerText = "$" + data.cost.toFixed(4);
     } catch(e){}
 }
-setInterval(() => fetchSources(), 3000);
 
 function escapeHTML(str) { const p = document.createElement("p"); p.appendChild(document.createTextNode(str)); return p.innerHTML; }
 
@@ -934,8 +978,32 @@ function bindDeleteMechanics() {
             });
             if(res.ok){ exitDel(); fetchSources(); }
         } catch(e){} finally{ cfm.innerText="Delete"; }
+}
     });
 }
+
+// --- Consistency Check ---
+document.getElementById('btn-consistency-check')?.addEventListener('click', async () => {
+    if (!currentProjectId) {
+        alert("Please select a project first.");
+        return;
+    }
+    const btn = document.getElementById('btn-consistency-check');
+    const originalText = btn.innerText;
+    btn.innerText = "✨ Running Check...";
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/api/projects/${currentProjectId}/consistency-check`, { method: 'POST' });
+        if (!response.ok) throw new Error("Consistency Check failed.");
+        // The backend will broadcast 'themes_updated' via WebSocket which will trigger a UI refresh automatically
+    } catch (e) {
+        alert(e.message);
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+});
 
 // --- UI Mockup Generator ---
 document.getElementById('btn-generate-mockup').addEventListener('click', async () => {
