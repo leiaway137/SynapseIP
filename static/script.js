@@ -114,6 +114,9 @@ async function bootSequence() {
             document.getElementById('avatar-initial').innerText = currentUser.username.charAt(0).toUpperCase();
             document.getElementById('profile-username').innerText = currentUser.username;
             document.getElementById('profile-id').innerText = `ID: #${currentUser.id.toString().padStart(4, '0')}`;
+            if (currentUser.is_admin) {
+                document.getElementById('token-tracker').style.display = 'block';
+            }
         }
     } catch(e) {}
     
@@ -328,6 +331,7 @@ async function selectProject(projectId, projectName, silent = false) {
     
     // Fetch project's specific sources
     fetchSources();
+    loadThemesCompass();
     
     try {
         const res = await fetch(`/api/projects/${projectId}/documents`);
@@ -836,6 +840,8 @@ function initWebSocket() {
         if (event.data === "new_source") {
             if (window._syncTimer) clearTimeout(window._syncTimer);
             window._syncTimer = setTimeout(() => fetchSources(), 300);
+        } else if (event.data === "themes_updated") {
+            loadThemesCompass();
         } else if (event.data === "token_update") fetchTokenStats();
     };
 }
@@ -852,6 +858,44 @@ async function fetchTokenStats() {
 setInterval(() => fetchSources(), 3000);
 
 function escapeHTML(str) { const p = document.createElement("p"); p.appendChild(document.createTextNode(str)); return p.innerHTML; }
+
+// --- Brainstorming Compass ---
+async function loadThemesCompass() {
+    if (!currentProjectId) return;
+    try {
+        const res = await fetch(`/api/projects/${currentProjectId}/themes_dashboard`);
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        document.getElementById('brainstorming-compass').style.display = 'block';
+        
+        const activeUl = document.getElementById('compass-active-themes');
+        const suggestedUl = document.getElementById('compass-suggested-themes');
+        
+        activeUl.innerHTML = '';
+        suggestedUl.innerHTML = '';
+        
+        if (data.active_themes.length === 0) {
+            activeUl.innerHTML = '<li style="opacity: 0.5;">No themes captured yet. Sync a note to begin.</li>';
+        } else {
+            data.active_themes.forEach(t => {
+                activeUl.innerHTML += `<li><span style="color: #34d399; margin-right: 8px;">✓</span> ${escapeHTML(t)}</li>`;
+            });
+        }
+        
+        if (data.suggested_themes.length === 0) {
+            if (data.active_themes.length > 0) {
+                suggestedUl.innerHTML = '<li style="opacity: 0.5;">Syncing more notes...</li>';
+            } else {
+                suggestedUl.innerHTML = '<li style="opacity: 0.5;">Waiting for first sync...</li>';
+            }
+        } else {
+            data.suggested_themes.forEach(t => {
+                suggestedUl.innerHTML += `<li><span style="color: #f59e0b; margin-right: 8px;">!</span> ${escapeHTML(t)}</li>`;
+            });
+        }
+    } catch(e) {}
+}
 
 // --- Delete Modals Component ---
 function bindDeleteMechanics() {

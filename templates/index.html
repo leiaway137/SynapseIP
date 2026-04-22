@@ -55,7 +55,7 @@
                 <div class="loading-state" id="sidebar-loading-state">Loading project memory...</div>
             </div>
             
-            <div id="token-tracker" style="padding: 18px 24px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; color: #9ca3af; background: rgba(0,0,0,0.2);">
+            <div id="token-tracker" style="display: none; padding: 18px 24px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; color: #9ca3af; background: rgba(0,0,0,0.2);">
                 <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; color: #6b7280; font-weight: 700;">Metrics</div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
                     <span>Session Tokens</span>
@@ -125,7 +125,29 @@
                         </div>
                     </div>
                     
-                    <div id="onboarding-pre-start" style="text-align: center; margin-top: 50px; width: 100%; background: var(--glass-bg); padding: 40px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                    <!-- Brainstorming Compass -->
+                    <div id="brainstorming-compass" style="display: none; width: 100%; max-width: 800px; margin-bottom: 30px; text-align: left;">
+                        <h3 style="color: #f1f5f9; margin-top: 0; margin-bottom: 16px; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
+                            Brainstorming Compass
+                        </h3>
+                        <div style="display: flex; gap: 20px;">
+                            <div style="flex: 1; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 20px;">
+                                <h4 style="color: #10b981; margin-top: 0; margin-bottom: 12px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Captured Themes</h4>
+                                <ul id="compass-active-themes" style="list-style: none; padding: 0; margin: 0; color: #cbd5e1; font-size: 0.95rem; display: flex; flex-direction: column; gap: 8px;">
+                                    <!-- Populated via JS -->
+                                </ul>
+                            </div>
+                            <div style="flex: 1; background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 12px; padding: 20px;">
+                                <h4 style="color: #f59e0b; margin-top: 0; margin-bottom: 12px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Missing / Suggested</h4>
+                                <ul id="compass-suggested-themes" style="list-style: none; padding: 0; margin: 0; color: #94a3b8; font-size: 0.95rem; display: flex; flex-direction: column; gap: 8px;">
+                                    <!-- Populated via JS -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="onboarding-pre-start" style="text-align: center; margin-top: 20px; width: 100%; background: var(--glass-bg); padding: 40px; border-radius: 12px; border: 1px solid var(--glass-border);">
                         <h3 style="margin-top: 0; color: #f1f5f9; font-weight: 500; font-size: 1.4rem;">Ready to process?</h3>
                         <p style="color: #94a3b8; font-size: 1rem; max-width: 600px; margin: 0 auto 30px; line-height: 1.6;">
                             After your brainstorming and you are ready for the sources to be processed, please press the button below to start the onboarding process.

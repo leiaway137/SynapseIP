@@ -116,6 +116,7 @@ class Project(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     name = Column(String, index=True)
+    suggested_themes = Column(Text, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 class GeminiSource(Base):
@@ -147,6 +148,15 @@ class ArchitectBlueprint(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     blueprint_data = Column(Text)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+class ProjectTheme(Base):
+    __tablename__ = "project_themes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"))
+    theme_name = Column(String, index=True)
+    content = Column(Text)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 class SystemConfig(Base):
@@ -322,22 +332,119 @@ async def background_processor():
             target_id = unprocessed.id
             raw_title = unprocessed.title
             raw_content = unprocessed.content
+            target_project_id = unprocessed.project_id
             db.close()
 
             smart_title = raw_title
             if gemini_client:
                 try:
+                    # 1. Fetch existing themes
+                    db_themes = SessionLocal()
+                    existing_themes = db_themes.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id).all()
+                    theme_names = [t.theme_name for t in existing_themes]
+                    db_themes.close()
+                    
+                    # 2. Categorize or Create New Theme
+                    categorize_prompt = f"""
+                    You are a data architect categorizing a new brainstorm note.
+                    Current existing themes for this project: {theme_names if theme_names else 'None'}
+                    
+                    New Note Content:
+                    {raw_content[:2000]}
+                    
+                    Does this note belong to an existing theme, or does it require a completely new theme?
+                    If it belongs to an existing theme, output ONLY the exact name of the existing theme.
+                    If it needs a new theme, output ONLY the new theme name (e.g. 'Database Architecture', 'Monetization Strategy', 'UI/UX Guidelines').
+                    Do not explain. Output only the theme name.
+                    """
+                    
                     title_prompt = f"You are a neat summarization bot. Create a professional, catchy, 3 to 6 word title summarizing this interaction. Do not use quotes, labels, or generic prefixes. Only return the title itself.\n\nText: {raw_content[:1500]}"
-                    # Run this synchronously in the threadpool if possible to not block event loop, or just let it block since it's a daemon
-                    res = gemini_client.models.generate_content(
+                    
+                    cat_res = await gemini_client.aio.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=categorize_prompt
+                    )
+                    chosen_theme = cat_res.text.strip().strip('"').strip("'")
+                    
+                    title_res = await gemini_client.aio.models.generate_content(
                         model='gemini-2.5-flash',
                         contents=title_prompt
                     )
-                    smart_title = res.text.strip().strip('"').strip("'")
+                    smart_title = title_res.text.strip().strip('"').strip("'")
                     if len(smart_title) > 100:
                         smart_title = smart_title[:100]
+                        
+                    # 3. Merge or Create Theme
+                    db_merge = SessionLocal()
+                    theme_record = db_merge.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id, ProjectTheme.theme_name == chosen_theme).first()
+                    
+                    if theme_record:
+                        # Intelligent Merge
+                        merge_prompt = f"""
+                        You are a highly analytical AI Synthesizer. Your job is to update an existing architecture document theme with new information.
+                        Do NOT lose any important technical details, requirements, or insights from either text.
+                        Seamlessly weave the new note's insights into the existing theme document. Do not just append it to the end; synthesize it logically.
+                        
+                        EXISTING THEME DOCUMENT:
+                        {theme_record.content}
+                        
+                        NEW NOTE TO INTEGRATE:
+                        {raw_content}
+                        
+                        Output ONLY the newly synthesized and merged Markdown document.
+                        """
+                        merge_res = await gemini_client.aio.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=merge_prompt
+                        )
+                        theme_record.content = merge_res.text.strip()
+                    else:
+                        # New Theme
+                        theme_record = ProjectTheme(
+                            project_id=target_project_id,
+                            theme_name=chosen_theme,
+                            content=f"## {chosen_theme}\n\n{raw_content}"
+                        )
+                        db_merge.add(theme_record)
+                        
+                    db_merge.commit()
+                    db_merge.close()
+                    
+                    # 4. Generate Suggested Themes
+                    db_sugg = SessionLocal()
+                    current_themes = db_sugg.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id).all()
+                    current_theme_names = [t.theme_name for t in current_themes]
+                    
+                    sugg_prompt = f"""
+                    You are an expert app architect.
+                    Currently captured themes for this app project: {current_theme_names}
+                    
+                    What are 3-4 critical architectural themes that are MISSING and still need to be brainstormed?
+                    Examples could include: "Authentication & Security", "Monetization", "Database Schema", "UI/UX System", "Third-party APIs".
+                    Output ONLY a raw JSON array of strings representing the missing theme names. No markdown blocks, no explanation.
+                    """
+                    
+                    sugg_res = await gemini_client.aio.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=sugg_prompt
+                    )
+                    
+                    clean_sugg = sugg_res.text.strip()
+                    if clean_sugg.startswith("```json"):
+                        clean_sugg = clean_sugg[7:-3].strip()
+                    elif clean_sugg.startswith("```"):
+                        clean_sugg = clean_sugg[3:-3].strip()
+                        
+                    project = db_sugg.query(Project).filter(Project.id == target_project_id).first()
+                    if project:
+                        project.suggested_themes = clean_sugg
+                        db_sugg.commit()
+                    db_sugg.close()
+                    
+                    await manager.broadcast("themes_updated")
+                    
                 except Exception as e:
-                    print("Background processing title summarization failed.", e)
+                    print("Background processing theme consolidation failed.", e)
             
             # Reopen connection for swift instantaneous commit
             db2 = SessionLocal()
@@ -497,7 +604,7 @@ async def change_password(req: PasswordChangeRequest, db: Session = Depends(get_
 
 @app.get("/api/me")
 async def get_me(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return {"id": current_user.id, "username": current_user.username}
+    return {"id": current_user.id, "username": current_user.username, "is_admin": current_user.is_admin}
 
 # ---------------------------------------------------------
 # Endpoints
@@ -544,6 +651,25 @@ def get_project_documents(project_id: int, db: Session = Depends(get_db)):
     return {
         "intelligence": [{"id": r.id, "timestamp": r.timestamp, "data": json.loads(r.report_data)} for r in reports],
         "blueprints": [{"id": b.id, "timestamp": b.timestamp, "data": b.blueprint_data} for b in blueprints]
+    }
+
+@app.get("/api/projects/{project_id}/themes_dashboard")
+def get_themes_dashboard(project_id: int, db: Session = Depends(get_db)):
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project_id).all()
+    project = db.query(Project).filter(Project.id == project_id).first()
+    
+    active_themes = [t.theme_name for t in themes]
+    suggested_themes = []
+    
+    if project and project.suggested_themes:
+        try:
+            suggested_themes = json.loads(project.suggested_themes)
+        except:
+            pass
+            
+    return {
+        "active_themes": active_themes,
+        "suggested_themes": suggested_themes
     }
 
 @app.get("/api/sources")
@@ -1166,11 +1292,17 @@ async def admin_page(request: Request):
 
 @app.post("/api/architect/start")
 async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    sources = db.query(GeminiSource).all()
-    if not sources:
-        raise HTTPException(status_code=400, detail="No sources available. Sync some datanodes first.")
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == req.project_id).all()
+    
+    if not themes:
+        # Fallback to raw sources if no themes exist yet (e.g. legacy data)
+        sources = db.query(GeminiSource).filter(GeminiSource.project_id == req.project_id).all()
+        if not sources:
+            raise HTTPException(status_code=400, detail="No sources available. Sync some datanodes first.")
+        combined_text = "\n\n---\n\n".join([f"TITLE: {s.title}\n{s.content}" for s in sources])
+    else:
+        combined_text = "\n\n---\n\n".join([f"THEME: {t.theme_name}\n{t.content}" for t in themes])
         
-    combined_text = "\n\n---\n\n".join([f"TITLE: {s.title}\n{s.content}" for s in sources])
     background_tasks.add_task(generate_architect_report, req.project_id, combined_text, req.target_platform, req.designer_name, req.app_name, req.app_purpose, req.budget_constraints, req.ai_integration)
     
     return {"status": "started", "message": "Architect pipeline initiated."}
