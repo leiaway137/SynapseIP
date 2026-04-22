@@ -81,47 +81,6 @@ def generate_short_memory(source_id: str):
     finally:
         db.close()
 
-@app.post("/api/sources/{source_id}/reprocess")
-def reprocess_source(source_id: int, current_user: User = Depends(get_current_user)):
-    db = SessionLocal()
-    try:
-        source = db.query(GeminiSource).filter(GeminiSource.id == source_id).first()
-        if not source:
-            raise HTTPException(status_code=404, detail="Source not found")
-        # Ensure only project owners or admins can reprocess
-        project = db.query(Project).filter(Project.id == source.project_id).first()
-        if project.owner_id != current_user.id and not current_user.is_admin:
-            raise HTTPException(status_code=403, detail="Not authorized")
-            
-        source.processed = False
-        db.commit()
-        return {"status": "success", "message": "Source queued for reprocessing"}
-    finally:
-        db.close()
-
-@app.post("/api/projects/{project_id}/retry-missed")
-def retry_missed_sources(project_id: int, current_user: User = Depends(get_current_user)):
-    db = SessionLocal()
-    try:
-        project = db.query(Project).filter(Project.id == project_id).first()
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
-        if project.owner_id != current_user.id and not current_user.is_admin:
-            raise HTTPException(status_code=403, detail="Not authorized")
-            
-        # Re-queue sources that are stuck (either never processed, or look like they stalled)
-        stalled_sources = db.query(GeminiSource).filter(
-            GeminiSource.project_id == project_id,
-            (GeminiSource.processed == False) | (GeminiSource.title.like("AI Source Node%"))
-        ).all()
-        
-        for s in stalled_sources:
-            s.processed = False
-            
-        db.commit()
-        return {"status": "success", "requeued": len(stalled_sources)}
-    finally:
-        db.close()
 
 # ---------------------------------------------------------
 # Security Setup
@@ -851,6 +810,48 @@ async def bulk_delete_sources(req: BulkDeleteRequest, db: Session = Depends(get_
     db.commit()
     await manager.broadcast(json.dumps({"type": "sources_deleted"}))
     return {"status": "success", "deleted_count": len(req.source_ids)}
+
+@app.post("/api/sources/{source_id}/reprocess")
+def reprocess_source(source_id: int, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        source = db.query(GeminiSource).filter(GeminiSource.id == source_id).first()
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        # Ensure only project owners or admins can reprocess
+        project = db.query(Project).filter(Project.id == source.project_id).first()
+        if project.owner_id != current_user.id and not current_user.is_admin:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        source.processed = False
+        db.commit()
+        return {"status": "success", "message": "Source queued for reprocessing"}
+    finally:
+        db.close()
+
+@app.post("/api/projects/{project_id}/retry-missed")
+def retry_missed_sources(project_id: int, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        if project.owner_id != current_user.id and not current_user.is_admin:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        # Re-queue sources that are stuck (either never processed, or look like they stalled)
+        stalled_sources = db.query(GeminiSource).filter(
+            GeminiSource.project_id == project_id,
+            (GeminiSource.processed == False) | (GeminiSource.title.like("AI Source Node%"))
+        ).all()
+        
+        for s in stalled_sources:
+            s.processed = False
+            
+        db.commit()
+        return {"status": "success", "requeued": len(stalled_sources)}
+    finally:
+        db.close()
 
 @app.post("/ingest", response_model=SourceResponse)
 async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
