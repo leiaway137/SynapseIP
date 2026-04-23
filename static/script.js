@@ -764,11 +764,11 @@ async function fetchSources() {
             const plainText = tempDiv.innerText || tempDiv.textContent || "";
             
             let smartTitle = source.title;
-            if (!smartTitle || smartTitle.startsWith("Gemini Response")) {
+            if (!smartTitle || smartTitle.startsWith("Gemini Response") || smartTitle.startsWith("AI Source Node")) {
                 let fallback = plainText.split(/[.\n]/)[0].replace(/[*_#>]/g, '').trim();
                 smartTitle = fallback.length > 3 ? fallback : "Synced Note";
             }
-            if (smartTitle.length > 55) smartTitle = smartTitle.substring(0, 55) + "...";
+            if (smartTitle.length > 50) smartTitle = smartTitle.substring(0, 50) + "...";
 
             let bHTML = '';
             if (!source.processed) {
