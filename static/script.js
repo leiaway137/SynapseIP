@@ -856,7 +856,8 @@ window.reprocessMissedCards = async function() {
 }
 
 function initWebSocket() {
-    ws = new WebSocket(`ws://${window.location.host}/ws`);
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
     ws.onmessage = function(event) {
         try {
             const data = JSON.parse(event.data);
