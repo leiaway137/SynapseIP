@@ -363,6 +363,57 @@ function startManualOnboarding() {
     sendOnboardingMessage(true);
 }
 
+async function restartOnboarding() {
+    if (!currentProjectId) return;
+    try {
+        await fetch(`/api/projects/${currentProjectId}/clear-onboarding`, { method: 'POST' });
+        
+        // Reset UI
+        document.getElementById('chat-history').style.display = 'flex';
+        document.getElementById('chat-input-area').style.display = 'flex';
+        document.getElementById('command-bar').style.display = 'none';
+        const chatInput = document.getElementById('chat-input');
+        if (chatInput) {
+            chatInput.disabled = false;
+            chatInput.placeholder = "Answer the agent or share your vision...";
+            chatInput.style.opacity = "1";
+        }
+        
+        onboardingHistory = [];
+        sendOnboardingMessage(true);
+    } catch(e) {
+        console.error("Failed to clear onboarding", e);
+    }
+}
+
+function restoreOnboardingConfig(configData) {
+    if (typeof configData === 'string') {
+        try { configData = JSON.parse(configData); } catch(e) { return false; }
+    }
+    if (!configData || !configData.is_complete) return false;
+    
+    document.getElementById('config-designer').value = configData.designer_name || currentUser?.username || "Designer";
+    document.getElementById('config-appname').value = configData.app_name || currentProjectName;
+    document.getElementById('config-purpose').value = configData.core_purpose || "";
+    document.getElementById('config-audience').value = configData.target_audience || "";
+    document.getElementById('config-apptype').value = configData.app_type || "Commercial";
+    document.getElementById('config-budget').value = configData.budget_constraints || "Free Tier Only";
+    document.getElementById('config-ai_integration').value = configData.ai_integration || "None";
+    document.getElementById('config-security').value = configData.security_auth || "Basic";
+    document.getElementById('config-environment').value = configData.build_environment || "Greenfield (New)";
+    document.getElementById('config-features').value = JSON.stringify(configData.standout_features || []);
+    
+    document.getElementById('onboarding-pre-start').style.display = 'none';
+    document.getElementById('onboarding-active').style.display = 'block';
+    
+    document.getElementById('chat-history').style.display = 'none';
+    document.getElementById('chat-input-area').style.display = 'none';
+    document.getElementById('command-bar').style.display = 'flex';
+    document.getElementById('restart-onboarding-btn').style.display = 'inline-block';
+    
+    return true;
+}
+
 // ----------------------------------------------------
 // Pipeline Event Listeners & Chat Agents
 // ----------------------------------------------------
@@ -374,6 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('update-pass-btn').addEventListener('click', updatePassword);
     document.getElementById('new-project-btn').addEventListener('click', createNewProject);
     document.getElementById('edit-project-btn').addEventListener('click', handleEditProject);
+    document.getElementById('restart-onboarding-btn').addEventListener('click', restartOnboarding);
 
     
     document.getElementById('chat-send').addEventListener('click', () => sendOnboardingMessage(false));
@@ -995,6 +1047,21 @@ async function loadThemesCompass() {
         const data = await res.json();
         
         document.getElementById('brainstorming-compass').style.display = 'block';
+        
+        if (data.onboarding_config) {
+            restoreOnboardingConfig(data.onboarding_config);
+        } else {
+            // Reset UI if it was previously restored in DOM
+            document.getElementById('chat-history').style.display = 'flex';
+            document.getElementById('chat-input-area').style.display = 'flex';
+            document.getElementById('command-bar').style.display = 'none';
+            const chatInput = document.getElementById('chat-input');
+            if (chatInput) {
+                chatInput.disabled = false;
+                chatInput.placeholder = "Answer the agent or share your vision...";
+                chatInput.style.opacity = "1";
+            }
+        }
         
         const badge = document.getElementById('consistency-badge');
         const btn = document.getElementById('btn-consistency-check');

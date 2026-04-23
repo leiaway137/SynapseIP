@@ -128,6 +128,7 @@ class Project(Base):
     notes_since_last_check = Column(Integer, default=0)
     current_vibe_step = Column(Integer, default=0)
     is_consistent = Column(Boolean, default=False)
+    onboarding_config = Column(Text, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 class GeminiSource(Base):
@@ -831,8 +832,18 @@ def get_themes_dashboard(project_id: int, db: Session = Depends(get_db)):
     return {
         "active_themes": active_themes,
         "suggested_themes": suggested_themes,
-        "is_consistent": project.is_consistent if project else False
+        "is_consistent": project.is_consistent if project else False,
+        "onboarding_config": project.onboarding_config if project else None
     }
+
+@app.post("/api/projects/{project_id}/clear-onboarding")
+def clear_onboarding(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project.onboarding_config = None
+    db.commit()
+    return {"status": "success"}
 
 @app.get("/api/sources")
 def get_sources(response: Response, db: Session = Depends(get_db)):
@@ -1117,7 +1128,11 @@ async def onboarding_chat(req: OnboardingRequest, db: Session = Depends(get_db))
             }
         )
         await log_token_usage(db, "Onboarding Chat", "gemini-2.5-flash", res, project_id=req.project_id)
-        return json.loads(res.text)
+        parsed_res = json.loads(res.text)
+        if parsed_res.get("is_complete") and project:
+            project.onboarding_config = res.text
+            db.commit()
+        return parsed_res
     except Exception as e:
         print("Logic router architecture unhandled:", e)
         raise HTTPException(status_code=500, detail=str(e))
