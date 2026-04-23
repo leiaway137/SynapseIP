@@ -1,19 +1,15 @@
+import sys
 import os
-from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
 
-load_dotenv()
+sys.path.append(os.getcwd())
+from main import engine
+from sqlalchemy import text
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
-    print("NO DATABASE URL FOUND")
-    exit(1)
-
-engine = create_engine(DATABASE_URL)
 with engine.connect() as conn:
     try:
-        conn.execute(text("ALTER TABLE projects ADD COLUMN suggested_themes TEXT;"))
+        conn.execute(text("ALTER TABLE projects ADD COLUMN current_vibe_step INTEGER DEFAULT 0;"))
         conn.commit()
-        print("Success: Added suggested_themes column.")
+        print("Successfully added current_vibe_step column.")
     except Exception as e:
-        print("Error or already exists:", e)
+        print(f"Migration error (might already exist): {e}")
+

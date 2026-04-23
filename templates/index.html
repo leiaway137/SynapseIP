@@ -294,13 +294,13 @@
                     <div class="command-bar" id="branching-bar" style="margin-top: 30px; padding-bottom: 50px; justify-content: center; gap: 20px;">
                         <button id="regenerate-intel-btn" class="cancel-btn" style="padding: 14px 24px;">Regenerate Intel</button>
                         <button id="build-blueprint-btn" class="generate-btn" style="padding: 14px 24px; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                            Build Architect Blueprint (PDF)
+                            Build Architect Blueprint
                         </button>
                     </div>
                 </div>
             </div>
             
-            <!-- Raw Blueprint Markdown Viewer Container (for historical blueprint viewing) -->
+            <!-- Redesigned Blueprint Viewer (HTML Document Format) -->
             <div id="blueprint-viewer" class="analysis-dashboard" style="display: none;">
                 <div class="dashboard-header" style="justify-content: space-between;">
                     <h2>Architecture Blueprint</h2>
@@ -309,7 +309,7 @@
                     </div>
                 </div>
                 <div class="dashboard-scroll" style="height: calc(100vh - 120px);">
-                    <div class="card markdown-content" id="blueprint-content" style="font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;">
+                    <div class="architect-document-card" id="blueprint-content">
                         <!-- Markdown Injected Here -->
                     </div>
                 </div>

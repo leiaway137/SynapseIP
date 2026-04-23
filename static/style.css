@@ -1009,3 +1009,75 @@ body {
   animation: l 2s steps(4) infinite;
 }
 @keyframes l { to { clip-path: inset(0 -1ch 0 0) } }
+
+/* Architect Document UI */
+.architect-document-card {
+  background: var(--bg-color);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 40px 60px;
+  max-width: 900px;
+  margin: 20px auto;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+.architect-document-card h1 { font-size: 2.2rem; color: #fff; border-bottom: 2px solid var(--glass-border); padding-bottom: 10px; margin-bottom: 20px; }
+.architect-document-card h2 { font-size: 1.6rem; color: var(--accent-color); margin-top: 40px; margin-bottom: 16px; }
+.architect-document-card h3 { font-size: 1.3rem; color: #e2e8f0; margin-top: 30px; margin-bottom: 12px; }
+.architect-document-card p { margin-bottom: 16px; }
+.architect-document-card ul, .architect-document-card ol { margin-left: 24px; margin-bottom: 20px; }
+.architect-document-card li { margin-bottom: 8px; }
+.architect-document-card hr { border-color: var(--glass-border); margin: 30px 0; }
+.architect-document-card pre { background: rgba(0,0,0,0.4); padding: 16px; border-radius: 8px; border: 1px solid var(--glass-border); overflow-x: auto; margin-bottom: 20px; font-family: 'DM Mono', monospace; font-size: 0.9rem; }
+.architect-document-card code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #a78bfa; font-family: 'DM Mono', monospace; }
+.architect-document-card pre code { background: transparent; padding: 0; color: inherit; }
+.architect-document-card blockquote { border-left: 4px solid var(--accent-color); padding-left: 16px; margin-left: 0; color: #94a3b8; font-style: italic; }
+
+/* Vibe Coding Pipeline Checkboxes */
+.vibe-checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.vibe-checkbox {
+  width: 22px;
+  height: 22px;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid var(--glass-border);
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.vibe-checkbox:checked {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.vibe-checkbox:checked::after {
+  content: "✓";
+  position: absolute;
+  color: white;
+  font-size: 14px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.timeline-step.vibe-completed {
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.timeline-step.vibe-completed .step-prompt {
+  text-decoration: line-through;
+  color: #64748b;
+}

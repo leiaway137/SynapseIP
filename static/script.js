@@ -227,7 +227,7 @@ async function loadProjectDocuments(projectId) {
                     if (currentProjectId !== projectId) {
                         await selectProject(projectId, window.cachedProjects.find(p=>p.id===projectId)?.name || "Project");
                     }
-                    renderDashboard(report.data);
+                    renderDashboard(report.data, data.current_vibe_step);
                 });
                 intelContent.appendChild(el);
             });
@@ -347,7 +347,7 @@ async function selectProject(projectId, projectName, silent = false) {
             }
             // Automatically surface the most recent intelligence report if it exists
             if (data.intelligence && data.intelligence.length > 0) {
-                renderDashboard(data.intelligence[0].data);
+                renderDashboard(data.intelligence[0].data, data.current_vibe_step);
                 return; // Halt selection pipeline before onboarding kicks in
             }
         }
@@ -593,15 +593,57 @@ function renderDashboard(data) {
         data.vibe_coding_pipeline.forEach((step, idx) => {
             const el = document.createElement('div');
             el.className = 'timeline-step';
+            el.id = `vibe-step-${idx}`;
+            
+            const isCompleted = idx < currentVibeStep;
+            if (isCompleted) el.classList.add('vibe-completed');
+            
             el.innerHTML = `
-                <h4>Step ${idx + 1}</h4>
+                <div class="vibe-checkbox-container">
+                    <input type="checkbox" class="vibe-checkbox" id="checkbox-${idx}" data-idx="${idx}" ${isCompleted ? 'checked' : ''}>
+                    <label for="checkbox-${idx}" style="cursor:pointer; margin:0;"><h4 style="margin:0;">Step ${idx + 1}</h4></label>
+                </div>
                 <div class="step-prompt">${escapeHTML(step.prompt_text)}</div>
                 <div class="step-why"><strong>Why:</strong> ${marked.parse(step.why)}</div>
                 <div class="step-expect"><strong>Expectation:</strong> ${marked.parse(step.expectation)}</div>
                 <div class="step-error"><strong>Watch Out:</strong> ${marked.parse(step.error_warnings)}</div>
             `;
             timeline.appendChild(el);
+            
+            // Attach Checkbox Listener
+            const cb = el.querySelector('.vibe-checkbox');
+            cb.addEventListener('change', async (e) => {
+                const checked = e.target.checked;
+                const newStep = checked ? idx + 1 : idx;
+                
+                try {
+                    await fetch(`/api/projects/${currentProjectId}/vibe-step`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ step: newStep })
+                    });
+                    
+                    document.querySelectorAll('.timeline-step').forEach((stepEl, stepIdx) => {
+                        const stepCb = stepEl.querySelector('.vibe-checkbox');
+                        if (stepIdx < newStep) {
+                            stepEl.classList.add('vibe-completed');
+                            stepCb.checked = true;
+                        } else {
+                            stepEl.classList.remove('vibe-completed');
+                            stepCb.checked = false;
+                        }
+                    });
+                } catch(err) { console.error("Failed to save vibe step", err); }
+            });
         });
+        
+        // Auto-scroll logic to the first uncompleted step (only scroll if they've made progress)
+        if (currentVibeStep > 0 && currentVibeStep < data.vibe_coding_pipeline.length) {
+            setTimeout(() => {
+                const target = document.getElementById(`vibe-step-${currentVibeStep}`);
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        }
     }
     
     // Re-init Follow-up agent automatically

@@ -126,6 +126,7 @@ class Project(Base):
     name = Column(String, index=True)
     suggested_themes = Column(Text, nullable=True)
     notes_since_last_check = Column(Integer, default=0)
+    current_vibe_step = Column(Integer, default=0)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 class GeminiSource(Base):
@@ -208,6 +209,9 @@ class SourceCreate(BaseModel):
 
 class ProjectCreate(BaseModel):
     name: str
+
+class VibeStepUpdate(BaseModel):
+    step: int
 
 class ProjectResponse(BaseModel):
     id: int
@@ -773,11 +777,22 @@ def get_project_documents(project_id: int, db: Session = Depends(get_db)):
     """Returns lists of intelligence reports and architecture blueprints for this project."""
     reports = db.query(GeneratedReport).filter(GeneratedReport.project_id == project_id).order_by(GeneratedReport.timestamp.desc()).all()
     blueprints = db.query(ArchitectBlueprint).filter(ArchitectBlueprint.project_id == project_id).order_by(ArchitectBlueprint.timestamp.desc()).all()
+    project = db.query(Project).filter(Project.id == project_id).first()
     
     return {
         "intelligence": [{"id": r.id, "timestamp": r.timestamp, "data": json.loads(r.report_data)} for r in reports],
-        "blueprints": [{"id": b.id, "timestamp": b.timestamp, "data": b.blueprint_data} for b in blueprints]
+        "blueprints": [{"id": b.id, "timestamp": b.timestamp, "data": b.blueprint_data} for b in blueprints],
+        "current_vibe_step": project.current_vibe_step if project else 0
     }
+
+@app.post("/api/projects/{project_id}/vibe-step")
+def update_vibe_step(project_id: int, update: VibeStepUpdate, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project.current_vibe_step = update.step
+    db.commit()
+    return {"status": "success", "step": update.step}
 
 @app.get("/api/projects/{project_id}/themes_dashboard")
 def get_themes_dashboard(project_id: int, db: Session = Depends(get_db)):
