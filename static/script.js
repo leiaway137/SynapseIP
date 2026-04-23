@@ -942,13 +942,9 @@ function initWebSocket() {
             if (window._syncTimer) clearTimeout(window._syncTimer);
             window._syncTimer = setTimeout(() => fetchSources(), 300);
         } else if (event.data === "themes_updated") {
-            // Hide global tracker and reset button
+            // Hide global tracker
             document.getElementById('global-activity-tracker').style.display = 'none';
-            const btn = document.getElementById('btn-consistency-check');
-            if (btn) {
-                btn.innerText = "✨ Run Global Consistency Check";
-                btn.disabled = false;
-            }
+
             loadThemesCompass();
         } else if (event.data === "token_update") fetchTokenStats();
     };
@@ -989,6 +985,20 @@ async function loadThemesCompass() {
         const data = await res.json();
         
         document.getElementById('brainstorming-compass').style.display = 'block';
+        
+        const badge = document.getElementById('consistency-badge');
+        const btn = document.getElementById('btn-consistency-check');
+        if (data.is_consistent) {
+            badge.style.display = 'inline-block';
+            btn.innerHTML = 'Check Passed ✅';
+            btn.style.opacity = '0.5';
+            btn.style.pointerEvents = 'none';
+        } else {
+            badge.style.display = 'none';
+            btn.innerHTML = '✨ Run Global Consistency Check';
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = 'auto';
+        }
         
         const activeUl = document.getElementById('compass-active-themes');
         const suggestedUl = document.getElementById('compass-suggested-themes');

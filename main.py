@@ -127,6 +127,7 @@ class Project(Base):
     suggested_themes = Column(Text, nullable=True)
     notes_since_last_check = Column(Integer, default=0)
     current_vibe_step = Column(Integer, default=0)
+    is_consistent = Column(Boolean, default=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 class GeminiSource(Base):
@@ -763,6 +764,7 @@ async def perform_consistency_check(project_id: int):
             if t.theme_name in updated_data:
                 t.content = updated_data[t.theme_name]
                 
+        db.query(Project).filter(Project.id == project_id).update({"is_consistent": True})        
         db.commit()
         await manager.broadcast(json.dumps({"type": "progress", "progress": 100, "message": "Consistency check complete!"}))
         await manager.broadcast("themes_updated")
@@ -828,7 +830,8 @@ def get_themes_dashboard(project_id: int, db: Session = Depends(get_db)):
             
     return {
         "active_themes": active_themes,
-        "suggested_themes": suggested_themes
+        "suggested_themes": suggested_themes,
+        "is_consistent": project.is_consistent if project else False
     }
 
 @app.get("/api/sources")
@@ -941,6 +944,7 @@ async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks,
         processed=False
     )
     db.add(db_source)
+    active_project.is_consistent = False
     db.commit()
     db.refresh(db_source)
     
