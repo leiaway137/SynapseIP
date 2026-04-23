@@ -79,35 +79,26 @@ function decorateSyncedNodes() {
 
         if (syncedIndex !== -1) {
             const displayIdx = syncedSources[syncedIndex].id && syncedSources[syncedIndex].id > 0 ? syncedSources[syncedIndex].id : (index + 1);
-            const expectedText = `✓ SynapseIP Synced #${displayIdx}`;
             
-            const existingBadge = container.querySelector('.synapseip-persistent-badge');
-            if (existingBadge && existingBadge.innerText.includes(`Synced #${displayIdx}`)) {
-                container.classList.add('synapseip-synced-container');
-                return; // Already correct
-            }
-            if (existingBadge) existingBadge.remove(); // Remove outdated badge
-
-            container.classList.add('synapseip-synced-container');
-            const badge = document.createElement('div');
-            badge.className = 'synapseip-persistent-badge';
+            // Apply sleek green styling to the copy button instead of appending a badge!
+            const copyBtns = Array.from(container.querySelectorAll('button, [role="button"], [aria-label], [title], [mattooltip], .copy-button'))
+                .filter(b => {
+                    const t = (b.innerText || "").toLowerCase();
+                    const a = (b.getAttribute('aria-label') || "").toLowerCase();
+                    const title = (b.getAttribute('title') || "").toLowerCase();
+                    const tooltip = (b.getAttribute('mattooltip') || "").toLowerCase();
+                    return t.includes('copy') || a.includes('copy') || title.includes('copy') || tooltip.includes('copy');
+                });
             
-            badge.innerHTML = `<span style="font-size: 11px; font-weight: 600;">${expectedText}</span>`;
-            badge.style.cssText = "display: inline-flex; align-items: center; justify-content: center; background: rgba(16, 185, 129, 0.15); color: #059669; padding: 4px 8px; border-radius: 12px; margin-top: 8px; margin-bottom: 8px; font-family: system-ui, sans-serif; border: 1px solid rgba(16, 185, 129, 0.3); pointer-events: none;";
-            
-            let appendTarget = container;
-            const actionBars = Array.from(container.querySelectorAll('button, [role="button"]'));
-            if (actionBars.length > 0) {
-                 appendTarget = actionBars[actionBars.length - 1].parentElement;
-                 if (appendTarget && (appendTarget.tagName === 'ARTICLE' || appendTarget === container)) {
-                    container.appendChild(badge);
-                 } else if (appendTarget) {
-                    appendTarget.appendChild(badge);
-                 } else {
-                    container.appendChild(badge);
-                 }
-            } else {
-                 container.appendChild(badge);
+            if (copyBtns.length > 0) {
+                const btn = copyBtns[copyBtns.length - 1]; // Usually the last one
+                if (!btn.classList.contains('synapseip-synced-btn')) {
+                    btn.classList.add('synapseip-synced-btn');
+                    btn.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+                    btn.style.color = '#10b981';
+                    btn.style.borderRadius = '6px';
+                    // Optional: add a tiny tooltip or text if possible, but color is enough!
+                }
             }
         }
     });
@@ -129,98 +120,125 @@ document.addEventListener('click', (e) => {
         let container = btn.closest('article, div[class*="message"]:not([class*="messages"]):not([class*="wrapper"]):not([class*="container"]):not([class*="list"]), [role="listitem"]');
         
         if (!container) {
-            // Find which message container this button belongs to
             container = messageContainers.find(c => c.contains(btn));
         }
-        
         if (!container) return; // Not inside a message
-        
         if (container.closest('[data-message-author="user"], user-query, [class*="user-message"]')) return;
         
         // Prevent accidental duplicate copies if already syncing/synced
-        if (container.classList.contains('synapseip-syncing-now')) return;
-        container.classList.add('synapseip-syncing-now');
+        if (btn.classList.contains('synapseip-syncing-now')) return;
+        btn.classList.add('synapseip-syncing-now');
         
         // Show immediate visual feedback on the button
-        const tempBadge = document.createElement('span');
-        tempBadge.innerText = ' ✓ Synced';
-        tempBadge.style.cssText = "color: #10b981; font-weight: bold; font-size: 12px; margin-left: 6px; animation: fadein 0.3s forwards;";
-        btn.appendChild(tempBadge);
-        setTimeout(() => {
-            tempBadge.remove();
-            container.classList.remove('synapseip-syncing-now');
-        }, 3500);
+        const originalBg = btn.style.backgroundColor || '';
+        const originalColor = btn.style.color || '';
+        btn.style.backgroundColor = 'rgba(59, 130, 246, 0.2)'; // blue while syncing
+        btn.style.color = '#3b82f6';
+        btn.style.borderRadius = '6px';
 
-        // Proceed to extract and sync
-        const myIndex = messageContainers.indexOf(container);
-        const conversationalIndex = myIndex !== -1 ? myIndex + 1 : "?";
+        // Wait 300ms for NotebookLM to write the content to the clipboard
+        setTimeout(async () => {
+            try {
+                let clipboardHTML = "";
+                let clipboardText = "";
+                
+                try {
+                    const clipboardItems = await navigator.clipboard.read();
+                    for (const item of clipboardItems) {
+                        if (item.types.includes('text/html')) {
+                            const blob = await item.getType('text/html');
+                            clipboardHTML = await blob.text();
+                        }
+                        if (item.types.includes('text/plain')) {
+                            const blob = await item.getType('text/plain');
+                            clipboardText = await blob.text();
+                        }
+                    }
+                } catch(err) {
+                    console.log("Failed to read rich clipboard, falling back to readText", err);
+                    clipboardText = await navigator.clipboard.readText();
+                }
 
-        let cloneTarget = container;
-        const clone = cloneTarget.cloneNode(true);
-        Array.from(clone.querySelectorAll('button, mat-icon, [role="button"], .synapseip-persistent-badge')).forEach(b => b.remove());
+                if (!clipboardHTML && !clipboardText) {
+                    throw new Error("Clipboard empty or permission denied");
+                }
+                
+                // Prefer HTML for rich formatting, fallback to plain text with <br> tags
+                let finalContent = clipboardHTML || clipboardText.replace(/\n/g, '<br>');
 
-        const htmlContent = clone.innerHTML;
-        const sourceUrl = window.location.href;
-        
-        let userPromptText = "";
-        try {
-            const userSelectors = 'user-query, [data-message-author="user"], div[data-message-author="user"], [class*="user-message"], [class*="UserMessage"], .query-text, [class*="query"], [class*="user-bubble"]';
-            let match = container.querySelector(userSelectors);
-            
-            if (match) {
-                let text = match.innerText || match.textContent;
-                userPromptText = text.replace(/^(You said|You)\s*\n?/i, '').trim();
-                // Remove from clone to avoid duplication in AI Response
-                const promptInClone = clone.querySelector(userSelectors);
-                if (promptInClone) promptInClone.remove();
-            } else {
-                const allUserNodes = Array.from(document.querySelectorAll(userSelectors));
-                const previousUserNodes = allUserNodes.filter(n => n.compareDocumentPosition(container) & Node.DOCUMENT_POSITION_FOLLOWING);
-                if (previousUserNodes.length > 0) {
-                    match = previousUserNodes[previousUserNodes.length - 1];
+                const sourceUrl = window.location.href;
+                const myIndex = messageContainers.indexOf(container);
+                const conversationalIndex = myIndex !== -1 ? myIndex + 1 : "?";
+
+                let userPromptText = "";
+                const userSelectors = 'user-query, [data-message-author="user"], div[data-message-author="user"], [class*="user-message"], [class*="UserMessage"], .query-text, [class*="query"], [class*="user-bubble"]';
+                let match = container.querySelector(userSelectors);
+                if (match) {
                     let text = match.innerText || match.textContent;
                     userPromptText = text.replace(/^(You said|You)\s*\n?/i, '').trim();
-                }
-            }
-        } catch (e) { console.error(e); }
-        
-        let combinedContent = htmlContent;
-        if (userPromptText) {
-            const escapeUser = userPromptText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            combinedContent = `<div class="ai-prompt"><strong>User Prompt:</strong><br><p>${escapeUser}</p></div><hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;"><div class="ai-response"><strong>AI Response:</strong><br>${htmlContent}</div>`;
-        }
-        
-        let nodeId = container.getAttribute('data-message-id') || container.id || container.getAttribute('data-synapseip-id');
-        if (!nodeId) {
-            nodeId = "hash-" + Math.random().toString(36).substr(2, 9);
-            container.setAttribute('data-synapseip-id', nodeId);
-        }
-        combinedContent += `<div style="display:none;" data-synth-id="${nodeId}"></div>`;
-
-        const payload = {
-            title: `AI Source Node #${conversationalIndex} - ${new Date().toLocaleString()}`,
-            content: combinedContent,
-            source_url: sourceUrl
-        };
-
-        try {
-            chrome.runtime.sendMessage({ action: "sync_to_synapseip", data: payload }, (response) => {
-                if (chrome.runtime.lastError) return;
-                if (response && response.status === "success") {
-                    if (!syncedSources.some(s => s.content.includes(htmlContent.substring(0, 50)))) {
-                        syncedSources.push({
-                            id: (response.backendResponse && response.backendResponse.id) ? response.backendResponse.id : -1,
-                            content: `<div>${combinedContent}</div>`
-                        });
+                } else {
+                    const allUserNodes = Array.from(document.querySelectorAll(userSelectors));
+                    const previousUserNodes = allUserNodes.filter(n => n.compareDocumentPosition(container) & Node.DOCUMENT_POSITION_FOLLOWING);
+                    if (previousUserNodes.length > 0) {
+                        match = previousUserNodes[previousUserNodes.length - 1];
+                        let text = match.innerText || match.textContent;
+                        userPromptText = text.replace(/^(You said|You)\s*\n?/i, '').trim();
                     }
-                    decorateSyncedNodes();
                 }
-            });
-        } catch (e) {
-            console.error("SynapseIP Extension Error: Please refresh this page. The extension was reloaded.", e);
-        }
+
+                let combinedContent = finalContent;
+                if (userPromptText) {
+                    const escapeUser = userPromptText.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>');
+                    combinedContent = `<div class="ai-prompt"><strong>User Prompt:</strong><br><p>${escapeUser}</p></div><hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;"><div class="ai-response"><strong>AI Response:</strong><br><div class="markdown-body">${finalContent}</div></div>`;
+                }
+
+                let nodeId = container.getAttribute('data-message-id') || container.id || container.getAttribute('data-synapseip-id');
+                if (!nodeId) {
+                    nodeId = "hash-" + Math.random().toString(36).substr(2, 9);
+                    container.setAttribute('data-synapseip-id', nodeId);
+                }
+                combinedContent += `<div style="display:none;" data-synth-id="${nodeId}"></div>`;
+
+                const payload = {
+                    title: `AI Source Node #${conversationalIndex} - ${new Date().toLocaleString()}`,
+                    content: combinedContent,
+                    source_url: sourceUrl
+                };
+
+                chrome.runtime.sendMessage({ action: "sync_to_synapseip", data: payload }, (response) => {
+                    btn.classList.remove('synapseip-syncing-now');
+                    if (chrome.runtime.lastError) {
+                        console.error(chrome.runtime.lastError);
+                        btn.style.backgroundColor = originalBg;
+                        btn.style.color = originalColor;
+                        return;
+                    }
+                    if (response && response.status === "success") {
+                        if (!syncedSources.some(s => s.content.includes(clipboardText.substring(0, 50)))) {
+                            syncedSources.push({
+                                id: (response.backendResponse && response.backendResponse.id) ? response.backendResponse.id : -1,
+                                content: `<div>${combinedContent}</div>`
+                            });
+                        }
+                        // Turn it green permanently!
+                        btn.classList.add('synapseip-synced-btn');
+                        btn.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+                        btn.style.color = '#10b981';
+                        btn.style.borderRadius = '6px';
+                    } else {
+                        btn.style.backgroundColor = originalBg;
+                        btn.style.color = originalColor;
+                    }
+                });
+            } catch (e) {
+                console.error("SynapseIP Clipboard Sync Error. Please allow clipboard permissions if prompted.", e);
+                btn.classList.remove('synapseip-syncing-now');
+                btn.style.backgroundColor = originalBg;
+                btn.style.color = originalColor;
+            }
+        }, 300); // 300ms wait for native copy to finish
     }
-}, true); // Use capture phase to ensure we catch it before React stops propagation!
+}, true);
 
 // Observe DOM for new messages as Gemini/NotebookLM is a Single Page Application
 let debounceTimer;

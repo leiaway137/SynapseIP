@@ -5,7 +5,8 @@
   "description": "Sync specific Gemini responses to your SynapseIP local backend.",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "clipboardRead"
   ],
   "host_permissions": [
     "https://chatgpt.com/*",
