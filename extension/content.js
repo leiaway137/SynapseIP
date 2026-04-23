@@ -1,5 +1,24 @@
 console.log("SynapseIP Messenger: Stealth Content Script loaded on", window.location.hostname);
 
+// Inject persistent CSS for the synced state
+const style = document.createElement('style');
+style.textContent = `
+    .synapseip-synced-btn {
+        background-color: rgba(16, 185, 129, 0.2) !important;
+        color: #10b981 !important;
+        border-radius: 6px !important;
+        transition: all 0.3s ease !important;
+    }
+    .synapseip-synced-btn svg, 
+    .synapseip-synced-btn path, 
+    .synapseip-synced-btn mat-icon, 
+    .synapseip-synced-btn span {
+        fill: #10b981 !important;
+        color: #10b981 !important;
+    }
+`;
+document.head.appendChild(style);
+
 let syncedSources = [];
 chrome.runtime.sendMessage({ action: "fetch_synced_sources" }, (response) => {
     if (response && response.status === "success") {
@@ -220,19 +239,19 @@ document.addEventListener('click', (e) => {
                         }
                         // Turn it green permanently!
                         btn.classList.add('synapseip-synced-btn');
-                        btn.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
-                        btn.style.color = '#10b981';
-                        btn.style.borderRadius = '6px';
-                    } else {
-                        btn.style.backgroundColor = originalBg;
-                        btn.style.color = originalColor;
+                        
+                        // Show a tiny success checkmark or text temporarily
+                        const oldHtml = btn.innerHTML;
+                        btn.innerHTML = `<span style="font-size: 0.8rem; font-weight: bold; margin: 0 4px; color: #10b981;">Synced! ✓</span>`;
+                        setTimeout(() => {
+                            btn.innerHTML = oldHtml;
+                            btn.classList.add('synapseip-synced-btn'); // Re-apply class in case framework wiped it
+                        }, 3000);
                     }
                 });
             } catch (e) {
                 console.error("SynapseIP Clipboard Sync Error. Please allow clipboard permissions if prompted.", e);
                 btn.classList.remove('synapseip-syncing-now');
-                btn.style.backgroundColor = originalBg;
-                btn.style.color = originalColor;
             }
         }, 300); // 300ms wait for native copy to finish
     }
