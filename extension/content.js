@@ -167,6 +167,14 @@ document.addEventListener('click', (e) => {
                     source_url: sourceUrl
                 };
 
+                // Defensive check: If the extension was reloaded, chrome.runtime becomes undefined in existing tabs
+                if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
+                    console.error("SynapseIP Extension context invalidated. Please refresh the page.");
+                    btn.classList.remove('synapseip-syncing-now');
+                    alert("SynapseIP Extension was updated or reloaded in the background. Please refresh this page to restore the connection!");
+                    return;
+                }
+
                 chrome.runtime.sendMessage({ action: "sync_to_synapseip", data: payload }, (response) => {
                     btn.classList.remove('synapseip-syncing-now');
                     if (chrome.runtime.lastError) {
