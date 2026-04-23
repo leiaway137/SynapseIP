@@ -402,12 +402,27 @@ async def background_processor():
                         model='gemini-2.5-flash',
                         contents=categorize_prompt
                     )
+                    
+                    # Log tokens using a temporary DB session
+                    temp_db = SessionLocal()
+                    try:
+                        await log_token_usage(temp_db, "Note Categorization", "gemini-2.5-flash", cat_res, project_id=target_project_id)
+                    finally:
+                        temp_db.close()
+                        
                     chosen_theme = cat_res.text.strip().strip('"').strip("'")
                     
                     title_res = await gemini_client.aio.models.generate_content(
                         model='gemini-2.5-flash',
                         contents=title_prompt
                     )
+                    
+                    temp_db = SessionLocal()
+                    try:
+                        await log_token_usage(temp_db, "Note Titling", "gemini-2.5-flash", title_res, project_id=target_project_id)
+                    finally:
+                        temp_db.close()
+                        
                     smart_title = title_res.text.strip().strip('"').strip("'")
                     if len(smart_title) > 100:
                         smart_title = smart_title[:100]
@@ -436,6 +451,7 @@ async def background_processor():
                                 model='gemini-2.5-flash',
                                 contents=merge_prompt
                             )
+                            await log_token_usage(db_merge, "Theme Synthesis", "gemini-2.5-flash", merge_res, project_id=target_project_id)
                             theme_record.content = merge_res.text.strip()
                         else:
                             # New Theme
@@ -469,6 +485,7 @@ async def background_processor():
                             model='gemini-2.5-flash',
                             contents=sugg_prompt
                         )
+                        await log_token_usage(db_sugg, "Theme Suggestion", "gemini-2.5-flash", sugg_res, project_id=target_project_id)
                         
                         clean_sugg = sugg_res.text.strip()
                         if clean_sugg.startswith("```json"):
