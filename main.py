@@ -744,6 +744,8 @@ async def perform_consistency_check(project_id: int):
         Return a raw JSON object where the keys are the EXACT original theme names, and the values are the newly cleaned, consistent markdown content for that theme. Do not include markdown block wrappers like ```json. Return ONLY the raw JSON.
         """
 
+        await manager.broadcast(json.dumps({"type": "progress", "progress": 20, "message": "Analyzing Architecture for consistency..."}))
+
         res = await gemini_client.aio.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt
@@ -762,21 +764,24 @@ async def perform_consistency_check(project_id: int):
                 t.content = updated_data[t.theme_name]
                 
         db.commit()
+        await manager.broadcast(json.dumps({"type": "progress", "progress": 100, "message": "Consistency check complete!"}))
         await manager.broadcast("themes_updated")
         return {"status": "success"}
+    except Exception as e:
+        await manager.broadcast(json.dumps({"type": "progress", "progress": 100, "message": f"Consistency check failed: {e}"}))
+        print("Consistency Check Failed:", e)
+        return {"status": "error", "message": str(e)}
     finally:
         db.close()
 
 @app.post("/api/projects/{project_id}/consistency-check")
-async def run_consistency_check(project_id: int, db: Session = Depends(get_db)):
-    try:
-        result = await perform_consistency_check(project_id)
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message"))
-        return result
-    except Exception as e:
-        print("Consistency Check Failed:", e)
-        raise HTTPException(status_code=500, detail=str(e))
+async def run_consistency_check(project_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project_id).all()
+    if not themes:
+        raise HTTPException(status_code=400, detail="No themes found for consistency check")
+    
+    background_tasks.add_task(perform_consistency_check, project_id)
+    return {"status": "queued"}
 
 @app.get("/api/projects/{project_id}/sources")
 def get_project_sources(project_id: int, response: Response, db: Session = Depends(get_db)):

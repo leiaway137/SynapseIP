@@ -942,6 +942,13 @@ function initWebSocket() {
             if (window._syncTimer) clearTimeout(window._syncTimer);
             window._syncTimer = setTimeout(() => fetchSources(), 300);
         } else if (event.data === "themes_updated") {
+            // Hide global tracker and reset button
+            document.getElementById('global-activity-tracker').style.display = 'none';
+            const btn = document.getElementById('btn-consistency-check');
+            if (btn) {
+                btn.innerText = "✨ Run Global Consistency Check";
+                btn.disabled = false;
+            }
             loadThemesCompass();
         } else if (event.data === "token_update") fetchTokenStats();
     };
@@ -1064,11 +1071,10 @@ document.getElementById('btn-consistency-check')?.addEventListener('click', asyn
     
     try {
         const response = await fetch(`/api/projects/${currentProjectId}/consistency-check`, { method: 'POST' });
-        if (!response.ok) throw new Error("Consistency Check failed.");
-        // The backend will broadcast 'themes_updated' via WebSocket which will trigger a UI refresh automatically
+        if (!response.ok) throw new Error("Consistency Check failed to start.");
+        // The backend will broadcast progress via WebSocket, which the UI picks up automatically!
     } catch (e) {
         alert(e.message);
-    } finally {
         btn.innerText = originalText;
         btn.disabled = false;
     }
