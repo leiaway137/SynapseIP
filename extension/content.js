@@ -19,23 +19,6 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-let syncedSources = [];
-chrome.runtime.sendMessage({ action: "fetch_synced_sources" }, (response) => {
-    if (response && response.status === "success") {
-        syncedSources = response.sources;
-    }
-});
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "global_sync_update" || request.action === "global_desync") {
-        chrome.runtime.sendMessage({ action: "fetch_synced_sources" }, (response) => {
-            if (response && response.status === "success") {
-                syncedSources = response.sources;
-            }
-        });
-    }
-});
-
 function getMessageContainers() {
     const activeHost = window.location.hostname.replace('www.', '');
     let rawContainers = [];
@@ -65,60 +48,6 @@ function getMessageContainers() {
     rawContainers = [...new Set(rawContainers)];
 
     return rawContainers.filter(n => !rawContainers.some(other => other !== n && n.contains(other)));
-}
-
-function decorateSyncedNodes() {
-    if (!chrome.runtime || !chrome.runtime.id) return;
-
-    const messageContainers = getMessageContainers();
-    let claimedIndices = new Set();
-    
-    messageContainers.forEach((container, index) => {
-        if (container.closest('[data-message-author="user"], user-query, [class*="user-message"]')) return;
-
-        const textClone = container.cloneNode(true);
-        const snippet = textClone.innerText.trim().substring(0, 150).replace(/\s+/g, ' ');
-        const geminiId = container.getAttribute('data-message-id') || container.id || container.getAttribute('data-synapseip-id') || 'unknown';
-        
-        let syncedIndex = -1;
-        if (syncedSources.length > 0) {
-            syncedIndex = syncedSources.findIndex((s, idx) => {
-                if (claimedIndices.has(idx)) return false;
-                if (geminiId !== 'unknown' && s.content.includes(`data-synth-id="${geminiId}"`)) return true;
-                
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = s.content.replace(/<\/(p|div|h[1-6]|li|ul|ol|br|strong|b)>/gi, ' </$1> ');
-                const plainText = (tempDiv.innerText || tempDiv.textContent || "").replace(/\s+/g, ' ');
-                return snippet.length > 25 && plainText.includes(snippet);
-            });
-            if (syncedIndex !== -1) claimedIndices.add(syncedIndex);
-        }
-
-        if (syncedIndex !== -1) {
-            const displayIdx = syncedSources[syncedIndex].id && syncedSources[syncedIndex].id > 0 ? syncedSources[syncedIndex].id : (index + 1);
-            
-            // Apply sleek green styling to the copy button instead of appending a badge!
-            const copyBtns = Array.from(container.querySelectorAll('button, [role="button"], [aria-label], [title], [mattooltip], .copy-button'))
-                .filter(b => {
-                    const t = (b.innerText || "").toLowerCase();
-                    const a = (b.getAttribute('aria-label') || "").toLowerCase();
-                    const title = (b.getAttribute('title') || "").toLowerCase();
-                    const tooltip = (b.getAttribute('mattooltip') || "").toLowerCase();
-                    return t.includes('copy') || a.includes('copy') || title.includes('copy') || tooltip.includes('copy');
-                });
-            
-            if (copyBtns.length > 0) {
-                const btn = copyBtns[copyBtns.length - 1]; // Usually the last one
-                if (!btn.classList.contains('synapseip-synced-btn')) {
-                    btn.classList.add('synapseip-synced-btn');
-                    btn.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
-                    btn.style.color = '#10b981';
-                    btn.style.borderRadius = '6px';
-                    // Optional: add a tiny tooltip or text if possible, but color is enough!
-                }
-            }
-        }
-    });
 }
 
 // Global click listener to intercept native Copy
@@ -247,12 +176,6 @@ document.addEventListener('click', (e) => {
                         return;
                     }
                     if (response && response.status === "success") {
-                        if (!syncedSources.some(s => s.content.includes(clipboardText.substring(0, 50)))) {
-                            syncedSources.push({
-                                id: (response.backendResponse && response.backendResponse.id) ? response.backendResponse.id : -1,
-                                content: `<div>${combinedContent}</div>`
-                            });
-                        }
                         // Turn it green permanently!
                         btn.classList.add('synapseip-synced-btn');
                         

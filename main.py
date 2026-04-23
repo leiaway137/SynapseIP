@@ -881,6 +881,23 @@ async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks,
         db.commit()
         db.refresh(active_project)
 
+    # Duplicate prevention: Check if exact content already exists in this project
+    existing_source = db.query(GeminiSource).filter(
+        GeminiSource.project_id == active_project.id,
+        GeminiSource.content == source.content
+    ).first()
+
+    if existing_source:
+        # Return success with the existing source to satisfy the extension, but don't insert a duplicate or trigger background tasks
+        return SourceResponse(
+            id=existing_source.id,
+            title=existing_source.title,
+            content=existing_source.content,
+            source_url=existing_source.source_url,
+            timestamp=existing_source.timestamp,
+            processed=existing_source.processed
+        )
+
     db_source = GeminiSource(
         user_id=1,
         project_id=active_project.id,
