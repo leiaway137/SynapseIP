@@ -139,7 +139,23 @@ document.addEventListener('click', (e) => {
         if (!container) {
             container = messageContainers.find(c => c.contains(btn));
         }
-        if (!container) return; // Not inside a message
+        
+        // If button is outside the message (like in Gemini's footer), walk up to find shared parent
+        if (!container) {
+            let parent = btn.parentElement;
+            while (parent && parent !== document.body) {
+                const contained = messageContainers.filter(c => parent.contains(c));
+                if (contained.length > 0) {
+                    // Pick the closest message container that appears before the button
+                    const beforeBtn = contained.filter(c => c.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING);
+                    container = beforeBtn.length > 0 ? beforeBtn[beforeBtn.length - 1] : contained[0];
+                    break;
+                }
+                parent = parent.parentElement;
+            }
+        }
+        
+        if (!container) return; // Not inside or associated with a message
         if (container.closest('[data-message-author="user"], user-query, [class*="user-message"]')) return;
         
         // Prevent accidental duplicate copies if already syncing/synced
