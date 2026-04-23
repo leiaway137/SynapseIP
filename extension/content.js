@@ -4,7 +4,6 @@ let syncedSources = [];
 chrome.runtime.sendMessage({ action: "fetch_synced_sources" }, (response) => {
     if (response && response.status === "success") {
         syncedSources = response.sources;
-        decorateSyncedNodes();
     }
 });
 
@@ -13,7 +12,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         chrome.runtime.sendMessage({ action: "fetch_synced_sources" }, (response) => {
             if (response && response.status === "success") {
                 syncedSources = response.sources;
-                decorateSyncedNodes();
             }
         });
     }
@@ -240,13 +238,4 @@ document.addEventListener('click', (e) => {
     }
 }, true);
 
-// Observe DOM for new messages as Gemini/NotebookLM is a Single Page Application
-let debounceTimer;
-const observer = new MutationObserver(() => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-        decorateSyncedNodes();
-    }, 1500); // Wait for chat generation to settle
-});
-
-observer.observe(document.body, { childList: true, subtree: true });
+// Observer is no longer needed since we only color reactively upon user click.
