@@ -210,6 +210,9 @@ class SourceCreate(BaseModel):
 class ProjectCreate(BaseModel):
     name: str
 
+class ProjectUpdate(BaseModel):
+    name: str
+
 class VibeStepUpdate(BaseModel):
     step: int
 
@@ -701,6 +704,16 @@ def get_projects(db: Session = Depends(get_db)):
 def create_project(req: ProjectCreate, db: Session = Depends(get_db)):
     p = Project(user_id=1, name=req.name)
     db.add(p)
+    db.commit()
+    db.refresh(p)
+    return p
+
+@app.put("/api/projects/{project_id}", response_model=ProjectResponse)
+def update_project(project_id: int, req: ProjectUpdate, db: Session = Depends(get_db)):
+    p = db.query(Project).filter(Project.id == project_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Project not found")
+    p.name = req.name
     db.commit()
     db.refresh(p)
     return p

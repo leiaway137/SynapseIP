@@ -373,6 +373,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logout-btn').addEventListener('click', handleLogout);
     document.getElementById('update-pass-btn').addEventListener('click', updatePassword);
     document.getElementById('new-project-btn').addEventListener('click', createNewProject);
+    document.getElementById('edit-project-btn').addEventListener('click', handleEditProject);
+
     
     document.getElementById('chat-send').addEventListener('click', () => sendOnboardingMessage(false));
     document.getElementById('chat-refresh-sources').addEventListener('click', () => sendOnboardingMessage(true));
@@ -1124,3 +1126,65 @@ document.getElementById('btn-copy-mockup').addEventListener('click', async () =>
         alert("Failed to copy clipboard");
     }
 });
+
+async function handleEditProject(e) {
+    e.stopPropagation();
+    if (!currentProjectId) return;
+    
+    const span = document.getElementById('active-project-name');
+    const oldName = span.innerText;
+    
+    // Prevent double clicking
+    if (span.querySelector('input')) return;
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'inline-edit-input';
+    input.value = oldName;
+    
+    span.innerHTML = '';
+    span.appendChild(input);
+    input.focus();
+    input.select();
+    
+    const saveNewName = async () => {
+        const newName = input.value.trim();
+        if (!newName || newName === oldName) {
+            span.innerText = oldName;
+            return;
+        }
+        
+        // Optimistic UI update
+        span.innerText = newName;
+        document.getElementById('edit-project-btn').style.pointerEvents = 'none';
+        
+        try {
+            const res = await fetch(`/api/projects/${currentProjectId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: newName})
+            });
+            if (!res.ok) throw new Error("Failed to rename");
+            
+            // Update cache
+            const p = window.cachedProjects.find(p => p.id === currentProjectId);
+            if (p) p.name = newName;
+            
+            // Re-render list
+            renderProjectList(window.cachedProjects);
+        } catch (e) {
+            console.error(e);
+            span.innerText = oldName;
+            alert("Error renaming project");
+        } finally {
+            document.getElementById('edit-project-btn').style.pointerEvents = 'auto';
+        }
+    };
+    
+    input.addEventListener('blur', saveNewName);
+    input.addEventListener('keypress', (evt) => {
+        if (evt.key === 'Enter') {
+            input.blur(); // Triggers saveNewName
+        }
+    });
+}
