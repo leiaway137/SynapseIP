@@ -521,7 +521,14 @@ async function generateIntelligence() {
             })
         });
         
-        if (!response.ok) throw new Error("Analysis failed");
+        if (!response.ok) {
+            let errorDetail = response.statusText;
+            try {
+                const errData = await response.json();
+                errorDetail = errData.detail || errorDetail;
+            } catch(e) {}
+            throw new Error(`Analysis failed: ${errorDetail}`);
+        }
         const data = await response.json();
         
         clearInterval(simInterval); clearInterval(thoughtInterval);

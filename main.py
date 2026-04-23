@@ -1261,6 +1261,9 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
         await log_token_usage(db, "Analyze Blueprint", "gemini-2.5-flash", response, project_id=req.project_id)
         generated_json = response.text
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print("Analysis Error:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
     
     # Save generic generated report
