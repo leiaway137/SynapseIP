@@ -686,8 +686,21 @@ body {
 .modal-body .ai-response span:not([class*="token"]),
 .modal-body .ai-response li,
 .modal-body .ai-response td,
-.modal-body .ai-response th {
-    color: var(--text-primary) !important;
+.modal-body .ai-response th,
+.modal-body .ai-response h1,
+.modal-body .ai-response h2,
+.modal-body .ai-response h3,
+.modal-body .ai-response h4,
+.modal-body .ai-response h5,
+.modal-body .ai-response h6 {
+    color: #ffffff !important;
+    background-color: transparent !important;
+}
+
+.modal-body .ai-response strong,
+.modal-body .ai-response b {
+    color: #ffffff !important;
+    font-weight: 800 !important;
     background-color: transparent !important;
 }
 
