@@ -438,16 +438,19 @@ async function sendOnboardingMessage(initial = false) {
     chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
     
     try {
-        // MOCKED AI FOR TESTING
-        await new Promise(r => setTimeout(r, 300));
-        const data = {
-            message: "AI Onboarding temporarily disabled for extension testing. Proceeding natively...",
-            is_complete: true,
-            designer_name: "Testing Dev",
-            core_purpose: "Extension Architecture"
-        };
+        const response = await fetch('/api/chat/onboarding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_id: currentProjectId, history: onboardingHistory })
+        });
         
         chatHistoryEl.removeChild(thinkingBubble);
+        
+        if (!response.ok) {
+            throw new Error('API Error');
+        }
+        
+        const data = await response.json();
         if (initial) chatHistoryEl.innerHTML = ""; 
         
         onboardingHistory.push({ role: "model", content: data.message });
