@@ -369,9 +369,11 @@ async function restartOnboarding() {
         await fetch(`/api/projects/${currentProjectId}/clear-onboarding`, { method: 'POST' });
         
         // Reset UI
-        document.getElementById('chat-history').style.display = 'flex';
-        document.getElementById('chat-input-area').style.display = 'flex';
-        document.getElementById('command-bar').style.display = 'none';
+        const setDisplay = (id, val) => { const el = document.getElementById(id); if (el) el.style.display = val; };
+        setDisplay('chat-history', 'flex');
+        setDisplay('chat-input-area', 'flex');
+        setDisplay('command-bar', 'none');
+        
         const chatInput = document.getElementById('chat-input');
         if (chatInput) {
             chatInput.disabled = false;
@@ -391,25 +393,25 @@ function restoreOnboardingConfig(configData) {
         try { configData = JSON.parse(configData); } catch(e) { return false; }
     }
     if (!configData || !configData.is_complete) return false;
+    const safelySet = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    safelySet('config-designer', configData.designer_name || currentUser?.username || "Designer");
+    safelySet('config-appname', configData.app_name || currentProjectName);
+    safelySet('config-purpose', configData.core_purpose || "");
+    safelySet('config-audience', configData.target_audience || "");
+    safelySet('config-apptype', configData.app_type || "Commercial");
+    safelySet('config-budget', configData.budget_constraints || "Free Tier Only");
+    safelySet('config-ai_integration', configData.ai_integration || "None");
+    safelySet('config-security', configData.security_auth || "Basic");
+    safelySet('config-environment', configData.build_environment || "Greenfield (New)");
+    safelySet('config-features', JSON.stringify(configData.standout_features || []));
     
-    document.getElementById('config-designer').value = configData.designer_name || currentUser?.username || "Designer";
-    document.getElementById('config-appname').value = configData.app_name || currentProjectName;
-    document.getElementById('config-purpose').value = configData.core_purpose || "";
-    document.getElementById('config-audience').value = configData.target_audience || "";
-    document.getElementById('config-apptype').value = configData.app_type || "Commercial";
-    document.getElementById('config-budget').value = configData.budget_constraints || "Free Tier Only";
-    document.getElementById('config-ai_integration').value = configData.ai_integration || "None";
-    document.getElementById('config-security').value = configData.security_auth || "Basic";
-    document.getElementById('config-environment').value = configData.build_environment || "Greenfield (New)";
-    document.getElementById('config-features').value = JSON.stringify(configData.standout_features || []);
-    
-    document.getElementById('onboarding-pre-start').style.display = 'none';
-    document.getElementById('onboarding-active').style.display = 'block';
-    
-    document.getElementById('chat-history').style.display = 'none';
-    document.getElementById('chat-input-area').style.display = 'none';
-    document.getElementById('command-bar').style.display = 'flex';
-    document.getElementById('restart-onboarding-btn').style.display = 'inline-block';
+    const setDisplay = (id, val) => { const el = document.getElementById(id); if (el) el.style.display = val; };
+    setDisplay('onboarding-pre-start', 'none');
+    setDisplay('onboarding-active', 'block');
+    setDisplay('chat-history', 'none');
+    setDisplay('chat-input-area', 'none');
+    setDisplay('command-bar', 'flex');
+    setDisplay('restart-onboarding-btn', 'inline-block');
     
     return true;
 }
@@ -421,11 +423,11 @@ document.addEventListener('DOMContentLoaded', () => {
     marked.setOptions({ breaks: true });
     
     // Bind UI actions
-    document.getElementById('logout-btn').addEventListener('click', handleLogout);
-    document.getElementById('update-pass-btn').addEventListener('click', updatePassword);
-    document.getElementById('new-project-btn').addEventListener('click', createNewProject);
-    document.getElementById('edit-project-btn').addEventListener('click', handleEditProject);
-    document.getElementById('restart-onboarding-btn').addEventListener('click', restartOnboarding);
+    document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
+    document.getElementById('update-pass-btn')?.addEventListener('click', updatePassword);
+    document.getElementById('new-project-btn')?.addEventListener('click', createNewProject);
+    document.getElementById('edit-project-btn')?.addEventListener('click', handleEditProject);
+    document.getElementById('restart-onboarding-btn')?.addEventListener('click', restartOnboarding);
 
     
     document.getElementById('chat-send').addEventListener('click', () => sendOnboardingMessage(false));
@@ -1052,9 +1054,11 @@ async function loadThemesCompass() {
             restoreOnboardingConfig(data.onboarding_config);
         } else {
             // Reset UI if it was previously restored in DOM
-            document.getElementById('chat-history').style.display = 'flex';
-            document.getElementById('chat-input-area').style.display = 'flex';
-            document.getElementById('command-bar').style.display = 'none';
+            const setDisplay = (id, val) => { const el = document.getElementById(id); if (el) el.style.display = val; };
+            setDisplay('chat-history', 'flex');
+            setDisplay('chat-input-area', 'flex');
+            setDisplay('command-bar', 'none');
+            
             const chatInput = document.getElementById('chat-input');
             if (chatInput) {
                 chatInput.disabled = false;
@@ -1102,7 +1106,7 @@ async function loadThemesCompass() {
                 suggestedUl.innerHTML += `<li><span style="color: #f59e0b; margin-right: 8px;">!</span> ${escapeHTML(t)}</li>`;
             });
         }
-    } catch(e) {}
+    } catch(e) { console.error("Themes compass error:", e); }
 }
 
 // --- Delete Modals Component ---
