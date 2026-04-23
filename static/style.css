@@ -678,10 +678,37 @@ body {
   overflow-x: auto;
   border: 1px solid var(--glass-border);
   margin-bottom: 1.5em;
+}
+
+/* Aggressively override imported dark text from Gemini/NotebookLM clipboards */
+.modal-body .ai-response p,
+.modal-body .ai-response div,
+.modal-body .ai-response span:not([class*="token"]),
+.modal-body .ai-response li,
+.modal-body .ai-response td,
+.modal-body .ai-response th {
+    color: var(--text-primary) !important;
+    background-color: transparent !important;
+}
+
+/* Ensure code tags (like inline code) don't have white backgrounds with white text */
+.modal-body .ai-response code {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #cbd5e1 !important;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.modal-body .ai-response pre code {
+    background-color: transparent !important;
+    color: inherit !important;
+}
+
+.modal-body pre code {
   font-family: 'DM Mono', monospace;
   font-size: 0.9em;
   color: #a78bfa;
 }
+
 .modal-body code {
   font-family: 'DM Mono', monospace;
   background: rgba(0,0,0,0.3);
