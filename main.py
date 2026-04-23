@@ -710,6 +710,15 @@ def create_project(req: ProjectCreate, db: Session = Depends(get_db)):
     db.refresh(p)
     return p
 
+def truncate_context_for_tokens(context: str, max_chars: int = 2500000) -> str:
+    """Truncates context to avoid exceeding token limits while preserving the beginning and end of the payload."""
+    if len(context) <= max_chars:
+        return context
+    
+    half_limit = max_chars // 2
+    truncation_warning = "\n\n...[TRUNCATED TO PREVENT TOKEN LIMIT ERROR]...\n\n"
+    return context[:half_limit] + truncation_warning + context[-half_limit:]
+
 @app.put("/api/projects/{project_id}", response_model=ProjectResponse)
 def update_project(project_id: int, req: ProjectUpdate, db: Session = Depends(get_db)):
     p = db.query(Project).filter(Project.id == project_id).first()
@@ -1086,6 +1095,8 @@ async def onboarding_chat(req: OnboardingRequest, db: Session = Depends(get_db))
                 memories.append(f"Source Outline: {s.title}\n{mem}")
         context_text = "\n\n".join(memories) if memories else "No sources provided yet."
     
+    context_text = truncate_context_for_tokens(context_text)
+    
     history_str = "\n".join([f"{msg.role.upper()}: {msg.content}" for msg in req.history])
     if not req.history:
         history_str = "(Conversation just started. The user is waiting.)"
@@ -1202,6 +1213,7 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="No sources found to analyze.")
         
     context_text = "\n\n".join([f"Source: {s.title}\n{s.content}" for s in sources])
+    context_text = truncate_context_for_tokens(context_text)
     
     if req.app_type and req.app_type.lower() == "personal":
         rubric_text = """
@@ -1581,6 +1593,7 @@ async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks
     else:
         combined_text = "\n\n---\n\n".join([f"THEME: {t.theme_name}\n{t.content}" for t in themes])
         
+    combined_text = truncate_context_for_tokens(combined_text)
     background_tasks.add_task(generate_architect_report, req.project_id, combined_text, req.target_platform, req.designer_name, req.app_name, req.app_purpose, req.budget_constraints, req.ai_integration, req.security_auth, req.build_environment)
     
     return {"status": "started", "message": "Architect pipeline initiated."}
