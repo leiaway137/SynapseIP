@@ -347,7 +347,7 @@ async function selectProject(projectId, projectName, silent = false) {
             }
             // Automatically surface the most recent intelligence report if it exists
             if (data.intelligence && data.intelligence.length > 0) {
-                renderDashboard(data.intelligence[0].data, data.current_vibe_step);
+                renderDashboard(data.intelligence[0].data, data.current_vibe_step, data.followup_history);
                 return; // Halt selection pipeline before onboarding kicks in
             }
         }
@@ -617,7 +617,7 @@ function regenerateIntelligence() {
     generateIntelligence();
 }
 
-function renderDashboard(data) {
+function renderDashboard(data, currentVibeStep = 0, history = []) {
     document.getElementById('onboarding-screen').style.display = 'none';
     document.getElementById('blueprint-viewer').style.display = 'none';
     document.getElementById('intelligence-dashboard').style.display = 'flex';
@@ -713,9 +713,22 @@ function renderDashboard(data) {
     }
     
     // Re-init Follow-up agent automatically
-    followupHistory = [];
-    document.getElementById('followup-chat-history').innerHTML = '';
-    sendFollowupMessage(true); // silent seed
+    followupHistory = history || [];
+    const histEl = document.getElementById('followup-chat-history');
+    histEl.innerHTML = '';
+    
+    if (followupHistory.length > 0) {
+        followupHistory.forEach(msg => {
+            if (msg.role === 'user') {
+                histEl.innerHTML += `<div style="background:rgba(255,255,255,0.1); padding:10px; border-radius:8px; margin-bottom:8px; align-self:flex-end; color:white; font-size:0.9rem;">${escapeHTML(msg.content)}</div>`;
+            } else {
+                histEl.innerHTML += `<div style="background:rgba(59,130,246,0.1); border-left:3px solid #3b82f6; padding:10px; border-radius:8px; margin-bottom:8px; color:#e2e8f0; font-size:0.9rem; line-height:1.5;">${marked.parse(msg.content)}</div>`;
+            }
+        });
+        histEl.scrollTop = histEl.scrollHeight;
+    } else {
+        sendFollowupMessage(true); // silent seed
+    }
 }
 
 // Phase 3: Follow-Up Architect

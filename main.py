@@ -129,6 +129,7 @@ class Project(Base):
     current_vibe_step = Column(Integer, default=0)
     is_consistent = Column(Boolean, default=False)
     onboarding_config = Column(Text, nullable=True)
+    followup_history = Column(Text, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 class GeminiSource(Base):
@@ -812,7 +813,8 @@ def get_project_documents(project_id: int, db: Session = Depends(get_db)):
     return {
         "intelligence": [{"id": r.id, "timestamp": r.timestamp, "data": json.loads(r.report_data)} for r in reports],
         "blueprints": [{"id": b.id, "timestamp": b.timestamp, "data": b.blueprint_data} for b in blueprints],
-        "current_vibe_step": project.current_vibe_step if project else 0
+        "current_vibe_step": project.current_vibe_step if project else 0,
+        "followup_history": json.loads(project.followup_history) if project and project.followup_history else []
     }
 
 @app.post("/api/projects/{project_id}/vibe-step")
@@ -1052,6 +1054,15 @@ async def followup_chat(req: FollowupRequest, db: Session = Depends(get_db)):
             model='gemini-2.5-flash',
             contents=prompt,
         )
+        
+        # Save to database
+        project = db.query(Project).filter(Project.id == req.project_id).first()
+        if project:
+            new_history = [{"role": msg.role, "content": msg.content} for msg in req.history]
+            new_history.append({"role": "model", "content": response.text})
+            project.followup_history = json.dumps(new_history)
+            db.commit()
+            
         return {"message": response.text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
