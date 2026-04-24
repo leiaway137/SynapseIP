@@ -1524,7 +1524,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                 await log_token_usage(db, "Architect Generation", "gemini-2.5-flash", chap_res, project_id=project_id)
                 anchor = chapter_title.lower().replace(' ', '-').replace('.', '').replace(':', '')
                 markdown_content += f"<a id='step-{i+1}-{anchor}'></a>\n"
-                markdown_content += f"## [ ] Step {i+1}: {chapter_title}\n\n"
+                markdown_content += f"## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='{i}'> Step {i+1}: {chapter_title}</label>\n\n"
                 markdown_content += f"{chap_res.text}\n\n---\n\n"
             except Exception as e:
                 print(f"Skipping chapter {chapter_title} due to error: {e}")

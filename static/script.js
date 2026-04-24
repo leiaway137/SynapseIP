@@ -342,6 +342,7 @@ async function selectProject(projectId, projectName, silent = false) {
             
             // Automatically surface the most recent blueprint if it exists
             if (data.blueprints && data.blueprints.length > 0) {
+                window.currentVibeStep = data.current_vibe_step || 0;
                 showBlueprint(data.blueprints[0].data);
                 return;
             }
@@ -823,6 +824,35 @@ function showBlueprint(markdownText) {
     
     // Add Copy Buttons to Blueprint
     addCopyButtonsToPreTags('blueprint-content');
+    
+    // Attach blueprint checkboxes
+    const checkboxes = document.querySelectorAll('.blueprint-checkbox');
+    checkboxes.forEach(cb => {
+        const stepIdx = parseInt(cb.getAttribute('data-idx'));
+        if (stepIdx < (window.currentVibeStep || 0)) {
+            cb.checked = true;
+            cb.closest('h2').style.opacity = '0.6';
+        }
+        cb.addEventListener('change', async (e) => {
+            const checked = e.target.checked;
+            const newStep = checked ? stepIdx + 1 : stepIdx;
+            try {
+                await fetch(`/api/projects/${currentProjectId}/vibe-step`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ step: newStep })
+                });
+                window.currentVibeStep = newStep;
+                document.querySelectorAll('.blueprint-checkbox').forEach(box => {
+                    const idx = parseInt(box.getAttribute('data-idx'));
+                    box.checked = (idx < newStep);
+                    if (box.closest('h2')) {
+                        box.closest('h2').style.opacity = box.checked ? '0.6' : '1';
+                    }
+                });
+            } catch(err) { console.error("Failed to save blueprint step", err); }
+        });
+    });
     
     // Mount PDF Exporter
     const btn = document.getElementById('blueprint-export-pdf');

@@ -1044,8 +1044,8 @@ body {
 .architect-document-card ul, .architect-document-card ol { margin-left: 24px; margin-bottom: 20px; }
 .architect-document-card li { margin-bottom: 8px; }
 .architect-document-card hr { border-color: var(--glass-border); margin: 30px 0; }
-.architect-document-card pre { background: rgba(0,0,0,0.4); padding: 16px; border-radius: 8px; border: 1px solid var(--glass-border); overflow-x: auto; margin-bottom: 20px; font-family: 'DM Mono', monospace; font-size: 0.9rem; }
-.architect-document-card code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #a78bfa; font-family: 'DM Mono', monospace; }
+.architect-document-card pre { background: rgba(0,0,0,0.4); padding: 16px; border-radius: 8px; border: 1px solid var(--glass-border); overflow-x: hidden; margin-bottom: 20px; font-family: 'DM Mono', monospace; font-size: 0.9rem; white-space: pre-wrap; word-break: break-word; }
+.architect-document-card code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #a78bfa; font-family: 'DM Mono', monospace; white-space: pre-wrap; word-break: break-word; }
 .architect-document-card pre code { background: transparent; padding: 0; color: inherit; }
 .architect-document-card blockquote { border-left: 4px solid var(--accent-color); padding-left: 16px; margin-left: 0; color: #94a3b8; font-style: italic; }
 
