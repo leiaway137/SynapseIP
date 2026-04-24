@@ -1384,13 +1384,11 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         CRITICAL RULES FOR QUALITY OVER QUANTITY:
         - Build Environment Rule: You must tailor your steps to the "{build_environment}" classification. If it is "Greenfield (New)", provide foundational setup instructions (e.g., 'Initialize Next.js project', 'Setup base database schemas'). If it is "Brownfield (Existing)", you MUST assume the core project already exists. Focus your outline exclusively on safely integrating new features into the existing architecture, requiring adapter patterns, non-breaking schema migrations, and heavy regression-testing rules.
         - Do NOT ignore Agentic Memory. The very first step MUST be establishing `.cursorrules` or `AGENTS.md` context files with strict guardrails ("Never edit >3 files without confirmed plan. Always run tsc").
-        - Build Atomically. Your steps must represent vertical, single-responsibility slices to aggressively limit the AI's blast radius during generation.
+        - Build Atomically (Chain Prompting). Break down the architecture into micro-steps. Do not try to build an entire feature in one step. An ideal project should have between 20 to 50 highly granular, atomic steps.
         - Artifact Locking: Dictate explicitly where the user should execute a "Pre-Flight Impact Analysis" to force the agent to write an `implementation_plan.md` detailing "Dependency Risks" and "Verification Strategy" before risking regression on core components.
-        - Do NOT force a specific page count or arbitrary length. 
-        - Include only the absolute essential elements needed to realistically build this project. 
+        - Chapter titles MUST be written in extremely simple, concise layman's terms (e.g., "User Login Screen", "Database Setup", "Save Button Logic"). Do not use overly technical jargon or long run-on sentences for the title.
         - Because you know the Budget/Hosting Constraints: During the infrastructure architecture phase, you MUST explicitly recommend whether they should use platforms like Render, Vercel, Supabase, Pinecone, or other alternatives based exactly on their Budget ({budget_constraints}) and Target Audience. Explain the tradeoff briefly.
         - Because you know the AI Role & Functionality: You MUST explicitly recommend which specific AI foundation models (e.g., Claude 3.5 Sonnet, Gemini 2.5 Flash/Pro, GPT-4o, Llama 3) would be mathematically ideal for these isolated tasks. If multiple AI models are needed, explain which AI is most efficient at each specific task.
-        - Be highly precise. If this project only requires 3 core steps, output 3 steps. If it requires 15, output 15. Your goal is structural integrity, not fluff.
     
         Raw Notes:
         {source_texts}
@@ -1428,7 +1426,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         for idx, chapter in enumerate(chapters):
             # Generate safe anchor
             anchor = chapter.lower().replace(' ', '-').replace('.', '').replace(':', '')
-            markdown_content += f"{idx + 1}. [{chapter}](#{anchor})\n"
+            markdown_content += f"- [ ] [Step {idx + 1}: {chapter}](#step-{idx+1}-{anchor})\n"
         
         markdown_content += "\n---\n\n"
     
@@ -1473,12 +1471,17 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             REQUIREMENTS:
             1. Explain why this feature is needed and its calculation/logic.
             2. Provide exactly what to expect if it works or fails.
-            3. If this feature involves user interaction, YOU MUST explicitly include instructions for creating a beautiful, usable, modern UI component for it.
-            4. Include a specific, detailed prompt that the designer can copy and paste directly into {platform} to build this.
+            3. YOU MUST output the exact Vibe Coding prompt inside a markdown code block so the user can easily copy and paste it into their IDE.
             
-            FEW-SHOT PROMPT TEMPLATE EXAMPLE:
-            Here is a "Known Good" template of a highly effective prompt for {platform}. Your generated prompts MUST mimic this level of detail, structure, and safety constraints:
+            STRICT FORMATTING TEMPLATE YOU MUST FOLLOW:
             
+            **Why:** [Layman explanation of why this step is necessary]
+            
+            **Expectation:** [What should happen if this succeeds]
+            
+            **Watch Out:** [What could go wrong or common errors]
+            
+            **Copy & Paste this into your IDE:**
             ```text
             [System Context]
             We are building a React Native mobile application using Expo and Supabase for authentication.
@@ -1490,24 +1493,18 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             Before writing ANY code, please perform an Impact Analysis. Review our existing `Login.tsx` and `AppNavigator.tsx` to understand the current routing and styling context.
             Output an `implementation_plan.md` detailing:
             1. Which files will be modified.
-            2. The state management approach for the email input.
-            3. The exact Auth API call you intend to use.
+            2. The exact Auth API call you intend to use.
             DO NOT generate code until I explicitly approve the implementation plan.
             
             [Execution Constraints]
             - Use Tailwind for styling. Follow the existing exact color tokens from `theme.js`.
             - The UI MUST be beautifully modern: use subtle animations when the submit button is pressed.
-            - Provide clear error handling (e.g., "Email not found") visible to the user as a toast notification.
             - Write a Jest unit test for the email validation logic BEFORE implementing the component (Test-Driven Vibe Development).
             ```
             
             Strict Formatting Rules:
-            1. Use `#` ONLY for the Title of the entire document.
-            2. Use `##` for Chapter Titles.
-            3. Use `###` for all Sub-headers. 
-            4. Use `---` (horizontal rules) to separate distinct logic blocks.
-            5. All data points MUST be in a bulleted list (`*`) or a Markdown table.
-            6. DO NOT use bolding (`**`) for headers; use the appropriate `#` tag.
+            1. DO NOT output a `#` or `##` header for the chapter title itself. The system will handle the chapter title. Just output the content.
+            2. All data points outside the text block MUST be in a bulleted list (`*`) or a Markdown table.
         
             [GLOBAL CONTEXT (Project Abstract & Themes)]:
             {source_texts}
@@ -1522,7 +1519,9 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     contents=chapter_prompt
                 )
                 await log_token_usage(db, "Architect Generation", "gemini-2.5-flash", chap_res, project_id=project_id)
-                markdown_content += f"## {chapter_title}\n\n"
+                anchor = chapter_title.lower().replace(' ', '-').replace('.', '').replace(':', '')
+                markdown_content += f"<a id='step-{i+1}-{anchor}'></a>\n"
+                markdown_content += f"## [ ] Step {i+1}: {chapter_title}\n\n"
                 markdown_content += f"{chap_res.text}\n\n---\n\n"
             except Exception as e:
                 print(f"Skipping chapter {chapter_title} due to error: {e}")
