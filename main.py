@@ -1593,8 +1593,11 @@ def admin_metrics(db: Session = Depends(get_db), current_user: User = Depends(ge
     total_tokens = db.query(func.sum(TokenLog.prompt_tokens) + func.sum(TokenLog.completion_tokens)).scalar() or 0
     total_cost = db.query(func.sum(TokenLog.cost)).scalar() or 0.0
     
+    from sqlalchemy import desc
+    
     results = db.query(
         func.date(TokenLog.timestamp).label("date"),
+        func.max(TokenLog.timestamp).label("last_run_time"),
         TokenLog.action,
         Project.name.label("project_name"),
         User.id.label("user_id"),
@@ -1603,12 +1606,16 @@ def admin_metrics(db: Session = Depends(get_db), current_user: User = Depends(ge
         func.sum(TokenLog.cost).label("cost")
     ).outerjoin(Project, TokenLog.project_id == Project.id)\
      .outerjoin(User, TokenLog.user_id == User.id)\
-     .group_by(func.date(TokenLog.timestamp), TokenLog.action, Project.name, User.id, User.username).all()
+     .group_by(func.date(TokenLog.timestamp), TokenLog.action, Project.name, User.id, User.username)\
+     .order_by(desc("last_run_time")).all()
      
     breakdown = []
     for r in results:
+        time_str = r.last_run_time.strftime("%H:%M:%S") if r.last_run_time and hasattr(r.last_run_time, 'strftime') else "N/A"
+        date_str = r.date.strftime("%Y-%m-%d") if r.date and hasattr(r.date, 'strftime') else str(r.date)
         breakdown.append({
-            "date": r.date or "N/A",
+            "date": date_str,
+            "time": time_str,
             "action": r.action,
             "project": r.project_name or "Global / Unassigned",
             "user_id": r.user_id or 1,

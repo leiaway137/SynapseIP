@@ -131,6 +131,7 @@
         <thead>
             <tr>
                 <th>Date</th>
+                <th>Time (Last Action)</th>
                 <th>Project Name</th>
                 <th>Operation Type</th>
                 <th>Username</th>
@@ -185,6 +186,9 @@
                     const dateTd = document.createElement('td');
                     dateTd.innerHTML = `<span style="color:#94a3b8; font-family:monospace;">${row.date}</span>`;
                     
+                    const timeTd = document.createElement('td');
+                    timeTd.innerHTML = `<span style="color:#64748b; font-family:monospace;">${row.time}</span>`;
+                    
                     const projectTd = document.createElement('td');
                     projectTd.innerHTML = `<span style="font-weight:500;">${row.project}</span>`;
                     
@@ -204,6 +208,7 @@
                     costTd.innerText = '$' + row.cost.toFixed(4);
                     
                     tr.appendChild(dateTd);
+                    tr.appendChild(timeTd);
                     tr.appendChild(projectTd);
                     tr.appendChild(actionTd);
                     tr.appendChild(usernameTd);
