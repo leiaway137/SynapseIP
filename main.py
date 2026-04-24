@@ -235,7 +235,7 @@ class PipelineStep(BaseModel):
 
 class AnalysisSchema(BaseModel):
     summary: str = Field(description="Brief product overview.")
-    swot: str = Field(description="Strengths, Weaknesses, Opportunities, Threats.")
+    swot: str = Field(description="Strengths, Weaknesses, Opportunities, Threats. MUST be formatted in Markdown with bold categories (**Strengths:**) and double line breaks between each category.")
     market_analysis: str = Field(description="Top competitors, service differences, and Blue Ocean viability.")
     cost_benefit: str = Field(description="Financial and operational tradeoff of building it.")
     blindspots: str = Field(description="Other areas the user should consider brainstorming about to make the product better or more complete.")
