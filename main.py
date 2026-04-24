@@ -1612,11 +1612,9 @@ def admin_metrics(db: Session = Depends(get_db), current_user: User = Depends(ge
      
     breakdown = []
     for r in results:
-        time_str = r.last_run_time.strftime("%H:%M:%S") if r.last_run_time and hasattr(r.last_run_time, 'strftime') else "N/A"
-        date_str = r.last_run_time.strftime("%Y-%m-%d") if r.last_run_time and hasattr(r.last_run_time, 'strftime') else "N/A"
+        utc_timestamp = r.last_run_time.isoformat() + "Z" if r.last_run_time and hasattr(r.last_run_time, 'isoformat') else None
         breakdown.append({
-            "date": date_str,
-            "time": time_str,
+            "timestamp": utc_timestamp,
             "action": r.action,
             "project": r.project_name or "Global / Unassigned",
             "user_id": r.user_id or 1,
