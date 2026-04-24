@@ -1049,6 +1049,28 @@ body {
 .architect-document-card pre code { background: transparent; padding: 0; color: inherit; }
 .architect-document-card blockquote { border-left: 4px solid var(--accent-color); padding-left: 16px; margin-left: 0; color: #94a3b8; font-style: italic; }
 
+/* Manual Developer Action Alert */
+.manual-action-alert {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-left: 4px solid #f59e0b;
+  padding: 16px 20px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  color: #fde68a;
+}
+.manual-action-alert h4 {
+  color: #f59e0b;
+  margin-top: 0;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.1rem;
+}
+.manual-action-alert ul { margin-bottom: 0; margin-left: 20px; }
+.manual-action-alert li { margin-bottom: 6px; }
+
 /* Vibe Coding Pipeline Checkboxes */
 .vibe-checkbox-container {
   display: flex;

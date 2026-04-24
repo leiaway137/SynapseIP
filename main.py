@@ -1478,6 +1478,14 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             
             STRICT FORMATTING TEMPLATE YOU MUST FOLLOW:
             
+            <div class="manual-action-alert">
+            <h4>⚠️ Manual Developer Action Required</h4>
+            <ul>
+                <li>[If the developer MUST do something manually outside the IDE before writing code (e.g., signing up for an API account, generating an API key, creating a Supabase project, or configuring a third-party dashboard), list the exact steps here as bullet points.]</li>
+            </ul>
+            </div>
+            *(NOTE: Only include the above HTML block if manual actions are actually required. If no manual account setup or configuration is required, omit it completely.)*
+            
             **Why:** [Layman explanation of why this step is necessary]
             
             **Expectation:** [What should happen if this succeeds]
