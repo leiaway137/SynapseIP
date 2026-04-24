@@ -237,7 +237,7 @@ class AnalysisSchema(BaseModel):
     summary: str = Field(description="Brief product overview.")
     swot: str = Field(description="Strengths, Weaknesses, Opportunities, Threats. MUST be formatted in Markdown with bold categories (**Strengths:**) and double line breaks between each category.")
     market_analysis: str = Field(description="Top competitors, service differences, and Blue Ocean viability.")
-    cost_benefit: str = Field(description="Financial and operational tradeoff of building it.")
+    cost_benefit: str = Field(description="Financial and operational tradeoff of building it. MUST be formatted in Markdown with two distinct headers (**Benefits** and **Costs**), and the points under each must be formatted as a bulleted list.")
     blindspots: str = Field(description="Other areas the user should consider brainstorming about to make the product better or more complete. MUST be formatted as a Markdown bulleted list, with double line breaks between each bullet point.")
     viability_score: int = Field(description="Integer from 0-100 indicating sure-fire success vs flop.")
     the_harsh_truth: str = Field(description="The single biggest 'Flop Risk' for this idea.")
