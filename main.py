@@ -1223,7 +1223,13 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     if not sources:
         raise HTTPException(status_code=400, detail="No sources found to analyze.")
         
-    context_text = "\n\n".join([f"Source: {s.title}\n{s.content}" for s in sources])
+    memories = []
+    for s in sources:
+        if s.short_memory:
+            memories.append(f"Source: {s.title}\nSummary: {s.short_memory}")
+        else:
+            memories.append(f"Source: {s.title}\nContent snippet: {s.content[:500]}...")
+    context_text = "\n\n".join(memories)
     context_text = truncate_context_for_tokens(context_text)
     
     if req.app_type and req.app_type.lower() == "personal":
@@ -1432,6 +1438,27 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         for i, chapter_title in enumerate(chapters):
             prog = 20 + int((i / total_chapters) * 70)
             await manager.broadcast(json.dumps({"type": "progress", "message": f"Drafting MVP Feature {i+1}: {chapter_title}...", "progress": prog}))
+            
+            # ----------------------------------------------------
+            # Pinecone Vector-Routing RAG
+            # ----------------------------------------------------
+            relevant_sources_text = "No additional raw sources found."
+            if pinecone_index is not None and gemini_client is not None:
+                try:
+                    query_text = f"How to build {chapter_title} for {app_name}: {app_purpose}"
+                    res = await gemini_client.aio.models.embed_content(
+                        model='text-embedding-004',
+                        contents=query_text
+                    )
+                    vector = res.embeddings[0].values
+                    pinecone_query = pinecone_index.query(vector=vector, top_k=3, namespace="synapseip_notes")
+                    
+                    relevant_ids = [int(match['id']) for match in pinecone_query.get('matches', []) if match['id'].isdigit()]
+                    if relevant_ids:
+                        db_sources = db.query(GeminiSource).filter(GeminiSource.id.in_(relevant_ids)).all()
+                        relevant_sources_text = "\n\n".join([f"RAW SOURCE: {s.title}\n{s.content}" for s in db_sources])
+                except Exception as e:
+                    print("Pinecone chapter query failed:", e)
         
             chapter_prompt = f"""
             You are an expert technical architect documenting a specific MVP feature build step.
@@ -1441,7 +1468,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             Target Platform: {platform}
             Build Environment: {build_environment}
         
-            Based ONLY on the following raw notes, write a highly concise, systematic, ordered step-by-step logic guide to build this specific feature.
+            Based ONLY on the following context, write a highly concise, systematic, ordered step-by-step logic guide to build this specific feature.
         
             REQUIREMENTS:
             1. Explain why this feature is needed and its calculation/logic.
@@ -1482,8 +1509,11 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             5. All data points MUST be in a bulleted list (`*`) or a Markdown table.
             6. DO NOT use bolding (`**`) for headers; use the appropriate `#` tag.
         
-            Raw Notes:
+            [GLOBAL CONTEXT (Project Abstract & Themes)]:
             {source_texts}
+            
+            [DEEP-DIVE CONTEXT (Raw Notes retrieved via Vector Search for '{chapter_title}')]:
+            {relevant_sources_text}
             """
         
             try:
@@ -1600,7 +1630,13 @@ async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks
         sources = db.query(GeminiSource).filter(GeminiSource.project_id == req.project_id).all()
         if not sources:
             raise HTTPException(status_code=400, detail="No sources available. Sync some datanodes first.")
-        combined_text = "\n\n---\n\n".join([f"TITLE: {s.title}\n{s.content}" for s in sources])
+        memories = []
+        for s in sources:
+            if s.short_memory:
+                memories.append(f"Source: {s.title}\nSummary: {s.short_memory}")
+            else:
+                memories.append(f"Source: {s.title}\nContent snippet: {s.content[:500]}...")
+        combined_text = "\n\n---\n\n".join(memories)
     else:
         combined_text = "\n\n---\n\n".join([f"THEME: {t.theme_name}\n{t.content}" for t in themes])
         
