@@ -1145,3 +1145,120 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
+
+/* Global Floating Chat UI */
+.global-chat-fab {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    cursor: pointer;
+    z-index: 9999;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.global-chat-fab:hover {
+    transform: scale(1.05) translateY(-2px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.6);
+}
+
+.floating-chat-panel {
+    position: fixed;
+    bottom: 100px;
+    left: 30px;
+    width: 380px;
+    height: 550px;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    z-index: 9998;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    transform: translateY(20px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.floating-chat-panel.active {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.floating-chat-header {
+    background: rgba(59, 130, 246, 0.1);
+    border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.floating-chat-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #60a5fa;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.floating-chat-close {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px;
+}
+.floating-chat-close:hover {
+    color: white;
+}
+
+/* Override existing chat-interface height for the panel */
+.floating-chat-panel .chat-interface {
+    flex: 1;
+    height: auto !important;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+}
+
+/* Highlight Tooltip */
+.selection-tooltip {
+    position: absolute;
+    background: #3b82f6;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 10000;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.2s ease;
+}
+.selection-tooltip:hover {
+    background: #2563eb;
+}
+.selection-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: #3b82f6 transparent transparent transparent;
+}

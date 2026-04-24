@@ -1394,3 +1394,84 @@ function addCopyButtonsToPreTags(containerId) {
         wrapper.appendChild(copyBtn);
     });
 }
+
+// === Global Floating Chat & Highlight-to-Ask Logic ===
+document.addEventListener('DOMContentLoaded', () => {
+    const fab = document.getElementById('global-chat-fab');
+    const panel = document.getElementById('floating-chat-panel');
+    const closeBtn = document.getElementById('floating-chat-close');
+    const chatInput = document.getElementById('followup-chat-input');
+    
+    // Toggle Chat Panel
+    if (fab && panel && closeBtn) {
+        fab.addEventListener('click', () => {
+            panel.classList.toggle('active');
+            if (panel.classList.contains('active') && chatInput) {
+                setTimeout(() => chatInput.focus(), 100);
+            }
+        });
+        
+        closeBtn.addEventListener('click', () => {
+            panel.classList.remove('active');
+        });
+    }
+    
+    // Highlight-to-Ask Tooltip
+    const tooltip = document.createElement('div');
+    tooltip.className = 'selection-tooltip';
+    tooltip.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> Ask AI';
+    tooltip.style.opacity = '0';
+    tooltip.style.pointerEvents = 'none';
+    document.body.appendChild(tooltip);
+    
+    let currentSelection = '';
+    
+    document.addEventListener('mouseup', (e) => {
+        // Prevent tooltip from showing when clicking inside tooltip or chat panel
+        if (e.target.closest('.selection-tooltip') || e.target.closest('.floating-chat-panel')) return;
+        
+        setTimeout(() => {
+            const selection = window.getSelection();
+            const text = selection.toString().trim();
+            
+            if (text.length > 5) { // Minimum 5 chars to trigger
+                currentSelection = text;
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                
+                // Position tooltip above the selection
+                tooltip.style.left = `${rect.left + (rect.width / 2)}px`;
+                tooltip.style.top = `${rect.top + window.scrollY - 35}px`;
+                tooltip.style.transform = 'translateX(-50%)';
+                tooltip.style.opacity = '1';
+                tooltip.style.pointerEvents = 'auto';
+            } else {
+                tooltip.style.opacity = '0';
+                tooltip.style.pointerEvents = 'none';
+            }
+        }, 10);
+    });
+    
+    // Hide tooltip on mousedown
+    document.addEventListener('mousedown', (e) => {
+        if (!e.target.closest('.selection-tooltip') && !e.target.closest('.floating-chat-panel')) {
+            tooltip.style.opacity = '0';
+            tooltip.style.pointerEvents = 'none';
+        }
+    });
+    
+    // Tooltip Click Handler
+    tooltip.addEventListener('click', () => {
+        tooltip.style.opacity = '0';
+        tooltip.style.pointerEvents = 'none';
+        
+        if (panel && chatInput) {
+            panel.classList.add('active');
+            chatInput.value = `> "${currentSelection}"\n\n`;
+            chatInput.focus();
+            
+            // Clear selection
+            window.getSelection().removeAllRanges();
+        }
+    });
+});
