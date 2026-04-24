@@ -795,9 +795,18 @@ async function startArchitectPipeline() {
                 project_id: currentProjectId
             })
         });
-        if (!res.ok) throw new Error("Failed to start logic router.");
+        if (!res.ok) {
+            let errText = "Failed to start logic router.";
+            try {
+                const errData = await res.json();
+                errText += " " + (errData.detail || `Status: ${res.status}`);
+            } catch(e) {
+                errText += ` (Status: ${res.status})`;
+            }
+            throw new Error(errText);
+        }
     } catch(e) {
-        btn.innerHTML = `Build Architect Blueprint (.md)`;
+        btn.innerHTML = `Build Architect Blueprint`;
         btn.disabled = false;
         alert(e.message);
     }
