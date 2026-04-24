@@ -235,10 +235,10 @@ class PipelineStep(BaseModel):
 
 class AnalysisSchema(BaseModel):
     summary: str = Field(description="Brief product overview.")
-    swot: str = Field(description="Strengths, Weaknesses, Opportunities, Threats. MUST be formatted in Markdown with bold categories (**Strengths:**) and double line breaks between each category.")
+    swot: str = Field(description="Strengths, Weaknesses, Opportunities, Threats.")
     market_analysis: str = Field(description="Top competitors, service differences, and Blue Ocean viability.")
-    cost_benefit: str = Field(description="Financial and operational tradeoff of building it. MUST be formatted in Markdown with two distinct headers (**Benefits** and **Costs**), and the points under each must be formatted as a bulleted list.")
-    blindspots: str = Field(description="Other areas the user should consider brainstorming about to make the product better or more complete. MUST be formatted as a Markdown bulleted list, with double line breaks between each bullet point.")
+    cost_benefit: str = Field(description="Financial and operational tradeoff of building it.")
+    blindspots: str = Field(description="Other areas the user should consider brainstorming about to make the product better or more complete.")
     viability_score: int = Field(description="Integer from 0-100 indicating sure-fire success vs flop.")
     the_harsh_truth: str = Field(description="The single biggest 'Flop Risk' for this idea.")
     the_pivot_path: str = Field(description="One structural change to the idea that would increase its health score by at least 20 points.")
@@ -1288,6 +1288,9 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     4. Use `---` (horizontal rules) to separate distinct logic blocks.
     5. All data points MUST be in a bulleted list (`*`) or a Markdown table.
     - Format `market_analysis` properly: Start each competitor/alternative section with a strict `### Target Competitor Name` header on its own line, followed by detailed bullet points underneath. Do NOT nest headers inside bullets!
+    - Format `swot` properly: MUST be formatted in Markdown with bold categories (**Strengths:**) and double line breaks (`\n\n`) between each category.
+    - Format `cost_benefit` properly: MUST be formatted in Markdown with two distinct headers (**Benefits** and **Costs**), and the points under each must be formatted as a bulleted list.
+    - Format `blindspots` properly: MUST be formatted as a Markdown bulleted list, with double line breaks (`\n\n`) between each bullet point.
     
     Brainstorm Context:
     {context_text}
