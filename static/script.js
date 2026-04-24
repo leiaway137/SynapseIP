@@ -713,7 +713,7 @@ function renderDashboard(data, currentVibeStep = 0, history = []) {
         
         // Add Copy Buttons to generated prompts
         addCopyButtonsToPreTags('rep-timeline');
-    } else {
+    }
     
     // Re-init Follow-up agent automatically
     followupHistory = history || [];
