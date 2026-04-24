@@ -669,7 +669,7 @@ function renderDashboard(data, currentVibeStep = 0, history = []) {
                     <input type="checkbox" class="vibe-checkbox" id="checkbox-${idx}" data-idx="${idx}" ${isCompleted ? 'checked' : ''}>
                     <label for="checkbox-${idx}" style="cursor:pointer; margin:0;"><h4 style="margin:0;">Step ${idx + 1}</h4></label>
                 </div>
-                <div class="step-prompt">${escapeHTML(step.prompt_text)}</div>
+                <pre class="step-prompt" style="position:relative;"><code>${escapeHTML(step.prompt_text)}</code></pre>
                 <div class="step-why"><strong>Why:</strong> ${marked.parse(step.why)}</div>
                 <div class="step-expect"><strong>Expectation:</strong> ${marked.parse(step.expectation)}</div>
                 <div class="step-error"><strong>Watch Out:</strong> ${marked.parse(step.error_warnings)}</div>
@@ -710,7 +710,10 @@ function renderDashboard(data, currentVibeStep = 0, history = []) {
                 if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 500);
         }
-    }
+        
+        // Add Copy Buttons to generated prompts
+        addCopyButtonsToPreTags('rep-timeline');
+    } else {
     
     // Re-init Follow-up agent automatically
     followupHistory = history || [];
@@ -808,6 +811,9 @@ function showBlueprint(markdownText) {
     document.getElementById('blueprint-viewer').style.display = 'flex';
     
     document.getElementById('blueprint-content').innerHTML = marked.parse(markdownText);
+    
+    // Add Copy Buttons to Blueprint
+    addCopyButtonsToPreTags('blueprint-content');
     
     // Mount PDF Exporter
     const btn = document.getElementById('blueprint-export-pdf');
@@ -1297,5 +1303,48 @@ async function handleEditProject(e) {
         if (evt.key === 'Enter') {
             input.blur(); // Triggers saveNewName
         }
+    });
+}
+
+// Utility: Add Copy Buttons to Code Blocks
+function addCopyButtonsToPreTags(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const preTags = container.querySelectorAll('pre');
+    preTags.forEach(pre => {
+        if (pre.parentNode.classList.contains('code-wrapper')) return;
+        
+        const wrapper = document.createElement('div');
+        wrapper.className = 'code-wrapper';
+        wrapper.style.position = 'relative';
+        
+        pre.parentNode.insertBefore(wrapper, pre);
+        wrapper.appendChild(pre);
+        
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-code-btn';
+        copyBtn.innerText = 'Copy';
+        copyBtn.title = 'Copy to clipboard';
+        copyBtn.style.cssText = 'position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #cbd5e1; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; z-index: 10; display: flex; align-items: center; gap: 4px;';
+        copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy`;
+        
+        copyBtn.addEventListener('click', () => {
+            const textToCopy = pre.innerText;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!`;
+                copyBtn.style.background = '#10b981';
+                copyBtn.style.color = '#ffffff';
+                copyBtn.style.borderColor = '#10b981';
+                setTimeout(() => {
+                    copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy`;
+                    copyBtn.style.background = 'rgba(255,255,255,0.1)';
+                    copyBtn.style.color = '#cbd5e1';
+                    copyBtn.style.borderColor = 'rgba(255,255,255,0.2)';
+                }, 2000);
+            });
+        });
+        
+        wrapper.appendChild(copyBtn);
     });
 }
