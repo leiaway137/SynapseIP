@@ -655,7 +655,11 @@ function renderDashboard(data, currentVibeStep = 0, history = []) {
         document.getElementById('rep-verdict').style.color = vColor;
     }
     const timeline = document.getElementById('rep-timeline');
-    timeline.innerHTML = '';
+    timeline.innerHTML = `
+        <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 0.85rem; color: #fde68a;">
+            <strong>⚠️ Preliminary Outline:</strong> This is a high-level table of contents. The exact, copy-pasteable Vibe Coding prompts are subject to change and will be generated during the Master Architect Blueprint phase.
+        </div>
+    `;
     if (data.vibe_coding_pipeline) {
         data.vibe_coding_pipeline.forEach((step, idx) => {
             const el = document.createElement('div');
@@ -665,12 +669,15 @@ function renderDashboard(data, currentVibeStep = 0, history = []) {
             const isCompleted = idx < currentVibeStep;
             if (isCompleted) el.classList.add('vibe-completed');
             
+            // Note: older database items may still have prompt_text instead of title
+            const stepTitle = step.title || step.prompt_text || "Implementation Step";
+            
             el.innerHTML = `
                 <div class="vibe-checkbox-container">
                     <input type="checkbox" class="vibe-checkbox" id="checkbox-${idx}" data-idx="${idx}" ${isCompleted ? 'checked' : ''}>
                     <label for="checkbox-${idx}" style="cursor:pointer; margin:0;"><h4 style="margin:0;">Step ${idx + 1}</h4></label>
                 </div>
-                <pre class="step-prompt" style="position:relative;"><code>${escapeHTML(step.prompt_text)}</code></pre>
+                <h4 style="color: #a78bfa; margin-top: 10px; margin-bottom: 8px;">${escapeHTML(stepTitle)}</h4>
                 <div class="step-why"><strong>Why:</strong> ${marked.parse(step.why)}</div>
                 <div class="step-expect"><strong>Expectation:</strong> ${marked.parse(step.expectation)}</div>
                 <div class="step-error"><strong>Watch Out:</strong> ${marked.parse(step.error_warnings)}</div>

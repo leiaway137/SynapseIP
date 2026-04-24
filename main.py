@@ -228,7 +228,7 @@ class ProjectResponse(BaseModel):
         from_attributes = True
 
 class PipelineStep(BaseModel):
-    prompt_text: str = Field(description="The exact text to copy-paste into Antigravity/Cursor/Claude.")
+    title: str = Field(description="The name of this specific architecture step (e.g., 'Database Setup').")
     why: str = Field(description="Explanation of why this step exists.")
     expectation: str = Field(description="What the project state should look like after running it.")
     error_warnings: str = Field(description="What red flags to look out for regarding errors.")
@@ -1264,16 +1264,11 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     Your priority is to ensure the resulting MVP is not just technically sound, but features a beautiful, highly usable, and modern User Interface for human users. Start the pipeline with UI exploration and scaffolding.
     Analyze the following brainstorm notes and output a rigorous structured analysis based on the exact JSON schema requested.
     The target vibe coding platform the user will use is [{req.target_platform}]. 
-    Please tailor the 'vibe_coding_pipeline' prompts specifically for this platform so they can copy paste them directly into their agentic IDE.
+    The 'vibe_coding_pipeline' should be a PRELIMINARY high-level table of contents. DO NOT generate the actual copy-paste prompts here. The exact granular prompts will be generated later during the Master Architect Blueprint phase. Just provide the sequential timeline of steps (e.g., Step 1: Database Setup, Step 2: Authentication, etc.).
     
-    CRITICAL VIBE-CODING PROMPT ENGINEERING RULES (2026 Standards):
-    1. The "Vibe Core" Workflow: Your prompts must dictate OUTCOMES (Intent), ask the agent to PLAN before coding, and include explicit VIBE-CHECKS ("verify this handles edge cases").
-    2. Layered Construction: Do not ask for a full app in one prompt. Chain your prompts chronologically: Data Layer (Schema) -> API Layer (Endpoints) -> UI Layer (Components).
-    3. Agentic Memory & Cursor Rules: Explicitly instruct the agent to create a `.cursorrules` or `AGENTS.md` file in the very first prompt to lock in the tech stack. You MUST include these strict safeguards in that file: "NEVER edit more than 3 files without a confirmed implementation_plan.md. ALWAYS run a type-check (tsc) after every modification. PRIORITIZE non-breaking changes."
-    4. Test-Driven Vibe Development (TDVD): Prompts should periodically instruct the agent to write tests FIRST, and then write the code to make those tests pass.
-    5. Atomic Scoping: Prompts MUST be vertical slices ("Single Responsibility"). Never combine massive features. Build one small functional path at a time to limit the blast radius.
-    6. Artifact Locking & Pre-Flight Checks: Before letting an agent write complex code, your prompt MUST explicitly invoke a Pre-Execution Impact Analysis. Force the agent to write an `implementation_plan.md` that answers: "Which existing files will be modified? What are the potential breaking changes to feature X? What is the Verification Strategy?" Do NOT let it write code until the user approves the plan artifact.
-    7. Safeguards & Micro-Commits: Force the agent to perform a `git commit -m "vibe: [task]"` after EVERY successful sequential step to act as an instantaneous undo checkpoint.
+    CRITICAL OUTLINE ENGINEERING RULES:
+    1. Layered Construction: Chain your outline chronologically: Data Layer (Schema) -> API Layer (Endpoints) -> UI Layer (Components).
+    2. Atomic Scoping: Steps MUST be vertical slices ("Single Responsibility"). Never combine massive features.
     
     For every idea submitted:
     {rubric_text}
