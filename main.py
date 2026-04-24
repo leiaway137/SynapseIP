@@ -1403,7 +1403,9 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             )
             await log_token_usage(db, "Architect Generation", "gemini-2.5-flash", outline_res, project_id=project_id)
             outline_data = json.loads(outline_res.text)
-            chapters = outline_data.get('chapters', [])
+            import re
+            raw_chapters = outline_data.get('chapters', [])
+            chapters = [re.sub(r'^(Step\s*\d+[\.\:]?\s*|\d+[\.\:]\s*)', '', c.strip(), flags=re.IGNORECASE) for c in raw_chapters]
         except Exception as e:
             await manager.broadcast(json.dumps({"type": "error", "message": f"Outline generation failed: {str(e)}"}))
             return
