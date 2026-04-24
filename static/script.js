@@ -776,11 +776,12 @@ async function startArchitectPipeline() {
     btn.disabled = true;
     
     try {
+        const ideSelectorValue = document.getElementById('ide-selector') ? document.getElementById('ide-selector').value : "Antigravity";
         const res = await fetch('/api/architect/start', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ 
-                target_platform: "Antigravity",
+                target_platform: ideSelectorValue,
                 designer_name: currentUser ? currentUser.username : "Unknown",
                 app_name: currentProjectName,
                 app_purpose: "Automated via Follow-Up",
