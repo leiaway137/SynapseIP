@@ -1300,7 +1300,7 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
                 'response_schema': AnalysisSchema,
             },
         )
-        await log_token_usage(db, "Analyze Blueprint", "gemini-2.5-flash", response, project_id=req.project_id)
+        await log_token_usage(db, "Intelligence Report", "gemini-2.5-flash", response, project_id=req.project_id)
         generated_json = response.text
     except Exception as e:
         import traceback
