@@ -65,14 +65,33 @@ def generate_short_memory(source_id: str):
         if not source or not source.content:
             return
             
-        prompt = f"Condense the following brainstorm note into an extremely concise 2-3 sentence executive summary capturing the core intent/mechanic:\n\n{source.content}"
+        prompt = f"""Analyze the following brainstorm note and output a JSON object with two fields:
+1. "title": A clean, 3-5 word title summarizing the core topic.
+2. "summary": An extremely concise 2-3 sentence executive summary capturing the core intent/mechanic.
+
+Return ONLY valid JSON.
+
+Note:
+{source.content}"""
         
+        from google.genai import types
         response = gemini_client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
+            config=types.GenerateContentConfig(response_mime_type="application/json")
         )
         
-        source.short_memory = response.text.strip()
+        import json
+        try:
+            data = json.loads(response.text.strip())
+            if "title" in data:
+                source.title = data["title"]
+            if "summary" in data:
+                source.short_memory = data["summary"]
+        except Exception as json_e:
+            print(f"JSON Parsing Error: {json_e}. Raw text: {response.text}")
+            source.short_memory = response.text.strip()
+            
         source.processed = True
         db.commit()
         print(f"✅ Generated Short-Term Memory for: [{source_id}]")
