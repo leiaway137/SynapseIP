@@ -17,7 +17,11 @@
     "https://kimi.moonshot.cn/*",
     "https://www.doubao.com/*",
     "https://notebooklm.google.com/*",
-    "https://synapseip-1ncu.onrender.com/*"
+    "https://synapseip-1ncu.onrender.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*"
   ],
   "content_scripts": [
     {
@@ -29,7 +33,12 @@
         "https://chat.deepseek.com/*",
         "https://kimi.moonshot.cn/*",
         "https://www.doubao.com/*",
-        "https://notebooklm.google.com/*"
+        "https://notebooklm.google.com/*",
+        "https://synapseip-1ncu.onrender.com/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "http://localhost:8000/*",
+        "http://127.0.0.1:8000/*"
       ],
       "js": ["content.js"],
       "css": ["styles.css"]

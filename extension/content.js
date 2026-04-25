@@ -183,6 +183,12 @@ document.addEventListener('click', (e) => {
                         btn.style.color = originalColor;
                         return;
                     }
+                    if (response && response.status === "error") {
+                        alert("SynapseIP Sync Error: " + response.error);
+                        btn.style.backgroundColor = originalBg;
+                        btn.style.color = originalColor;
+                        return;
+                    }
                     if (response && response.status === "success") {
                         // Turn it green permanently!
                         btn.classList.add('synapseip-synced-btn');
@@ -205,3 +211,15 @@ document.addEventListener('click', (e) => {
 }, true);
 
 // Observer is no longer needed since we only color reactively upon user click.
+
+// --- SYNAPSEIP TOKEN HANDOFF ---
+// Listen for authentication tokens broadcasted by the SynapseIP web dashboard
+if (window.location.hostname.includes("synapseip-1ncu.onrender.com") || window.location.hostname.includes("localhost") || window.location.hostname.includes("127.0.0.1")) {
+    window.addEventListener("message", function(event) {
+        if (event.source !== window) return;
+        if (event.data && event.data.type === "SYNAPSE_AUTH_TOKEN") {
+            console.log("SynapseIP Extension: Secure token received from dashboard");
+            chrome.runtime.sendMessage({ action: "save_auth_token", token: event.data.token });
+        }
+    });
+}

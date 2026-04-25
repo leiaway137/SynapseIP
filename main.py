@@ -699,13 +699,19 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
+def get_current_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    project = db.query(Project).filter(Project.id == project_id, Project.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or not owned by user")
+    return project
+
 @app.get("/api/projects")
-def get_projects(db: Session = Depends(get_db)):
-    return db.query(Project).order_by(Project.timestamp.desc()).all()
+def get_projects(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(Project).filter(Project.user_id == current_user.id).order_by(Project.timestamp.desc()).all()
 
 @app.post("/api/projects", response_model=ProjectResponse)
-def create_project(req: ProjectCreate, db: Session = Depends(get_db)):
-    p = Project(user_id=1, name=req.name)
+def create_project(req: ProjectCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    p = Project(user_id=current_user.id, name=req.name)
     db.add(p)
     db.commit()
     db.refresh(p)
@@ -721,14 +727,11 @@ def truncate_context_for_tokens(context: str, max_chars: int = 2500000) -> str:
     return context[:half_limit] + truncation_warning + context[-half_limit:]
 
 @app.put("/api/projects/{project_id}", response_model=ProjectResponse)
-def update_project(project_id: int, req: ProjectUpdate, db: Session = Depends(get_db)):
-    p = db.query(Project).filter(Project.id == project_id).first()
-    if not p:
-        raise HTTPException(status_code=404, detail="Project not found")
-    p.name = req.name
+def update_project(project_id: int, req: ProjectUpdate, db: Session = Depends(get_db), project: Project = Depends(get_current_project)):
+    project.name = req.name
     db.commit()
-    db.refresh(p)
-    return p
+    db.refresh(project)
+    return project
 
 async def perform_consistency_check(project_id: int):
     db = SessionLocal()
@@ -788,27 +791,26 @@ async def perform_consistency_check(project_id: int):
         db.close()
 
 @app.post("/api/projects/{project_id}/consistency-check")
-async def run_consistency_check(project_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project_id).all()
+async def run_consistency_check(background_tasks: BackgroundTasks, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project.id).all()
     if not themes:
         raise HTTPException(status_code=400, detail="No themes found for consistency check")
     
-    background_tasks.add_task(perform_consistency_check, project_id)
+    background_tasks.add_task(perform_consistency_check, project.id)
     return {"status": "queued"}
 
 @app.get("/api/projects/{project_id}/sources")
-def get_project_sources(project_id: int, response: Response, db: Session = Depends(get_db)):
+def get_project_sources(response: Response, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
     """Return all ingested sources for a specific project."""
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    sources = db.query(GeminiSource).filter(GeminiSource.project_id == project_id).order_by(GeminiSource.timestamp.asc()).all()
+    sources = db.query(GeminiSource).filter(GeminiSource.project_id == project.id).order_by(GeminiSource.timestamp.asc()).all()
     return sources
 
 @app.get("/api/projects/{project_id}/documents")
-def get_project_documents(project_id: int, db: Session = Depends(get_db)):
+def get_project_documents(project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
     """Returns lists of intelligence reports and architecture blueprints for this project."""
-    reports = db.query(GeneratedReport).filter(GeneratedReport.project_id == project_id).order_by(GeneratedReport.timestamp.desc()).all()
-    blueprints = db.query(ArchitectBlueprint).filter(ArchitectBlueprint.project_id == project_id).order_by(ArchitectBlueprint.timestamp.desc()).all()
-    project = db.query(Project).filter(Project.id == project_id).first()
+    reports = db.query(GeneratedReport).filter(GeneratedReport.project_id == project.id).order_by(GeneratedReport.timestamp.desc()).all()
+    blueprints = db.query(ArchitectBlueprint).filter(ArchitectBlueprint.project_id == project.id).order_by(ArchitectBlueprint.timestamp.desc()).all()
     
     return {
         "intelligence": [{"id": r.id, "timestamp": r.timestamp, "data": json.loads(r.report_data)} for r in reports],
@@ -818,18 +820,14 @@ def get_project_documents(project_id: int, db: Session = Depends(get_db)):
     }
 
 @app.post("/api/projects/{project_id}/vibe-step")
-def update_vibe_step(project_id: int, update: VibeStepUpdate, db: Session = Depends(get_db)):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+def update_vibe_step(update: VibeStepUpdate, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
     project.current_vibe_step = update.step
     db.commit()
     return {"status": "success", "step": update.step}
 
 @app.get("/api/projects/{project_id}/themes_dashboard")
-def get_themes_dashboard(project_id: int, db: Session = Depends(get_db)):
-    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project_id).all()
-    project = db.query(Project).filter(Project.id == project_id).first()
+def get_themes_dashboard(project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project.id).all()
     
     active_themes = [t.theme_name for t in themes]
     suggested_themes = []
@@ -848,43 +846,45 @@ def get_themes_dashboard(project_id: int, db: Session = Depends(get_db)):
     }
 
 @app.post("/api/projects/{project_id}/clear-onboarding")
-def clear_onboarding(project_id: int, db: Session = Depends(get_db)):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+def clear_onboarding(project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
     project.onboarding_config = None
     db.commit()
     return {"status": "success"}
 
 @app.get("/api/sources")
-def get_sources(response: Response, db: Session = Depends(get_db)):
+def get_sources(response: Response, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Fallback for old requests
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    active_project = db.query(Project).order_by(Project.timestamp.desc()).first()
+    active_project = db.query(Project).filter(Project.user_id == current_user.id).order_by(Project.timestamp.desc()).first()
     if not active_project:
         return []
     sources = db.query(GeminiSource).filter(GeminiSource.project_id == active_project.id).order_by(GeminiSource.timestamp.asc()).all()
     return sources
 
 @app.delete("/api/sources/{source_id}")
-async def delete_source(source_id: int, db: Session = Depends(get_db)):
-    db_source = db.query(GeminiSource).filter(GeminiSource.id == source_id).first()
+async def delete_source(source_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db_source = db.query(GeminiSource).join(Project).filter(GeminiSource.id == source_id, Project.user_id == current_user.id).first()
     if not db_source:
-        raise HTTPException(status_code=404, detail="Source not found")
+        raise HTTPException(status_code=404, detail="Source not found or not owned by user")
     db.delete(db_source)
     db.commit()
     await manager.broadcast(json.dumps({"type": "sources_deleted"}))
     return {"status": "success"}
 
 @app.post("/api/sources/bulk-delete")
-async def bulk_delete_sources(req: BulkDeleteRequest, db: Session = Depends(get_db)):
+async def bulk_delete_sources(req: BulkDeleteRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not req.source_ids:
         return {"status": "success", "deleted_count": 0}
         
-    db.query(GeminiSource).filter(GeminiSource.id.in_(req.source_ids)).delete(synchronize_session=False)
-    db.commit()
-    await manager.broadcast(json.dumps({"type": "sources_deleted"}))
-    return {"status": "success", "deleted_count": len(req.source_ids)}
+    db_sources = db.query(GeminiSource).join(Project).filter(GeminiSource.id.in_(req.source_ids), Project.user_id == current_user.id).all()
+    source_ids_to_delete = [s.id for s in db_sources]
+    
+    if source_ids_to_delete:
+        db.query(GeminiSource).filter(GeminiSource.id.in_(source_ids_to_delete)).delete(synchronize_session=False)
+        db.commit()
+        await manager.broadcast(json.dumps({"type": "sources_deleted"}))
+        
+    return {"status": "success", "deleted_count": len(source_ids_to_delete)}
 
 @app.post("/api/sources/{source_id}/reprocess")
 def reprocess_source(source_id: int, current_user: User = Depends(get_current_user)):
@@ -929,12 +929,12 @@ def retry_missed_sources(project_id: int, current_user: User = Depends(get_curre
         db.close()
 
 @app.post("/ingest", response_model=SourceResponse)
-async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Accepts JSON from Chrome Extension and saves it to the most recently created Project."""
     
-    active_project = db.query(Project).order_by(Project.timestamp.desc()).first()
+    active_project = db.query(Project).filter(Project.user_id == current_user.id).order_by(Project.timestamp.desc()).first()
     if not active_project:
-        active_project = Project(user_id=1, name="Default Project")
+        active_project = Project(user_id=current_user.id, name="Default Project")
         db.add(active_project)
         db.commit()
         db.refresh(active_project)
@@ -991,7 +991,7 @@ async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks,
     )
 
 @app.get("/api/search")
-async def semantic_search(q: str):
+async def semantic_search(q: str, current_user: User = Depends(get_current_user)):
     """Hits the vector database, dynamically maps query text to math via Gemini, and finds connections."""
     if pinecone_index is None or gemini_client is None:
         raise HTTPException(status_code=500, detail="Pinecone DB is natively disabled.")
@@ -1014,12 +1014,16 @@ async def semantic_search(q: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/chat/followup")
-async def followup_chat(req: FollowupRequest, db: Session = Depends(get_db)):
+async def followup_chat(req: FollowupRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not gemini_client:
         raise HTTPException(status_code=500, detail="Gemini SDK improperly configured.")
+        
+    project = db.query(Project).filter(Project.id == req.project_id, Project.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or not owned by user")
     
     # Identify the related Intelligence Report
-    report = db.query(GeneratedReport).filter(GeneratedReport.project_id == req.project_id).order_by(GeneratedReport.timestamp.desc()).first()
+    report = db.query(GeneratedReport).filter(GeneratedReport.project_id == project.id).order_by(GeneratedReport.timestamp.desc()).first()
     
     if not report:
         report_context = "No Intelligence Report generated yet."
@@ -1056,7 +1060,6 @@ async def followup_chat(req: FollowupRequest, db: Session = Depends(get_db)):
         )
         
         # Save to database
-        project = db.query(Project).filter(Project.id == req.project_id).first()
         if project:
             new_history = [{"role": msg.role, "content": msg.content} for msg in req.history]
             new_history.append({"role": "model", "content": response.text})
@@ -1068,13 +1071,17 @@ async def followup_chat(req: FollowupRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/chat/onboarding")
-async def onboarding_chat(req: OnboardingRequest, db: Session = Depends(get_db)):
+async def onboarding_chat(req: OnboardingRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not gemini_client:
         raise HTTPException(status_code=500, detail="Gemini SDK improperly configured. Check API key.")
-    project = db.query(Project).filter(Project.id == req.project_id).first()
+        
+    project = db.query(Project).filter(Project.id == req.project_id, Project.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or not owned by user")
+        
     project_name = project.name if project else "SynapseIP Target App"
 
-    sources = db.query(GeminiSource).filter(GeminiSource.project_id == req.project_id).order_by(GeminiSource.timestamp.asc()).all()
+    sources = db.query(GeminiSource).filter(GeminiSource.project_id == project.id).order_by(GeminiSource.timestamp.asc()).all()
     
     if len(req.history) == 0:
         memories = []
@@ -1215,11 +1222,15 @@ async def report_change(req: ReportChangeRequest, db: Session = Depends(get_db))
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/analyze")
-async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
+async def analyze_sources(req: AnalyzeRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not gemini_client:
         raise HTTPException(status_code=500, detail="Gemini SDK improperly configured. Check API key.")
         
-    sources = db.query(GeminiSource).filter(GeminiSource.project_id == req.project_id).order_by(GeminiSource.timestamp.asc()).all()
+    project = db.query(Project).filter(Project.id == req.project_id, Project.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or not owned by user")
+        
+    sources = db.query(GeminiSource).filter(GeminiSource.project_id == project.id).order_by(GeminiSource.timestamp.asc()).all()
     if not sources:
         raise HTTPException(status_code=400, detail="No sources found to analyze.")
         
@@ -1319,18 +1330,22 @@ async def analyze_sources(req: AnalyzeRequest, db: Session = Depends(get_db)):
     return json.loads(generated_json)
     
 @app.get("/api/reports/latest")
-def get_latest_report(db: Session = Depends(get_db)):
-    report = db.query(GeneratedReport).order_by(GeneratedReport.timestamp.desc()).first()
+def get_latest_report(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    report = db.query(GeneratedReport).join(Project).filter(Project.user_id == current_user.id).order_by(GeneratedReport.timestamp.desc()).first()
     if report:
         return json.loads(report.report_data)
     return None
 
 @app.post("/api/mockup/generate")
-async def generate_mockup_prompt(req: MockupPromptRequest, db: Session = Depends(get_db)):
+async def generate_mockup_prompt(req: MockupPromptRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not gemini_client:
         raise HTTPException(status_code=500, detail="Gemini SDK improperly configured.")
     
-    report = db.query(GeneratedReport).filter(GeneratedReport.project_id == req.project_id).order_by(GeneratedReport.timestamp.desc()).first()
+    project = db.query(Project).filter(Project.id == req.project_id, Project.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or not owned by user")
+        
+    report = db.query(GeneratedReport).filter(GeneratedReport.project_id == project.id).order_by(GeneratedReport.timestamp.desc()).first()
     if not report:
         raise HTTPException(status_code=404, detail="No intelligence report found for this project.")
         
@@ -1575,11 +1590,11 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         db.close()
 
 @app.get("/api/stats/tokens")
-def get_token_stats(db: Session = Depends(get_db)):
+def get_token_stats(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from sqlalchemy import func
-    total_prompt = db.query(func.sum(TokenLog.prompt_tokens)).scalar() or 0
-    total_comp = db.query(func.sum(TokenLog.completion_tokens)).scalar() or 0
-    total_cost = db.query(func.sum(TokenLog.cost)).scalar() or 0.0
+    total_prompt = db.query(func.sum(TokenLog.prompt_tokens)).filter(TokenLog.user_id == current_user.id).scalar() or 0
+    total_comp = db.query(func.sum(TokenLog.completion_tokens)).filter(TokenLog.user_id == current_user.id).scalar() or 0
+    total_cost = db.query(func.sum(TokenLog.cost)).filter(TokenLog.user_id == current_user.id).scalar() or 0.0
     
     return {
         "tokens": total_prompt + total_comp,
@@ -1635,12 +1650,16 @@ async def admin_page(request: Request):
     return templates.TemplateResponse(request=request, name="admin.html")
 
 @app.post("/api/architect/start")
-async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == req.project_id).all()
+async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == req.project_id, Project.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or not owned by user")
+        
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project.id).all()
     
     if not themes:
         # Fallback to raw sources if no themes exist yet (e.g. legacy data)
-        sources = db.query(GeminiSource).filter(GeminiSource.project_id == req.project_id).all()
+        sources = db.query(GeminiSource).filter(GeminiSource.project_id == project.id).all()
         if not sources:
             raise HTTPException(status_code=400, detail="No sources available. Sync some datanodes first.")
         memories = []

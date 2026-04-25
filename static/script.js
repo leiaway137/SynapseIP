@@ -107,6 +107,11 @@ async function bootSequence() {
     document.getElementById('login-gateway').style.display = 'none';
     document.getElementById('main-app').style.display = 'flex';
     
+    const token = localStorage.getItem('synapseip_token');
+    if(token) {
+        window.postMessage({ type: "SYNAPSE_AUTH_TOKEN", token: token }, "*");
+    }
+    
     try {
         const res = await fetch('/api/me');
         if (res.ok) {
