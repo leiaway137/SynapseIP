@@ -905,7 +905,7 @@ def reprocess_source(source_id: int, current_user: User = Depends(get_current_us
         db.close()
 
 @app.post("/api/projects/{project_id}/retry-missed")
-def retry_missed_sources(project_id: int, current_user: User = Depends(get_current_user)):
+def retry_missed_sources(project_id: int, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         project = db.query(Project).filter(Project.id == project_id).first()
@@ -922,6 +922,7 @@ def retry_missed_sources(project_id: int, current_user: User = Depends(get_curre
         
         for s in stalled_sources:
             s.processed = False
+            background_tasks.add_task(generate_short_memory, str(s.id))
             
         db.commit()
         return {"status": "success", "requeued": len(stalled_sources)}
