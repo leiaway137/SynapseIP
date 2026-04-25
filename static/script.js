@@ -1030,7 +1030,7 @@ window.reprocessMissedCards = async function() {
         if (res.ok) {
             btn.innerText = "✅";
             setTimeout(() => { btn.innerText = oldText; btn.disabled = false; }, 2000);
-            loadSources();
+            fetchSources();
         } else {
             btn.innerText = "❌";
             setTimeout(() => { btn.innerText = oldText; btn.disabled = false; }, 2000);
