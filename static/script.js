@@ -109,7 +109,13 @@ async function bootSequence() {
     
     const token = localStorage.getItem('synapseip_token');
     if(token) {
-        window.postMessage({ type: "SYNAPSE_AUTH_TOKEN", token: token }, "*");
+        // Broadcast immediately, and also a few times over 2 seconds to ensure extension catches it
+        // (Content scripts load at document_idle which can be after DOMContentLoaded)
+        const broadcast = () => window.postMessage({ type: "SYNAPSE_AUTH_TOKEN", token: token }, "*");
+        broadcast();
+        setTimeout(broadcast, 500);
+        setTimeout(broadcast, 1000);
+        setTimeout(broadcast, 2000);
     }
     
     try {
