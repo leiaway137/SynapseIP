@@ -677,9 +677,12 @@ async def register(user_in: UserCreate, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": new_user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
+from sqlalchemy import func
+
 @app.post("/api/auth/login", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == form_data.username).first()
+    clean_username = form_data.username.strip().lower()
+    user = db.query(User).filter(func.lower(User.username) == clean_username).first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=401,
