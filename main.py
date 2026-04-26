@@ -126,7 +126,8 @@ else:
         pool_size=2,         # Keep maximum 2 connections alive
         max_overflow=3,      # Allow up to 3 extra connections during spikes
         pool_timeout=30,     # Time out quickly if DB is busy
-        pool_recycle=1800    # Recycle connections every 30 minutes to prevent stale memory bloat
+        pool_recycle=300,    # Recycle connections every 5 minutes (matches Neon scale-to-zero)
+        pool_pre_ping=True   # Automatically ping the DB before using a connection from the pool to avoid stale connection lags
     )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -556,10 +557,73 @@ async def background_processor():
             print("Error in background processor:", e)
         await asyncio.sleep(2)
 
+def _run_one_time_migration():
+    """If MIGRATION_SOURCE_URL is set and the local DB is empty, migrate data from the source (Neon) into the local SQLite."""
+    migration_url = os.environ.get("MIGRATION_SOURCE_URL")
+    if not migration_url:
+        return
+    
+    # Only migrate if local DB is empty (no users exist yet)
+    db = SessionLocal()
+    try:
+        user_count = db.query(User).count()
+        if user_count > 0:
+            print("⏭️  Migration skipped: local database already has data.")
+            return
+    finally:
+        db.close()
+    
+    print("🚀 One-time migration from MIGRATION_SOURCE_URL detected...")
+    try:
+        from sqlalchemy import text as sa_text
+        pg_engine = create_engine(migration_url, pool_pre_ping=True)
+        pg_session = sessionmaker(bind=pg_engine)()
+        
+        tables = ["users", "projects", "gemini_sources", "generated_reports", 
+                   "architect_blueprints", "project_themes", "system_configs", 
+                   "chat_history", "token_logs"]
+        
+        local_session = SessionLocal()
+        total = 0
+        for table_name in tables:
+            try:
+                rows = pg_session.execute(sa_text(f"SELECT * FROM {table_name}")).fetchall()
+                if not rows:
+                    continue
+                columns = list(pg_session.execute(sa_text(f"SELECT * FROM {table_name} LIMIT 0")).keys())
+                for row in rows:
+                    row_dict = dict(zip(columns, row))
+                    local_session.execute(
+                        sa_text(f"INSERT OR REPLACE INTO {table_name} ({', '.join(columns)}) VALUES ({', '.join([':' + c for c in columns])})"),
+                        row_dict
+                    )
+                local_session.commit()
+                total += len(rows)
+                print(f"   ✅ {table_name}: {len(rows)} rows migrated")
+            except Exception as e:
+                print(f"   ❌ {table_name}: {e}")
+                local_session.rollback()
+        
+        local_session.close()
+        pg_session.close()
+        print(f"🎉 Migration complete! {total} total rows migrated.")
+    except Exception as e:
+        print(f"❌ Migration failed: {e}")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create the database tables on startup
     Base.metadata.create_all(bind=engine)
+    
+    # Log which database backend is active
+    if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+        print(f"🗄️  Using SQLite database at {SQLALCHEMY_DATABASE_URL.replace('sqlite:///', '')}")
+    else:
+        print(f"🗄️  Using PostgreSQL database")
+    
+    # Run one-time Neon → SQLite migration if configured
+    _run_one_time_migration()
+    
     asyncio.create_task(background_processor())
     yield
     # Any cleanup could go here
@@ -728,7 +792,8 @@ def get_current_project(project_id: int, db: Session = Depends(get_db), current_
     return project
 
 @app.get("/api/projects")
-def get_projects(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_projects(response: Response, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return db.query(Project).filter(Project.user_id == current_user.id).order_by(Project.timestamp.desc()).all()
 
 @app.post("/api/projects", response_model=ProjectResponse)
@@ -778,22 +843,24 @@ async def perform_consistency_check(project_id: int):
         CURRENT THEMES:
         {compiled_themes}
         
-        Return a raw JSON object where the keys are the EXACT original theme names, and the values are the newly cleaned, consistent markdown content for that theme. Do not include markdown block wrappers like ```json. Return ONLY the raw JSON.
+        CRITICAL INSTRUCTIONS: 
+        1. Return ONLY a valid JSON object. 
+        2. The keys MUST be the EXACT original theme names. 
+        3. The values MUST be the newly cleaned, consistent markdown content for that theme. 
+        4. ALL backslashes within the markdown content MUST be properly escaped (e.g., use \\\\ instead of \\) to prevent JSON parsing errors.
         """
 
         await manager.broadcast(json.dumps({"type": "progress", "progress": 20, "message": "Analyzing Architecture for consistency..."}))
 
         res = await gemini_client.aio.models.generate_content(
             model='gemini-2.5-flash',
-            contents=prompt
+            contents=prompt,
+            config={
+                'response_mime_type': 'application/json'
+            }
         )
         
         clean_res = res.text.strip()
-        if clean_res.startswith("```json"):
-            clean_res = clean_res[7:-3].strip()
-        elif clean_res.startswith("```"):
-            clean_res = clean_res[3:-3].strip()
-            
         updated_data = json.loads(clean_res)
         
         for t in themes:
@@ -829,8 +896,9 @@ def get_project_sources(response: Response, project: Project = Depends(get_curre
     return sources
 
 @app.get("/api/projects/{project_id}/documents")
-def get_project_documents(project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
+def get_project_documents(response: Response, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
     """Returns lists of intelligence reports and architecture blueprints for this project."""
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     reports = db.query(GeneratedReport).filter(GeneratedReport.project_id == project.id).order_by(GeneratedReport.timestamp.desc()).all()
     blueprints = db.query(ArchitectBlueprint).filter(ArchitectBlueprint.project_id == project.id).order_by(ArchitectBlueprint.timestamp.desc()).all()
     
@@ -848,7 +916,8 @@ def update_vibe_step(update: VibeStepUpdate, project: Project = Depends(get_curr
     return {"status": "success", "step": update.step}
 
 @app.get("/api/projects/{project_id}/themes_dashboard")
-def get_themes_dashboard(project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
+def get_themes_dashboard(response: Response, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project.id).all()
     
     active_themes = [t.theme_name for t in themes]

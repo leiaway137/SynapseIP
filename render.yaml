@@ -2,6 +2,10 @@ services:
   - type: web
     name: synapseip-backend
     env: python
-    plan: free
+    plan: starter
+    disk:
+      name: synapseip-data
+      mountPath: /data
+      sizeGB: 1
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1"

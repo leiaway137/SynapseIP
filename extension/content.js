@@ -167,18 +167,38 @@ document.addEventListener('click', (e) => {
                     source_url: sourceUrl
                 };
 
-                // Defensive check: If the extension was reloaded, chrome.runtime becomes undefined in existing tabs
-                if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
-                    console.error("SynapseIP Extension context invalidated. Please refresh the page.");
+                // Cross-browser runtime resolution
+                // On Google-owned pages (gemini.google.com), the `chrome` global exists natively
+                // but chrome.runtime.id is ONLY set when an extension context is active.
+                // typeof checks on sendMessage fail here because Google's own chrome object
+                // defines runtime but without extension methods.
+                let extRuntime = null;
+                try {
+                    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+                        extRuntime = chrome.runtime;
+                    } else if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.id) {
+                        extRuntime = browser.runtime;
+                    }
+                } catch (e) {
+                    console.warn("SynapseIP: Error accessing extension runtime.", e);
+                }
+
+                if (!extRuntime) {
+                    console.error("SynapseIP Extension context not available. chrome.runtime.id =", 
+                        (typeof chrome !== 'undefined' && chrome.runtime) ? chrome.runtime.id : 'N/A');
                     btn.classList.remove('synapseip-syncing-now');
-                    alert("SynapseIP Extension was updated or reloaded in the background. Please refresh this page to restore the connection!");
+                    btn.style.backgroundColor = originalBg;
+                    btn.style.color = originalColor;
+                    // Don't use alert() — it's disruptive. Just log and reset the button.
+                    console.warn("SynapseIP: Extension context lost. This usually means the extension was reloaded. Please refresh this tab.");
                     return;
                 }
 
-                chrome.runtime.sendMessage({ action: "sync_to_synapseip", data: payload }, (response) => {
+                try {
+                    extRuntime.sendMessage({ action: "sync_to_synapseip", data: payload }, (response) => {
                     btn.classList.remove('synapseip-syncing-now');
-                    if (chrome.runtime.lastError) {
-                        console.error(chrome.runtime.lastError);
+                    if (extRuntime.lastError) {
+                        console.error(extRuntime.lastError);
                         btn.style.backgroundColor = originalBg;
                         btn.style.color = originalColor;
                         return;
@@ -202,6 +222,11 @@ document.addEventListener('click', (e) => {
                         }, 3000);
                     }
                 });
+                } catch (sendErr) {
+                    console.error("SynapseIP Extension context invalidated during send. Please refresh the page.", sendErr);
+                    btn.classList.remove('synapseip-syncing-now');
+                    alert("SynapseIP Extension context lost. Please refresh this page to restore the connection!");
+                }
             } catch (e) {
                 console.error("SynapseIP Clipboard Sync Error. Please allow clipboard permissions if prompted.", e);
                 btn.classList.remove('synapseip-syncing-now');
@@ -219,7 +244,13 @@ if (window.location.hostname.includes("synapseip-1ncu.onrender.com") || window.l
         if (event.source !== window) return;
         if (event.data && event.data.type === "SYNAPSE_AUTH_TOKEN") {
             console.log("SynapseIP Extension: Secure token received from dashboard");
-            chrome.runtime.sendMessage({ action: "save_auth_token", token: event.data.token });
+            let extRuntime = null;
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) extRuntime = chrome.runtime;
+            else if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) extRuntime = browser.runtime;
+            
+            if (extRuntime) {
+                extRuntime.sendMessage({ action: "save_auth_token", token: event.data.token, server: window.location.origin });
+            }
         }
     });
 }
