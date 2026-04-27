@@ -1548,12 +1548,43 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         markdown_content += "## Table of Contents\n\n"
     
         # Generate TOC
+        markdown_content += "- [ ] [Step 0: Initialize Project Rules](#step-0-initialize-project-rules)\n"
         for idx, chapter in enumerate(chapters):
             # Generate safe anchor
             anchor = chapter.lower().replace(' ', '-').replace('.', '').replace(':', '')
             markdown_content += f"- [ ] [Step {idx + 1}: {chapter}](#step-{idx+1}-{anchor})\n"
         
         markdown_content += "\n---\n\n"
+        
+        # ----------------------------------------------------
+        # Step 0: Generate PROJECT_RULES.md
+        # ----------------------------------------------------
+        await manager.broadcast(json.dumps({"type": "progress", "message": "Synthesizing global project rules...", "progress": 15}))
+        rules_prompt = f"""
+        You are a principal architect defining the global `PROJECT_RULES.md` for a new project.
+        App Name: {app_name}
+        Platform: {platform}
+        Purpose: {app_purpose}
+        Environment: {build_environment}
+        Raw Notes/Themes: {source_texts}
+        
+        Write the precise contents of a `PROJECT_RULES.md` file that the development agent should strictly follow.
+        Include global architectural constraints, tech stack specifications, UI styling rules, and testing requirements derived from the raw notes.
+        Output ONLY the text meant to go inside the file, no markdown blocks or surrounding chatter.
+        """
+        try:
+            rules_res = await gemini_client.aio.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=rules_prompt
+            )
+            await log_token_usage(db, "Project Rules Generation", "gemini-2.5-flash", rules_res, project_id=project_id)
+            
+            markdown_content += f"<a id='step-0-initialize-project-rules'></a>\n"
+            markdown_content += f"## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='-1'> Step 0: Initialize Project Rules</label>\n\n"
+            markdown_content += "Create a `PROJECT_RULES.md` (or `.cursorrules`) file in the root of your project workspace and paste the following content into it. All subsequent steps will rely on these global instructions.\n\n"
+            markdown_content += f"```text\n{rules_res.text.strip()}\n```\n\n---\n\n"
+        except Exception as e:
+            print(f"Failed to generate project rules: {e}")
     
         total_chapters = len(chapters)
         await manager.broadcast(json.dumps({"type": "progress", "message": f"Outline verified. Writing {total_chapters} MVP feature iterations...", "progress": 20}))
@@ -1618,9 +1649,6 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             
             **Copy & Paste this into your IDE:**
             ```text
-            [System Context]
-            [Write 1-2 sentences explaining the overall app architecture context: e.g., "We are building {app_name}, a {platform} application for {app_purpose} using {build_environment}."]
-            
             [Objective]
             [Write a detailed, actionable technical objective for {chapter_title}. Specify exactly what core logic, UI, or backend feature needs to be implemented in this step.]
             
@@ -1633,7 +1661,8 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             DO NOT generate code until I explicitly approve the implementation plan.
             
             [Execution Constraints]
-            [List 3-4 strict technical constraints specifically relevant to this feature. e.g., styling rules, state management requirements, error handling rules, and mandatory test-driven development requirements.]
+            Strictly adhere to the global project constraints defined in `PROJECT_RULES.md`.
+            [List 1-2 strict technical constraints specifically relevant to THIS step ONLY, if any. Otherwise, omit this line.]
             ```
             
             Strict Formatting Rules:
