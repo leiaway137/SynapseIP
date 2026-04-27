@@ -1506,13 +1506,18 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         
         CRITICAL RULES FOR QUALITY OVER QUANTITY:
         - Build Environment Rule: You must tailor your steps to the "{build_environment}" classification. If it is "Greenfield (New)", provide foundational setup instructions (e.g., 'Initialize Next.js project', 'Setup base database schemas'). If it is "Brownfield (Existing)", you MUST assume the core project already exists. Focus your outline exclusively on safely integrating new features into the existing architecture, requiring adapter patterns, non-breaking schema migrations, and heavy regression-testing rules.
-        - Data & Schema First: The early chapters MUST define exact, concrete database schemas (DDL, Prisma, etc.) and explicit API interface contracts (JSON payloads). Do not leave column names, data types, or prop structures to the agent's imagination.
         - Do NOT ignore Agentic Memory. The very first step MUST be establishing `.cursorrules` or `AGENTS.md` context files with strict guardrails ("Never edit >3 files without confirmed plan. Always run tsc").
         - Build Atomically (Chain Prompting). Break down the architecture into micro-steps. Do not try to build an entire feature in one step. An ideal project should have between 20 to 50 highly granular, atomic steps.
         - Artifact Locking: Dictate explicitly where the user should execute a "Pre-Flight Impact Analysis" to force the agent to write an `implementation_plan.md` detailing "Dependency Risks" and "Verification Strategy" before risking regression on core components.
         - Chapter titles MUST be written in extremely simple, concise layman's terms (e.g., "User Login Screen", "Database Setup", "Save Button Logic"). Do not use overly technical jargon or long run-on sentences for the title.
         - Because you know the Budget/Hosting Constraints: During the infrastructure architecture phase, you MUST explicitly recommend whether they should use platforms like Render, Vercel, Supabase, Pinecone, or other alternatives based exactly on their Budget ({budget_constraints}) and Target Audience. Explain the tradeoff briefly.
         - Because you know the AI Role & Functionality: You MUST explicitly recommend which specific AI foundation models (e.g., Claude 3.5 Sonnet, Gemini 2.5 Flash/Pro, GPT-4o, Llama 3) would be mathematically ideal for these isolated tasks. If multiple AI models are needed, explain which AI is most efficient at each specific task.
+        
+        MANDATORY EARLY CHAPTERS (you must include these in the outline before any UI/feature steps):
+        - One of the first 3 chapters MUST be "Define Database Schema" where the exact DDL/SQL/Prisma schema is written out with all table names, column names, types, and relationships.
+        - One of the first 5 chapters MUST be "Define API Contracts" where the exact REST/GraphQL endpoints, request payloads, and response shapes are documented as strict JSON interface contracts.
+        - One early chapter MUST be "Define Directory Structure" where the complete project folder tree is output so every subsequent step knows exactly where files live.
+        - One early chapter MUST be "Environment Variables & Secrets" where a complete `.env.example` file is defined with every required API key, database URL, and configuration variable.
     
         Raw Notes:
         {source_texts}
@@ -1570,13 +1575,26 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         Raw Notes/Themes: {source_texts}
         
         Write the precise contents of a `PROJECT_RULES.md` file that the development agent should strictly follow.
-        You MUST explicitly define:
-        1. Exact Directory Structure (ASCII tree) for the project.
-        2. Strict Tech Stack Versions (e.g., 'Next.js 14 App Router', not just 'Next.js').
-        3. State Management Protocols (e.g., 'Use Zustand for global state, no Redux').
-        4. Environment Variable Requirements (a `.env.example` block).
-        5. Global architectural constraints, UI styling rules, and testing requirements derived from the raw notes.
-        Output ONLY the text meant to go inside the file, no markdown blocks or surrounding chatter.
+        
+        The document MUST contain ALL of the following sections:
+        
+        1. **Tech Stack Version Lock**: List every major dependency with its EXACT version number (e.g., "Next.js 14.2 (App Router)", "React 18.3", "TailwindCSS v3.4", "Supabase JS v2"). The coding agent must NEVER deviate from these versions.
+        
+        2. **Project Directory Structure**: Output a complete ASCII folder tree showing exactly where every type of file should be placed (components, pages, API routes, utils, types, styles, tests). Every step in the blueprint will reference these exact paths.
+        
+        3. **State Management Protocol**: Define the single source of truth for state. Specify which library to use (e.g., Zustand, React Context, Redux) and strict rules for when to use server-side vs client-side state.
+        
+        4. **UI/Styling Constraints**: Define the design system rules: color palette (exact hex/HSL values), typography (font families, sizes), spacing scale, border-radius conventions, and dark/light mode requirements.
+        
+        5. **Testing Requirements**: Specify the test runner (Jest, Vitest, Playwright), minimum coverage expectations, and the rule that tests must be written BEFORE implementation (Test-Driven Vibe Development).
+        
+        6. **API & Data Conventions**: Define naming conventions for API routes, database tables/columns (snake_case vs camelCase), and how errors should be returned (e.g., standard error response shape).
+        
+        7. **Environment Variables Template**: Output a complete `.env.example` block listing every required environment variable with placeholder values and comments explaining each one.
+        
+        8. **Agent Safety Guardrails**: Rules the AI coding agent must follow, such as: "Never modify more than 3 files without an approved implementation plan", "Always run type-checking before committing", "Never delete existing tests".
+        
+        Output ONLY the text meant to go inside the file, no markdown code fences or surrounding chatter.
         """
         try:
             rules_res = await gemini_client.aio.models.generate_content(
@@ -1635,7 +1653,10 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             REQUIREMENTS:
             1. Explain why this feature is needed and its calculation/logic.
             2. Provide exactly what to expect if it works or fails.
-            3. YOU MUST output the exact Vibe Coding prompt inside a markdown code block so the user can easily copy and paste it into their IDE. The prompt MUST be highly detailed and uniquely tailored to this specific step. Fill out the bracketed placeholders `[...]` with rich, specific details.
+            3. Reference EXACT file paths from the project directory structure (defined in PROJECT_RULES.md). Do NOT invent or guess file paths. Use the established structure.
+            4. If this step involves database operations, reference the exact table/column names from the schema defined in the earlier "Define Database Schema" step.
+            5. If this step involves API calls, reference the exact endpoint paths and payload shapes from the "Define API Contracts" step.
+            6. YOU MUST output the exact Vibe Coding prompt inside a markdown code block so the user can easily copy and paste it into their IDE. The prompt MUST be highly detailed and uniquely tailored to this specific step. Fill out the bracketed placeholders `[...]` with rich, specific details.
             
             STRICT FORMATTING TEMPLATE YOU MUST FOLLOW:
             
