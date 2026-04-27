@@ -8,7 +8,7 @@ SynapseIP is an AI-powered "Vibe Coding Architect" platform. It takes a user's r
 ## 🏗️ Architecture & Infrastructure
 - **Backend:** FastAPI (Python)
 - **Frontend:** Vanilla JS / HTML / CSS (No heavy framework, uses `script.js` and `style.css`)
-- **Database:** PostgreSQL hosted on Neon (connection via `DATABASE_URL` environment variable).
+- **Database:** SQLite hosted on a persistent disk mounted at `/data`. (Previously PostgreSQL on Neon).
 - **Vector Storage:** Pinecone (for semantic RAG search across project notes).
 - **AI Models:** Gemini 2.5 Flash / Pro (via `google-genai` SDK) for blueprint generation and synthesis.
 - **Hosting:** Render (Web Service for backend).

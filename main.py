@@ -112,23 +112,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 # Database Setup Setup
 # ---------------------------------------------------------
 DATA_DIR = os.environ.get("DATA_DIR", ".")
-SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL")
+# Force SQLite connection string, ignoring any legacy DATABASE_URL
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.join(DATA_DIR, 'gemini_sources.db')}"
 
-if not SQLALCHEMY_DATABASE_URL:
-    SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.join(DATA_DIR, 'gemini_sources.db')}"
-
-if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-else:
-    # Memory-optimized Postgres configuration for 512MB instances
-    engine = create_engine(
-        SQLALCHEMY_DATABASE_URL,
-        pool_size=2,         # Keep maximum 2 connections alive
-        max_overflow=3,      # Allow up to 3 extra connections during spikes
-        pool_timeout=30,     # Time out quickly if DB is busy
-        pool_recycle=300,    # Recycle connections every 5 minutes (matches Neon scale-to-zero)
-        pool_pre_ping=True   # Automatically ping the DB before using a connection from the pool to avoid stale connection lags
-    )
+# Initialize SQLite engine
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
