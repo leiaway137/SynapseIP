@@ -1506,6 +1506,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         
         CRITICAL RULES FOR QUALITY OVER QUANTITY:
         - Build Environment Rule: You must tailor your steps to the "{build_environment}" classification. If it is "Greenfield (New)", provide foundational setup instructions (e.g., 'Initialize Next.js project', 'Setup base database schemas'). If it is "Brownfield (Existing)", you MUST assume the core project already exists. Focus your outline exclusively on safely integrating new features into the existing architecture, requiring adapter patterns, non-breaking schema migrations, and heavy regression-testing rules.
+        - Data & Schema First: The early chapters MUST define exact, concrete database schemas (DDL, Prisma, etc.) and explicit API interface contracts (JSON payloads). Do not leave column names, data types, or prop structures to the agent's imagination.
         - Do NOT ignore Agentic Memory. The very first step MUST be establishing `.cursorrules` or `AGENTS.md` context files with strict guardrails ("Never edit >3 files without confirmed plan. Always run tsc").
         - Build Atomically (Chain Prompting). Break down the architecture into micro-steps. Do not try to build an entire feature in one step. An ideal project should have between 20 to 50 highly granular, atomic steps.
         - Artifact Locking: Dictate explicitly where the user should execute a "Pre-Flight Impact Analysis" to force the agent to write an `implementation_plan.md` detailing "Dependency Risks" and "Verification Strategy" before risking regression on core components.
@@ -1569,7 +1570,12 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         Raw Notes/Themes: {source_texts}
         
         Write the precise contents of a `PROJECT_RULES.md` file that the development agent should strictly follow.
-        Include global architectural constraints, tech stack specifications, UI styling rules, and testing requirements derived from the raw notes.
+        You MUST explicitly define:
+        1. Exact Directory Structure (ASCII tree) for the project.
+        2. Strict Tech Stack Versions (e.g., 'Next.js 14 App Router', not just 'Next.js').
+        3. State Management Protocols (e.g., 'Use Zustand for global state, no Redux').
+        4. Environment Variable Requirements (a `.env.example` block).
+        5. Global architectural constraints, UI styling rules, and testing requirements derived from the raw notes.
         Output ONLY the text meant to go inside the file, no markdown blocks or surrounding chatter.
         """
         try:
