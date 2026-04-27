@@ -4,9 +4,12 @@ __pycache__/
 *$py.class
 
 gemini_sources.db
+gemini_sources_migrated.db
+*.pdf
 .env
 
 .DS_Store
 chroma_data/
 synapse.db
 server.log
+Reports/
