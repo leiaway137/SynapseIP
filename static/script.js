@@ -887,14 +887,10 @@ function showBlueprint(markdownText) {
         // Create an unconstrained clone to prevent height/scroll cropping by html2canvas
         const printContainer = document.createElement('div');
         printContainer.className = 'markdown-content';
-        printContainer.style.cssText = "font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; padding: 20px; width: 800px; background: white; color: black;";
+        // Place behind the main app (z-index: -9999) so it's hidden from user but visible to html2canvas (no opacity: 0)
+        printContainer.style.cssText = "font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; padding: 30px; width: 800px; background: white; color: black; position: absolute; top: 0; left: 0; z-index: -9999;";
         printContainer.innerHTML = element.innerHTML;
-        
-        // Wrap in an invisible container at the top of the document to ensure html2canvas captures it correctly
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = "position: absolute; top: 0; left: 0; opacity: 0; pointer-events: none; z-index: -9999;";
-        wrapper.appendChild(printContainer);
-        document.body.appendChild(wrapper);
+        document.body.appendChild(printContainer);
         
         const opt = {
             margin:       15,
@@ -902,16 +898,16 @@ function showBlueprint(markdownText) {
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: 800, scrollX: 0, scrollY: 0 },
             jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' },
-            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+            pagebreak:    { mode: 'css', avoid: ['pre', 'h1', 'h2', 'h3', 'table', 'img', 'ul', 'ol', 'blockquote'] }
         };
         
         html2pdf().set(opt).from(printContainer).save().then(() => {
-            document.body.removeChild(wrapper);
+            document.body.removeChild(printContainer);
             newBtn.innerText = "Export Blueprint PDF";
             newBtn.disabled = false;
         }).catch(err => {
             console.error(err);
-            if(document.body.contains(wrapper)) document.body.removeChild(wrapper);
+            if(document.body.contains(printContainer)) document.body.removeChild(printContainer);
             newBtn.innerText = "Export Failed";
             newBtn.disabled = false;
         });
