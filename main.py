@@ -44,7 +44,7 @@ def index_in_pinecone(document_id: str, title: str, text: str):
     if pinecone_index is None or gemini_client is None: return
     try:
         response = gemini_client.models.embed_content(
-            model='text-embedding-004',
+            model='gemini-embedding-2',
             contents=text,
         )
         vector = response.embeddings[0].values
