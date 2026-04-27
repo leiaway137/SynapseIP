@@ -239,7 +239,9 @@ document.addEventListener('click', (e) => {
 
 // --- SYNAPSEIP TOKEN HANDOFF ---
 // Listen for authentication tokens broadcasted by the SynapseIP web dashboard
-if (window.location.hostname.includes("synapseip-1ncu.onrender.com") || window.location.hostname.includes("localhost") || window.location.hostname.includes("127.0.0.1")) {
+const isSynapseDashboard = window.location.hostname.includes("synapseip-1ncu.onrender.com") || window.location.hostname.includes("localhost") || window.location.hostname.includes("127.0.0.1");
+
+if (isSynapseDashboard) {
     window.addEventListener("message", function(event) {
         if (event.source !== window) return;
         if (event.data && event.data.type === "SYNAPSE_AUTH_TOKEN") {
@@ -253,4 +255,371 @@ if (window.location.hostname.includes("synapseip-1ncu.onrender.com") || window.l
             }
         }
     });
+}
+
+// --- PROJECT SELECTOR OVERLAY ---
+// Only inject on AI chat pages, NOT on the SynapseIP dashboard
+if (!isSynapseDashboard) {
+    (function initProjectSelector() {
+        // Inject overlay CSS
+        const overlayStyle = document.createElement('style');
+        overlayStyle.textContent = `
+            #synapseip-project-pill {
+                position: fixed;
+                bottom: 24px;
+                right: 24px;
+                z-index: 2147483647;
+                font-family: 'Google Sans', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+                user-select: none;
+                transition: opacity 0.2s ease;
+            }
+            #synapseip-project-pill.synapseip-dragging {
+                opacity: 0.85;
+                cursor: grabbing !important;
+            }
+            #synapseip-pill-btn {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 16px;
+                background: rgba(15, 23, 42, 0.85);
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                border: 1px solid rgba(59, 130, 246, 0.3);
+                border-radius: 50px;
+                color: #e2e8f0;
+                font-size: 13px;
+                font-weight: 500;
+                cursor: grab;
+                box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+                transition: all 0.25s ease;
+                white-space: nowrap;
+                max-width: 280px;
+            }
+            #synapseip-pill-btn:hover {
+                border-color: rgba(59, 130, 246, 0.6);
+                box-shadow: 0 4px 24px rgba(59, 130, 246, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+                background: rgba(15, 23, 42, 0.92);
+            }
+            #synapseip-pill-label {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 180px;
+            }
+            #synapseip-pill-chevron {
+                transition: transform 0.2s ease;
+                flex-shrink: 0;
+                opacity: 0.6;
+            }
+            #synapseip-project-pill.synapseip-open #synapseip-pill-chevron {
+                transform: rotate(180deg);
+            }
+            #synapseip-dropdown {
+                display: none;
+                position: absolute;
+                bottom: calc(100% + 8px);
+                right: 0;
+                min-width: 240px;
+                max-width: 320px;
+                max-height: 300px;
+                overflow-y: auto;
+                background: rgba(15, 23, 42, 0.95);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border: 1px solid rgba(59, 130, 246, 0.25);
+                border-radius: 14px;
+                padding: 6px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+                animation: synapseip-slideUp 0.2s ease;
+            }
+            #synapseip-project-pill.synapseip-open #synapseip-dropdown {
+                display: block;
+            }
+            @keyframes synapseip-slideUp {
+                from { opacity: 0; transform: translateY(8px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .synapseip-dropdown-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px 14px;
+                border-radius: 10px;
+                color: #cbd5e1;
+                font-size: 13px;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                border: none;
+                background: none;
+                width: 100%;
+                text-align: left;
+                font-family: inherit;
+            }
+            .synapseip-dropdown-item:hover {
+                background: rgba(59, 130, 246, 0.12);
+                color: #f1f5f9;
+            }
+            .synapseip-dropdown-item.synapseip-active {
+                background: rgba(59, 130, 246, 0.18);
+                color: #93c5fd;
+                font-weight: 600;
+            }
+            .synapseip-dropdown-item .synapseip-radio {
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                border: 2px solid rgba(148, 163, 184, 0.4);
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.15s ease;
+            }
+            .synapseip-dropdown-item.synapseip-active .synapseip-radio {
+                border-color: #3b82f6;
+            }
+            .synapseip-dropdown-item.synapseip-active .synapseip-radio::after {
+                content: '';
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: #3b82f6;
+            }
+            .synapseip-dropdown-divider {
+                height: 1px;
+                background: rgba(255, 255, 255, 0.08);
+                margin: 4px 8px;
+            }
+            .synapseip-dropdown-item.synapseip-new-project {
+                color: #60a5fa;
+            }
+            .synapseip-dropdown-item.synapseip-new-project:hover {
+                background: rgba(59, 130, 246, 0.12);
+            }
+            #synapseip-new-project-input {
+                display: none;
+                padding: 8px 14px;
+                margin: 4px 6px;
+                background: rgba(30, 41, 59, 0.8);
+                border: 1px solid rgba(59, 130, 246, 0.3);
+                border-radius: 8px;
+                color: #e2e8f0;
+                font-size: 13px;
+                font-family: inherit;
+                outline: none;
+                width: calc(100% - 12px);
+                box-sizing: border-box;
+            }
+            #synapseip-new-project-input:focus {
+                border-color: rgba(59, 130, 246, 0.6);
+            }
+            #synapseip-dropdown::-webkit-scrollbar {
+                width: 4px;
+            }
+            #synapseip-dropdown::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            #synapseip-dropdown::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.15);
+                border-radius: 4px;
+            }
+            .synapseip-loading-spinner {
+                display: inline-block;
+                width: 14px;
+                height: 14px;
+                border: 2px solid rgba(148, 163, 184, 0.3);
+                border-top-color: #60a5fa;
+                border-radius: 50%;
+                animation: synapseip-spin 0.6s linear infinite;
+            }
+            @keyframes synapseip-spin {
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(overlayStyle);
+
+        // Create the pill
+        const pill = document.createElement('div');
+        pill.id = 'synapseip-project-pill';
+        pill.innerHTML = `
+            <div id="synapseip-pill-btn">
+                <span style="font-size: 16px; flex-shrink: 0;">🧠</span>
+                <span id="synapseip-pill-label">Loading...</span>
+                <svg id="synapseip-pill-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </div>
+            <div id="synapseip-dropdown">
+                <div id="synapseip-project-list"></div>
+                <div class="synapseip-dropdown-divider"></div>
+                <button class="synapseip-dropdown-item synapseip-new-project" id="synapseip-new-project-btn">
+                    <span style="font-size: 15px;">＋</span>
+                    <span>New Project...</span>
+                </button>
+                <input type="text" id="synapseip-new-project-input" placeholder="Project name, then press Enter" autocomplete="off">
+            </div>
+        `;
+        document.body.appendChild(pill);
+
+        const pillBtn = document.getElementById('synapseip-pill-btn');
+        const pillLabel = document.getElementById('synapseip-pill-label');
+        const dropdown = document.getElementById('synapseip-dropdown');
+        const projectList = document.getElementById('synapseip-project-list');
+        const newProjectBtn = document.getElementById('synapseip-new-project-btn');
+        const newProjectInput = document.getElementById('synapseip-new-project-input');
+
+        let isOpen = false;
+        let activeProjectId = null;
+        let isDragging = false;
+        let dragStartX, dragStartY, pillStartX, pillStartY;
+        let hasDragged = false;
+
+        // --- Draggable ---
+        pillBtn.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            hasDragged = false;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            const rect = pill.getBoundingClientRect();
+            pillStartX = rect.left;
+            pillStartY = rect.top;
+            pill.classList.add('synapseip-dragging');
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - dragStartX;
+            const dy = e.clientY - dragStartY;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasDragged = true;
+            pill.style.left = (pillStartX + dx) + 'px';
+            pill.style.top = (pillStartY + dy) + 'px';
+            pill.style.right = 'auto';
+            pill.style.bottom = 'auto';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                pill.classList.remove('synapseip-dragging');
+            }
+        });
+
+        // --- Toggle Dropdown ---
+        pillBtn.addEventListener('click', (e) => {
+            if (hasDragged) return; // Don't toggle if we just dragged
+            isOpen = !isOpen;
+            pill.classList.toggle('synapseip-open', isOpen);
+            if (isOpen) {
+                fetchAndRenderProjects();
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (isOpen && !pill.contains(e.target)) {
+                isOpen = false;
+                pill.classList.remove('synapseip-open');
+                newProjectInput.style.display = 'none';
+            }
+        });
+
+        // --- Fetch & Render Projects ---
+        function fetchAndRenderProjects() {
+            projectList.innerHTML = '<div style="padding: 10px 14px; color: #94a3b8;"><span class="synapseip-loading-spinner"></span></div>';
+            
+            chrome.runtime.sendMessage({ action: "fetch_projects" }, (response) => {
+                if (chrome.runtime.lastError || !response || response.status !== "success") {
+                    projectList.innerHTML = '<div style="padding: 10px 14px; color: #f87171; font-size: 12px;">Failed to load projects. Log into SynapseIP first.</div>';
+                    return;
+                }
+                renderProjectList(response.projects);
+            });
+        }
+
+        function renderProjectList(projects) {
+            projectList.innerHTML = '';
+            if (!projects || projects.length === 0) {
+                projectList.innerHTML = '<div style="padding: 10px 14px; color: #94a3b8; font-size: 12px;">No projects yet.</div>';
+                return;
+            }
+            projects.forEach(p => {
+                const item = document.createElement('button');
+                item.className = 'synapseip-dropdown-item' + (p.id === activeProjectId ? ' synapseip-active' : '');
+                item.innerHTML = `<span class="synapseip-radio"></span><span>${escapeHtml(p.name)}</span>`;
+                item.addEventListener('click', () => selectProject(p));
+                projectList.appendChild(item);
+            });
+        }
+
+        function selectProject(project) {
+            activeProjectId = project.id;
+            pillLabel.textContent = project.name;
+            isOpen = false;
+            pill.classList.remove('synapseip-open');
+            newProjectInput.style.display = 'none';
+            chrome.runtime.sendMessage({ action: "set_active_project", project: { id: project.id, name: project.name } });
+            // Re-render to update radio buttons
+            fetchAndRenderProjects();
+        }
+
+        // --- New Project ---
+        newProjectBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            newProjectInput.style.display = 'block';
+            newProjectInput.value = '';
+            newProjectInput.focus();
+        });
+
+        newProjectInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && newProjectInput.value.trim()) {
+                const name = newProjectInput.value.trim();
+                newProjectInput.style.display = 'none';
+                projectList.innerHTML = '<div style="padding: 10px 14px; color: #94a3b8;"><span class="synapseip-loading-spinner"></span> Creating...</div>';
+                
+                chrome.runtime.sendMessage({ action: "create_project", name }, (response) => {
+                    if (chrome.runtime.lastError || !response || response.status !== "success") {
+                        projectList.innerHTML = '<div style="padding: 10px 14px; color: #f87171; font-size: 12px;">Failed to create project.</div>';
+                        return;
+                    }
+                    selectProject(response.project);
+                });
+            }
+            if (e.key === 'Escape') {
+                newProjectInput.style.display = 'none';
+            }
+        });
+
+        // Prevent typing in the input from bubbling to the host page
+        newProjectInput.addEventListener('keydown', (e) => e.stopPropagation());
+        newProjectInput.addEventListener('keyup', (e) => e.stopPropagation());
+        newProjectInput.addEventListener('keypress', (e) => e.stopPropagation());
+
+        // --- Load Initial State ---
+        chrome.runtime.sendMessage({ action: "get_active_project" }, (response) => {
+            if (chrome.runtime.lastError) {
+                pillLabel.textContent = "No project";
+                return;
+            }
+            if (response && response.project) {
+                activeProjectId = response.project.id;
+                pillLabel.textContent = response.project.name;
+            } else {
+                // No project selected yet — fetch list and auto-select the first one
+                chrome.runtime.sendMessage({ action: "fetch_projects" }, (res) => {
+                    if (res && res.status === "success" && res.projects && res.projects.length > 0) {
+                        selectProject(res.projects[0]);
+                    } else {
+                        pillLabel.textContent = "No project";
+                    }
+                });
+            }
+        });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    })();
 }

@@ -1020,11 +1020,41 @@ def retry_missed_sources(project_id: int, background_tasks: BackgroundTasks, cur
     finally:
         db.close()
 
+# ---------------------------------------------------------
+# Extension API Endpoints (lightweight, for Chrome Extension overlay)
+# ---------------------------------------------------------
+@app.get("/api/ext/projects")
+def ext_get_projects(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Lightweight project list for the Chrome Extension overlay."""
+    projects = db.query(Project).filter(Project.user_id == current_user.id).order_by(Project.timestamp.desc()).all()
+    return [{"id": p.id, "name": p.name} for p in projects]
+
+@app.post("/api/ext/projects")
+def ext_create_project(req: ProjectCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Create a new project from the Chrome Extension overlay."""
+    p = Project(user_id=current_user.id, name=req.name)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return {"id": p.id, "name": p.name}
+
 @app.post("/ingest", response_model=SourceResponse)
 async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Accepts JSON from Chrome Extension and saves it to the most recently created Project."""
+    """Accepts JSON from Chrome Extension and saves it to the designated project (or most recent as fallback)."""
     
-    active_project = db.query(Project).filter(Project.user_id == current_user.id).order_by(Project.timestamp.desc()).first()
+    active_project = None
+    
+    # If the extension explicitly specified a project, validate ownership and use it
+    if source.project_id:
+        active_project = db.query(Project).filter(
+            Project.id == source.project_id,
+            Project.user_id == current_user.id
+        ).first()
+    
+    # Fallback: use the most recently created project
+    if not active_project:
+        active_project = db.query(Project).filter(Project.user_id == current_user.id).order_by(Project.timestamp.desc()).first()
+    
     if not active_project:
         active_project = Project(user_id=current_user.id, name="Default Project")
         db.add(active_project)
@@ -1049,7 +1079,7 @@ async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks,
         )
 
     db_source = GeminiSource(
-        user_id=1,
+        user_id=current_user.id,
         project_id=active_project.id,
         title=source.title, # Respecting chronological numbering extracted by Chrome sub-agent
         content=source.content,
