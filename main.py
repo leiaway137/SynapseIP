@@ -1653,12 +1653,14 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             [Write a detailed, actionable technical objective for {chapter_title}. Specify exactly what core logic, UI, or backend feature needs to be implemented in this step.]
             
             [Artifact Locking & Pre-Flight]
-            Before writing ANY code, please perform an Impact Analysis.
-            [List 2-3 specific files, directories, or components the developer AI must review first to understand the context for this feature.]
+            Before writing ANY code, please perform an Impact Analysis. First, review the following specific files to understand the current context:
+            [List 2-3 specific files, directories, or components the IDE AI must review first based on this feature]
+            
             Output an `implementation_plan.md` detailing:
-            1. Which files will be modified.
-            2. The exact API calls, schema changes, or dependencies required.
-            DO NOT generate code until I explicitly approve the implementation plan.
+            1. Which files will be modified, created, or deleted.
+            2. What specific shell commands or terminal scripts will be executed.
+            3. The exact API calls, schema changes, or dependencies that will be added/altered.
+            DO NOT generate code or run commands until I explicitly approve the implementation plan.
             
             [Execution Constraints]
             Strictly adhere to the global project constraints defined in `PROJECT_RULES.md`.
