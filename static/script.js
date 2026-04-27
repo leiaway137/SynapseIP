@@ -1414,9 +1414,65 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeBtn = document.getElementById('floating-chat-close');
     const chatInput = document.getElementById('followup-chat-input');
     
-    // Toggle Chat Panel
+    // Toggle Chat Panel & Drag Logic
     if (fab && panel && closeBtn) {
-        fab.addEventListener('click', () => {
+        let isDragging = false;
+        let startX, startY, initialX, initialY;
+
+        fab.addEventListener('mousedown', (e) => {
+            isDragging = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            initialX = fab.offsetLeft;
+            initialY = fab.offsetTop;
+            fab.style.transition = 'none'; // Disable transition for smooth dragging
+
+            const onMouseMove = (moveEvent) => {
+                const dx = moveEvent.clientX - startX;
+                const dy = moveEvent.clientY - startY;
+
+                if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                    isDragging = true;
+                    fab.style.bottom = 'auto';
+                    fab.style.right = 'auto';
+                    
+                    let newX = initialX + dx;
+                    let newY = initialY + dy;
+                    
+                    const maxW = window.innerWidth - fab.offsetWidth;
+                    const maxH = window.innerHeight - fab.offsetHeight;
+                    
+                    if (newX < 0) newX = 0;
+                    if (newY < 0) newY = 0;
+                    if (newX > maxW) newX = maxW;
+                    if (newY > maxH) newY = maxH;
+                    
+                    fab.style.left = `${newX}px`;
+                    fab.style.top = `${newY}px`;
+                    
+                    // Keep panel anchored to the pill if possible
+                    panel.style.bottom = 'auto';
+                    panel.style.left = `${Math.max(10, Math.min(newX, window.innerWidth - panel.offsetWidth - 10))}px`;
+                    panel.style.top = `${Math.max(10, newY - panel.offsetHeight - 10)}px`;
+                }
+            };
+
+            const onMouseUp = () => {
+                fab.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease';
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        fab.addEventListener('click', (e) => {
+            if (isDragging) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
             panel.classList.toggle('active');
             if (panel.classList.contains('active') && chatInput) {
                 setTimeout(() => chatInput.focus(), 100);
