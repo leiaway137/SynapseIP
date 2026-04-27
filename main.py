@@ -1558,6 +1558,8 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         total_chapters = len(chapters)
         await manager.broadcast(json.dumps({"type": "progress", "message": f"Outline verified. Writing {total_chapters} MVP feature iterations...", "progress": 20}))
     
+        rolling_architecture_context = "No previous architectural decisions have been made yet."
+    
         for i, chapter_title in enumerate(chapters):
             prog = 20 + int((i / total_chapters) * 70)
             await manager.broadcast(json.dumps({"type": "progress", "message": f"Drafting MVP Feature {i+1}: {chapter_title}...", "progress": prog}))
@@ -1617,28 +1619,31 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             **Copy & Paste this into your IDE:**
             ```text
             [System Context]
-            We are building a React Native mobile application using Expo and Supabase for authentication.
+            We are building a {platform} application for {app_name}.
             
             [Objective]
-            Implement the UI component for the "Forgot Password" screen (`ForgotPassword.tsx`).
+            Implement the logic for {chapter_title}.
             
             [Artifact Locking & Pre-Flight]
-            Before writing ANY code, please perform an Impact Analysis. Review our existing `Login.tsx` and `AppNavigator.tsx` to understand the current routing and styling context.
+            Before writing ANY code, please perform an Impact Analysis. Review existing files to understand the current context.
             Output an `implementation_plan.md` detailing:
             1. Which files will be modified.
-            2. The exact Auth API call you intend to use.
+            2. The exact API calls you intend to use.
             DO NOT generate code until I explicitly approve the implementation plan.
             
             [Execution Constraints]
-            - Use Tailwind for styling. Follow the existing exact color tokens from `theme.js`.
-            - The UI MUST be beautifully modern: use subtle animations when the submit button is pressed.
-            - Write a Jest unit test for the email validation logic BEFORE implementing the component (Test-Driven Vibe Development).
+            - Follow the existing exact style tokens.
+            - The UI MUST be beautifully modern.
+            - Write a unit test for validation logic BEFORE implementing the component (Test-Driven Vibe Development).
             ```
             
             Strict Formatting Rules:
             1. DO NOT output a `#` or `##` header for the chapter title itself. The system will handle the chapter title. Just output the content.
             2. All data points outside the text block MUST be in a bulleted list (`*`) or a Markdown table.
         
+            [PREVIOUS ARCHITECTURAL DECISIONS (Maintain Strict Consistency with these)]:
+            {rolling_architecture_context}
+            
             [GLOBAL CONTEXT (Project Abstract & Themes)]:
             {source_texts}
             
@@ -1656,6 +1661,30 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                 markdown_content += f"<a id='step-{i+1}-{anchor}'></a>\n"
                 markdown_content += f"## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='{i}'> Step {i+1}: {chapter_title}</label>\n\n"
                 markdown_content += f"{chap_res.text}\n\n---\n\n"
+                
+                # Consistency Subagent Evaluation
+                try:
+                    consistency_prompt = f"""
+                    You are a system architecture consistency tracker. 
+                    Analyze the following newly generated architectural step and extract any concrete architectural decisions, database schema additions, file structure modifications, or library dependencies that were established.
+                    Keep it extremely concise (bullet points). If no major technical decisions were made, output "None".
+                    
+                    Step Content:
+                    {chap_res.text}
+                    """
+                    consist_res = await gemini_client.aio.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=consistency_prompt
+                    )
+                    await log_token_usage(db, "Consistency Subagent", "gemini-2.5-flash", consist_res, project_id=project_id)
+                    
+                    if consist_res.text and "None" not in consist_res.text:
+                        if rolling_architecture_context == "No previous architectural decisions have been made yet.":
+                            rolling_architecture_context = ""
+                        rolling_architecture_context += f"\n- {chapter_title}: {consist_res.text.strip()}"
+                except Exception as e:
+                    print(f"Consistency subagent failed for {chapter_title}: {e}")
+                    
             except Exception as e:
                 print(f"Skipping chapter {chapter_title} due to error: {e}")
         
