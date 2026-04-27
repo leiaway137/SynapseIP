@@ -887,26 +887,31 @@ function showBlueprint(markdownText) {
         // Create an unconstrained clone to prevent height/scroll cropping by html2canvas
         const printContainer = document.createElement('div');
         printContainer.className = 'markdown-content';
-        printContainer.style.cssText = "font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; padding: 20px; width: 800px; position: absolute; left: -9999px; top: 0; background: white; color: black;";
+        printContainer.style.cssText = "font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; padding: 20px; width: 800px; background: white; color: black;";
         printContainer.innerHTML = element.innerHTML;
-        document.body.appendChild(printContainer);
+        
+        // Wrap in an invisible container at the top of the document to ensure html2canvas captures it correctly
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = "position: absolute; top: 0; left: 0; opacity: 0; pointer-events: none; z-index: -9999;";
+        wrapper.appendChild(printContainer);
+        document.body.appendChild(wrapper);
         
         const opt = {
             margin:       15,
             filename:     `Blueprint_${currentProjectName.replace(/\s+/g, '_')}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: 800 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: 800, scrollX: 0, scrollY: 0 },
             jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' },
             pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
         };
         
         html2pdf().set(opt).from(printContainer).save().then(() => {
-            document.body.removeChild(printContainer);
+            document.body.removeChild(wrapper);
             newBtn.innerText = "Export Blueprint PDF";
             newBtn.disabled = false;
         }).catch(err => {
             console.error(err);
-            if(document.body.contains(printContainer)) document.body.removeChild(printContainer);
+            if(document.body.contains(wrapper)) document.body.removeChild(wrapper);
             newBtn.innerText = "Export Failed";
             newBtn.disabled = false;
         });
