@@ -1598,7 +1598,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             REQUIREMENTS:
             1. Explain why this feature is needed and its calculation/logic.
             2. Provide exactly what to expect if it works or fails.
-            3. YOU MUST output the exact Vibe Coding prompt inside a markdown code block so the user can easily copy and paste it into their IDE.
+            3. YOU MUST output the exact Vibe Coding prompt inside a markdown code block so the user can easily copy and paste it into their IDE. The prompt MUST be highly detailed and uniquely tailored to this specific step. Fill out the bracketed placeholders `[...]` with rich, specific details.
             
             STRICT FORMATTING TEMPLATE YOU MUST FOLLOW:
             
@@ -1619,27 +1619,27 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             **Copy & Paste this into your IDE:**
             ```text
             [System Context]
-            We are building a {platform} application for {app_name}.
+            [Write 1-2 sentences explaining the overall app architecture context: e.g., "We are building {app_name}, a {platform} application for {app_purpose} using {build_environment}."]
             
             [Objective]
-            Implement the logic for {chapter_title}.
+            [Write a detailed, actionable technical objective for {chapter_title}. Specify exactly what core logic, UI, or backend feature needs to be implemented in this step.]
             
             [Artifact Locking & Pre-Flight]
-            Before writing ANY code, please perform an Impact Analysis. Review existing files to understand the current context.
+            Before writing ANY code, please perform an Impact Analysis.
+            [List 2-3 specific files, directories, or components the developer AI must review first to understand the context for this feature.]
             Output an `implementation_plan.md` detailing:
             1. Which files will be modified.
-            2. The exact API calls you intend to use.
+            2. The exact API calls, schema changes, or dependencies required.
             DO NOT generate code until I explicitly approve the implementation plan.
             
             [Execution Constraints]
-            - Follow the existing exact style tokens.
-            - The UI MUST be beautifully modern.
-            - Write a unit test for validation logic BEFORE implementing the component (Test-Driven Vibe Development).
+            [List 3-4 strict technical constraints specifically relevant to this feature. e.g., styling rules, state management requirements, error handling rules, and mandatory test-driven development requirements.]
             ```
             
             Strict Formatting Rules:
             1. DO NOT output a `#` or `##` header for the chapter title itself. The system will handle the chapter title. Just output the content.
             2. All data points outside the text block MUST be in a bulleted list (`*`) or a Markdown table.
+            3. In the "Copy & Paste" code block, REPLACE all bracketed text `[...]` with your generated, highly specific instructions for the target AI. Do not output the brackets themselves.
         
             [PREVIOUS ARCHITECTURAL DECISIONS (Maintain Strict Consistency with these)]:
             {rolling_architecture_context}
