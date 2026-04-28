@@ -612,7 +612,7 @@ async def process_single_card(unprocessed_dict):
                 tb = traceback.format_exc()
                 err_item.title = f"⚠️ Processing Failed: {str(e)[:50]}"
                 err_item.content = err_item.content + f"\n\n--- DIAGNOSTICS ---\n{tb}"
-                err_item.processed = True
+                err_item.processed = False
                 db_err.commit()
                 await manager.broadcast("new_source")
                 await manager.broadcast(json.dumps({"type": "source_progress_complete", "source_id": target_id}))
@@ -690,7 +690,7 @@ async def background_processor():
                         c_item = db_fail.query(GeminiSource).filter(GeminiSource.id == c_id).first()
                         if c_item and c_item.title.startswith("Processing 🔄"):
                             c_item.title = f"⚠️ Processing Failed: Timeout/Crash"
-                            c_item.processed = True
+                            c_item.processed = False
                             db_fail.commit()
                             await manager.broadcast("new_source")
                             await manager.broadcast(json.dumps({"type": "source_progress_complete", "source_id": c_id}))
@@ -790,9 +790,14 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         failed_cards = db.query(GeminiSource).filter(
-            GeminiSource.processed == True,
             GeminiSource.title.like("%Processing Failed%")
         ).all()
+        
+        # Unlock any cards that got permanently stuck in the "Processing 🔄" state due to a crash
+        stuck_cards = db.query(GeminiSource).filter(GeminiSource.title.startswith('Processing 🔄')).all()
+        for c in stuck_cards:
+            c.title = c.title.replace('Processing 🔄 ', '')
+            c.processed = False
         
         if failed_cards:
             print(f"🔄 Auto-requeuing {len(failed_cards)} failed cards on startup...")
