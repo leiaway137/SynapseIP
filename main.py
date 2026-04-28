@@ -400,35 +400,27 @@ async def background_processor():
                     finally:
                         db_themes.close()
                     
-                    # 2. Categorize or Create New Theme
-                    categorize_prompt = f"""
+                    # 2. Extract Multiple Topics & Generate Title
+                    extract_prompt = f"""
                     You are a data architect categorizing a new brainstorm note.
+                    Extract all distinct high-fidelity architectural or technical topics from this raw note. 
+                    If a topic strongly matches an existing theme from this project, use that EXACT existing theme name.
                     Current existing themes for this project: {theme_names if theme_names else 'None'}
                     
                     New Note Content:
-                    {raw_content[:2000]}
+                    {raw_content}
                     
-                    Does this note belong to an existing theme, or does it require a completely new theme?
-                    If it belongs to an existing theme, output ONLY the exact name of the existing theme.
-                    If it needs a new theme, output ONLY the new theme name (e.g. 'Database Architecture', 'Monetization Strategy', 'UI/UX Guidelines').
-                    Do not explain. Output only the theme name.
+                    Return ONLY a JSON array of objects with 'topic' and 'content'.
+                    Example format: [{{"topic": "Theme Name", "content": "Detailed synthesis of the topic..."}}]
                     """
                     
                     title_prompt = f"You are a neat summarization bot. Create a professional, catchy, 3 to 6 word title summarizing this interaction. Do not use quotes, labels, or generic prefixes. Only return the title itself.\n\nText: {raw_content[:1500]}"
                     
-                    cat_res = await gemini_client.aio.models.generate_content(
+                    extract_res = await gemini_client.aio.models.generate_content(
                         model='gemini-2.5-flash',
-                        contents=categorize_prompt
+                        contents=extract_prompt,
+                        config={'response_mime_type': 'application/json'}
                     )
-                    
-                    # Log tokens using a temporary DB session
-                    temp_db = SessionLocal()
-                    try:
-                        await log_token_usage(temp_db, "Note Categorization", "gemini-2.5-flash", cat_res, project_id=target_project_id)
-                    finally:
-                        temp_db.close()
-                        
-                    chosen_theme = cat_res.text.strip().strip('"').strip("'")
                     
                     title_res = await gemini_client.aio.models.generate_content(
                         model='gemini-2.5-flash',
@@ -437,6 +429,7 @@ async def background_processor():
                     
                     temp_db = SessionLocal()
                     try:
+                        await log_token_usage(temp_db, "Note Categorization", "gemini-2.5-flash", extract_res, project_id=target_project_id)
                         await log_token_usage(temp_db, "Note Titling", "gemini-2.5-flash", title_res, project_id=target_project_id)
                     finally:
                         temp_db.close()
@@ -445,44 +438,98 @@ async def background_processor():
                     if len(smart_title) > 100:
                         smart_title = smart_title[:100]
                         
-                    # 3. Merge or Create Theme
-                    db_merge = SessionLocal()
+                    # Parse JSON
                     try:
-                        theme_record = db_merge.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id, ProjectTheme.theme_name == chosen_theme).first()
+                        import json
+                        topics = json.loads(extract_res.text)
+                    except Exception:
+                        topics = [{"topic": "General Notes", "content": raw_content}]
                         
-                        if theme_record:
-                            # Intelligent Merge
-                            merge_prompt = f"""
-                            You are a highly analytical AI Synthesizer. Your job is to update an existing architecture document theme with new information.
-                            Do NOT lose any important technical details, requirements, or insights from either text.
-                            Seamlessly weave the new note's insights into the existing theme document. Do not just append it to the end; synthesize it logically.
-                            
-                            EXISTING THEME DOCUMENT:
-                            {theme_record.content}
-                            
-                            NEW NOTE TO INTEGRATE:
-                            {raw_content}
-                            
-                            Output ONLY the newly synthesized and merged Markdown document.
-                            """
-                            merge_res = await gemini_client.aio.models.generate_content(
-                                model='gemini-2.5-flash',
-                                contents=merge_prompt
-                            )
-                            await log_token_usage(db_merge, "Theme Synthesis", "gemini-2.5-flash", merge_res, project_id=target_project_id)
-                            theme_record.content = merge_res.text.strip()
-                        else:
-                            # New Theme
-                            theme_record = ProjectTheme(
-                                project_id=target_project_id,
-                                theme_name=chosen_theme,
-                                content=f"## {chosen_theme}\n\n{raw_content}"
-                            )
-                            db_merge.add(theme_record)
-                            
-                        db_merge.commit()
-                    finally:
-                        db_merge.close()
+                    # 3. Continuous Agentic Memory Merge
+                    for item in topics:
+                        topic_name = item.get("topic")
+                        topic_content = item.get("content")
+                        if not topic_name or not topic_content: continue
+                        
+                        db_merge = SessionLocal()
+                        try:
+                            # Embed topic to check Pinecone
+                            vector = None
+                            if pinecone_index is not None:
+                                try:
+                                    embed_res = await gemini_client.aio.models.embed_content(
+                                        model='text-embedding-004',
+                                        contents=f"Topic: {topic_name}\n\n{topic_content}"
+                                    )
+                                    vector = embed_res.embeddings[0].values
+                                except Exception as e:
+                                    print("Embedding failed:", e)
+                                    
+                            theme_record = None
+                            if vector and pinecone_index is not None:
+                                try:
+                                    pinecone_query = pinecone_index.query(vector=vector, top_k=1, namespace="synapseip_themes")
+                                    if pinecone_query.get('matches') and pinecone_query['matches'][0]['score'] > 0.80:
+                                        match_id = pinecone_query['matches'][0]['id']
+                                        if match_id.startswith("theme_"):
+                                            db_theme_id = int(match_id.split("_")[1])
+                                            theme_record = db_merge.query(ProjectTheme).filter(ProjectTheme.id == db_theme_id, ProjectTheme.project_id == target_project_id).first()
+                                except Exception as e:
+                                    print("Pinecone theme query failed:", e)
+                                    
+                            if not theme_record:
+                                # Fallback match by name
+                                theme_record = db_merge.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id, ProjectTheme.theme_name == topic_name).first()
+                                
+                            if theme_record:
+                                # Intelligent Merge
+                                merge_prompt = f"""
+                                You are a highly analytical AI Synthesizer. Your job is to update an existing architecture document theme with new information.
+                                Do NOT lose any important technical details, requirements, or insights from either text.
+                                Seamlessly weave the new note's insights into the existing theme document. Do not just append it to the end; synthesize it logically.
+                                
+                                EXISTING THEME DOCUMENT:
+                                {theme_record.content}
+                                
+                                NEW NOTE TO INTEGRATE:
+                                {topic_content}
+                                
+                                Output ONLY the newly synthesized and merged Markdown document.
+                                """
+                                merge_res = await gemini_client.aio.models.generate_content(
+                                    model='gemini-2.5-flash',
+                                    contents=merge_prompt
+                                )
+                                theme_record.content = merge_res.text.strip()
+                                db_merge.commit()
+                            else:
+                                # New Theme
+                                theme_record = ProjectTheme(
+                                    project_id=target_project_id,
+                                    theme_name=topic_name,
+                                    content=f"## {topic_name}\n\n{topic_content}"
+                                )
+                                db_merge.add(theme_record)
+                                db_merge.commit()
+                                db_merge.refresh(theme_record)
+                                
+                            # Upsert Synthesized Vector to Pinecone
+                            if pinecone_index is not None:
+                                try:
+                                    final_embed = await gemini_client.aio.models.embed_content(
+                                        model='text-embedding-004',
+                                        contents=f"Topic: {theme_record.theme_name}\n\n{theme_record.content}"
+                                    )
+                                    final_vector = final_embed.embeddings[0].values
+                                    pinecone_index.upsert(
+                                        vectors=[(f"theme_{theme_record.id}", final_vector, {"title": theme_record.theme_name, "content": theme_record.content})],
+                                        namespace="synapseip_themes"
+                                    )
+                                except Exception as e:
+                                    print("Upsert theme failed:", e)
+                                    
+                        finally:
+                            db_merge.close()
                     
                     # 4. Generate Suggested Themes
                     db_sugg = SessionLocal()
@@ -1080,8 +1127,6 @@ async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks,
     db.commit()
     db.refresh(db_source)
     
-    # Send off to ChromaDB for vector math
-    background_tasks.add_task(index_in_pinecone, str(db_source.id), db_source.title, db_source.content)
     # Background generation for short-term memory optimizations
     background_tasks.add_task(generate_short_memory, str(db_source.id))
     
@@ -1635,12 +1680,12 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                         contents=query_text
                     )
                     vector = res.embeddings[0].values
-                    pinecone_query = pinecone_index.query(vector=vector, top_k=3, namespace="synapseip_notes")
+                    pinecone_query = pinecone_index.query(vector=vector, top_k=3, namespace="synapseip_themes")
                     
-                    relevant_ids = [int(match['id']) for match in pinecone_query.get('matches', []) if match['id'].isdigit()]
+                    relevant_ids = [int(match['id'].split("_")[1]) for match in pinecone_query.get('matches', []) if match['id'].startswith("theme_")]
                     if relevant_ids:
-                        db_sources = db.query(GeminiSource).filter(GeminiSource.id.in_(relevant_ids)).all()
-                        relevant_sources_text = "\n\n".join([f"RAW SOURCE: {s.title}\n{s.content}" for s in db_sources])
+                        db_themes = db.query(ProjectTheme).filter(ProjectTheme.id.in_(relevant_ids), ProjectTheme.project_id == project_id).all()
+                        relevant_sources_text = "\n\n".join([f"SYNTHESIZED THEME: {t.theme_name}\n{t.content}" for t in db_themes])
                 except Exception as e:
                     print("Pinecone chapter query failed:", e)
         
