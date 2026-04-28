@@ -965,10 +965,20 @@ async function fetchSources() {
             }
             
             if (smartTitle.length > 50) smartTitle = smartTitle.substring(0, 50) + "...";
+            card.id = `source-card-${source.id}`;
             card.innerHTML = `
                 <div class="source-title"><span style="color:var(--accent-color); margin-right:6px;">#${index+1}</span>${escapeHTML(smartTitle)}${bHTML}</div>
                 <div class="source-time">${sourceHost} &bull; ${date}</div>
                 <div class="source-preview">${escapeHTML(plainText)}</div>
+                <div id="card-progress-${source.id}" class="card-progress-overlay" style="display:none;">
+                    <div class="card-progress-text">
+                        <span id="card-progress-msg-${source.id}">Waiting...</span>
+                        <span id="card-progress-pct-${source.id}" style="color: var(--accent-color);">0%</span>
+                    </div>
+                    <div class="progress-bar-track card-progress-track">
+                        <div id="card-progress-fill-${source.id}" class="progress-bar-fill card-progress-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
             `;
             
             if (isDeleteMode && selectedForDeletion.has(source.id)) card.classList.add('selected-for-deletion');
@@ -1067,16 +1077,26 @@ function initWebSocket() {
                     showBlueprint(data.markdown_content);
                 }
             } else if (data.type === "progress" || data.type === "source_progress") {
-                // Ensure UI tracker is visible globally
-                const tracker = document.getElementById('global-activity-tracker');
-                tracker.style.display = 'flex';
-                document.getElementById('global-tracker-pct').innerText = `${data.progress}%`;
-                document.getElementById('global-tracker-msg').innerText = data.message;
-                document.getElementById('global-tracker-fill').style.width = `${data.progress}%`;
+                const overlay = document.getElementById(`card-progress-${data.source_id}`);
+                if (overlay) {
+                    overlay.style.display = 'flex';
+                    document.getElementById(`card-progress-pct-${data.source_id}`).innerText = `${data.progress}%`;
+                    document.getElementById(`card-progress-msg-${data.source_id}`).innerText = data.message;
+                    document.getElementById(`card-progress-fill-${data.source_id}`).style.width = `${data.progress}%`;
+                } else if (data.type === "progress") {
+                    // Fallback for non-source progress (like Architect generation)
+                    const tracker = document.getElementById('global-activity-tracker');
+                    if (tracker) {
+                        tracker.style.display = 'flex';
+                        document.getElementById('global-tracker-pct').innerText = `${data.progress}%`;
+                        document.getElementById('global-tracker-msg').innerText = data.message;
+                        document.getElementById('global-tracker-fill').style.width = `${data.progress}%`;
+                    }
+                }
                 
             } else if (data.type === "source_progress_complete") {
-                const tracker = document.getElementById('global-activity-tracker');
-                tracker.style.display = 'none';
+                const overlay = document.getElementById(`card-progress-${data.source_id}`);
+                if (overlay) overlay.style.display = 'none';
             } else if (data.type === "sources_deleted") {
                 fetchSources();
             }
