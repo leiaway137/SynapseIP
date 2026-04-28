@@ -1239,13 +1239,13 @@ def get_diagnostics():
         db.close()
 
 @app.post("/api/admin/pull-legacy-cards")
-def pull_legacy_cards():
+def pull_legacy_cards(source_url: str = None):
     import os
     from sqlalchemy import create_engine, text
     
-    neon_url = os.environ.get("DATABASE_URL")
+    neon_url = source_url or os.environ.get("DATABASE_URL")
     if not neon_url or "postgres" not in neon_url:
-        return {"error": "Neon DATABASE_URL not configured in environment"}
+        return {"error": "Neon DATABASE_URL not configured or provided"}
         
     try:
         pg_engine = create_engine(neon_url)
