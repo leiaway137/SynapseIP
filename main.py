@@ -671,9 +671,33 @@ async def background_processor():
                 await asyncio.sleep(2)
                 continue
 
-            # Process the batch concurrently
-            tasks = [process_single_card(c) for c in cards_to_process]
-            await asyncio.gather(*tasks)
+            # Process the batch concurrently with timeouts
+            tasks = []
+            for c in cards_to_process:
+                # Add a 180 second strict timeout to prevent permanent hanging
+                tasks.append(asyncio.wait_for(process_single_card(c), timeout=180.0))
+            
+            # return_exceptions=True ensures one timeout doesn't crash the entire batch
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Failsafe check to unlock any cards that crashed or timed out from the gather
+            for i, res in enumerate(results):
+                if isinstance(res, BaseException):
+                    c_id = cards_to_process[i]['id']
+                    print(f"CRITICAL: Card {c_id} failed violently in background worker: {res}")
+                    db_fail = SessionLocal()
+                    try:
+                        c_item = db_fail.query(GeminiSource).filter(GeminiSource.id == c_id).first()
+                        if c_item and c_item.title.startswith("Processing 🔄"):
+                            c_item.title = f"⚠️ Processing Failed: Timeout/Crash"
+                            c_item.processed = True
+                            db_fail.commit()
+                            await manager.broadcast("new_source")
+                            await manager.broadcast(json.dumps({"type": "source_progress_complete", "source_id": c_id}))
+                    except Exception as e_inner:
+                        print("Failed to unlock crashed card:", e_inner)
+                    finally:
+                        db_fail.close()
 
         except Exception as e:
             print("Outer error in background processor loop:", e)
