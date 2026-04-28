@@ -1220,7 +1220,13 @@ def get_diagnostics():
     db = SessionLocal()
     try:
         failed = db.query(GeminiSource).filter(GeminiSource.title.like("⚠️ Processing Failed%")).all()
-        return [{"id": f.id, "title": f.title} for f in failed]
+        processing = db.query(GeminiSource).filter(GeminiSource.title.like("Processing 🔄%")).all()
+        pending = db.query(GeminiSource).filter(GeminiSource.processed == False).all()
+        return {
+            "failed": [{"id": f.id, "title": f.title} for f in failed],
+            "processing": [{"id": p.id, "title": p.title} for p in processing],
+            "pending_count": len(pending)
+        }
     finally:
         db.close()
 
