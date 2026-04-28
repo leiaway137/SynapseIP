@@ -741,6 +741,27 @@ async def lifespan(app: FastAPI):
     # Run one-time Neon → SQLite migration if configured
     _run_one_time_migration()
     
+    # Auto-requeue any stuck/failed cards on boot
+    db = SessionLocal()
+    try:
+        failed_cards = db.query(GeminiSource).filter(
+            GeminiSource.processed == True,
+            GeminiSource.title.like("%Processing Failed%")
+        ).all()
+        
+        if failed_cards:
+            print(f"🔄 Auto-requeuing {len(failed_cards)} failed cards on startup...")
+            from datetime import datetime, timedelta
+            old_time = datetime.utcnow() - timedelta(days=365)
+            for card in failed_cards:
+                card.processed = False
+                card.timestamp = old_time # prioritize them to front of queue
+            db.commit()
+    except Exception as e:
+        print("Failed to auto-requeue cards:", e)
+    finally:
+        db.close()
+    
     asyncio.create_task(background_processor())
     asyncio.create_task(daily_vector_pruner())
     yield
