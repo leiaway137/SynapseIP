@@ -388,6 +388,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 # ---------------------------------------------------------
 async def background_processor():
+    import json
     while True:
         try:
             db = SessionLocal()
@@ -483,7 +484,6 @@ async def background_processor():
                         
                     # Parse JSON
                     try:
-                        import json
                         topics = json.loads(extract_res.text)
                     except Exception:
                         topics = [{"topic": "General Notes", "content": raw_content}]
