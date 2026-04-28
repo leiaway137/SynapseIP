@@ -1231,8 +1231,19 @@ def reprocess_all_sources(project_id: Optional[int] = None, current_user: User =
             
         db.commit()
         
-        # We don't need to manually queue them; the background_processor loop runs every 5 seconds and will pick them up
         return {"status": "success", "message": f"Successfully marked {len(sources)} sources for reprocessing. The background worker will pick them up shortly."}
+    finally:
+        db.close()
+
+@app.get("/api/hack/reprocess-all")
+def hack_reprocess():
+    db = SessionLocal()
+    try:
+        sources = db.query(GeminiSource).all()
+        for s in sources:
+            s.processed = False
+        db.commit()
+        return {"status": "success", "count": len(sources)}
     finally:
         db.close()
 
