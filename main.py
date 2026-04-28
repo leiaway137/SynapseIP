@@ -616,7 +616,7 @@ async def background_processor():
                     
                 except Exception as e:
                     print("Background processing theme consolidation failed.", e)
-                    smart_title = "⚠️ Processing Failed"
+                    smart_title = f"⚠️ Processing Failed: {str(e)[:50]}"
             
             # Reopen connection for swift instantaneous commit
             db2 = SessionLocal()
@@ -645,7 +645,7 @@ async def background_processor():
                     try:
                         err_item = db_err.query(GeminiSource).filter(GeminiSource.id == target_id).first()
                         if err_item and not err_item.processed:
-                            err_item.title = "⚠️ Processing Failed"
+                            err_item.title = f"⚠️ Processing Failed: {str(e)[:50]}"
                             err_item.processed = True
                             db_err.commit()
                             await manager.broadcast("new_source")
