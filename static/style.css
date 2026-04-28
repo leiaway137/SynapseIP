@@ -692,7 +692,13 @@ body {
 .modal-body .ai-response h3,
 .modal-body .ai-response h4,
 .modal-body .ai-response h5,
-.modal-body .ai-response h6 {
+.modal-body .ai-response h6,
+.modal-body .ai-response em,
+.modal-body .ai-response i,
+.modal-body .ai-response q,
+.modal-body .ai-response cite,
+.modal-body .ai-response blockquote,
+.modal-body .ai-response a {
     color: #ffffff !important;
     background-color: transparent !important;
 }
