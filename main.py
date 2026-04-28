@@ -232,6 +232,13 @@ class TokenLog(Base):
     cost = Column(Float, default=0.0)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
+class FrameworkTemplate(Base):
+    __tablename__ = "framework_templates"
+    id = Column(Integer, primary_key=True, index=True)
+    normalized_name = Column(String, unique=True, index=True)
+    content = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 # ---------------------------------------------------------
 # Pydantic Models for Validation
 # ---------------------------------------------------------
@@ -1858,41 +1865,58 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         markdown_content += "\n---\n\n"
         
         # ----------------------------------------------------
-        # Step 0: Generate PROJECT_RULES.md
+        # Step 0: Generate PROJECT_RULES.md (Templated)
         # ----------------------------------------------------
-        await manager.broadcast(json.dumps({"type": "progress", "message": "Synthesizing global project rules...", "progress": 15}))
+        await manager.broadcast(json.dumps({"type": "progress", "message": "Normalizing framework platform...", "progress": 12}))
+        
+        norm_prompt = f"Normalize this platform name into a standard category string (e.g. 'Next.js (App Router)', 'React Native (Expo)', 'Vue/Nuxt'). If unknown, just return the exact name. Input: {platform}"
+        norm_res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=norm_prompt)
+        normalized_platform = norm_res.text.strip()
+        
+        template_record = db.query(FrameworkTemplate).filter(FrameworkTemplate.normalized_name == normalized_platform).first()
+        
+        if not template_record:
+            await manager.broadcast(json.dumps({"type": "progress", "message": f"Generating expert {normalized_platform} template via Pro...", "progress": 14}))
+            pro_prompt = f"""
+            You are an elite software architect.
+            Define the golden standard `PROJECT_RULES.md` for a {normalized_platform} project.
+            This will be used as a master template.
+            Include: 1. Tech Stack Version Lock, 2. Project Directory Structure (ASCII), 3. Component Modularity (150 lines max), 4. Data Fetching, 5. State Management, 6. UI/Styling constraints, 7. Testing Requirements, 8. API & Data Conventions, 9. Environment Variables Template, 10. Agent Safety Guardrails.
+            Output ONLY the raw text for the file. Do not wrap in markdown fences.
+            """
+            pro_res = await gemini_client.aio.models.generate_content(model='gemini-2.5-pro', contents=pro_prompt)
+            await log_token_usage(db, "Template Pro Generation", "gemini-2.5-pro", pro_res, project_id=project_id)
+            master_template = pro_res.text.strip()
+            if master_template.startswith("```markdown"): master_template = master_template[11:]
+            if master_template.startswith("```"): master_template = master_template[3:]
+            if master_template.endswith("```"): master_template = master_template[:-3]
+            master_template = master_template.strip()
+            
+            try:
+                new_template = FrameworkTemplate(normalized_name=normalized_platform, content=master_template)
+                db.add(new_template)
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                print("Failed to save template:", e)
+        else:
+            master_template = template_record.content
+            
+        await manager.broadcast(json.dumps({"type": "progress", "message": "Injecting project logic into standard template...", "progress": 15}))
         rules_prompt = f"""
-        You are a principal architect defining the global `PROJECT_RULES.md` for a new project.
+        You are a principal architect defining the `PROJECT_RULES.md` for a new project.
         App Name: {app_name}
-        Platform: {platform}
         Purpose: {app_purpose}
         Environment: {build_environment}
         Raw Notes/Themes: {source_texts}
         
-        Write the precise contents of a `PROJECT_RULES.md` file that the development agent should strictly follow.
+        Here is the GOLDEN STANDARD TEMPLATE for this framework ({normalized_platform}):
+        ---
+        {master_template}
+        ---
         
-        The document MUST contain ALL of the following sections:
-        
-        1. **Tech Stack Version Lock**: List every major dependency with its EXACT version number (e.g., "Next.js 14.2 (App Router)", "React 18.3", "TailwindCSS v3.4", "Supabase JS v2"). The coding agent must NEVER deviate from these versions.
-        
-        2. **Project Directory Structure**: Output a complete ASCII folder tree showing exactly where every type of file should be placed (components, pages, API routes, utils, types, styles, tests). Every step in the blueprint will reference these exact paths.
-        
-        3. **Component Modularity (150-Line Rule)**: Mandate that no React component may exceed 150 lines. Complex UIs MUST be broken down into smaller modular sub-components.
-        
-        4. **Data Fetching Strategy**: Explicitly define when to use Server Components vs Client Components. Pass data down as props. Only use `'use client'` for interactive leaf components. Define the strategy for caching and revalidating.
-        
-        5. **State Management Protocol**: Define the single source of truth for state. Specify which library to use (e.g., Zustand, React Context, Redux) and strict rules for when to use server-side vs client-side state.
-        
-        6. **UI/Styling Constraints**: Define the design system rules: color palette (exact hex/HSL values), typography (font families, sizes), spacing scale, border-radius conventions, and dark/light mode requirements.
-        
-        7. **Testing Requirements**: Specify the test runner (Jest, Vitest, Playwright), minimum coverage expectations, and the rule that tests must be written BEFORE implementation (Test-Driven Vibe Development).
-        
-        8. **API & Data Conventions**: Define naming conventions for API routes, database tables/columns (snake_case vs camelCase), and how errors should be returned (e.g., standard error response shape).
-        
-        9. **Environment Variables Template**: Output a complete `.env.example` block listing every required environment variable with placeholder values and comments explaining each one.
-        
-        10. **Agent Safety Guardrails (Checkpoint Halts)**: Rules the AI coding agent must follow, such as: "Never modify more than 3 files without an approved implementation plan", "After completing any step, you MUST run the build command (`npm run build` or `tsc`). If it fails, halt and fix the errors before proceeding."
-        
+        Your job is to read the standard template and INJECT the user's specific business logic, color palettes, data schemas, and requirements into it.
+        DO NOT alter the core directory structure or framework rules from the template. Just fill in the placeholders and add specific business rules.
         Output ONLY the text meant to go inside the file, no markdown code fences or surrounding chatter.
         """
         try:
@@ -1900,8 +1924,55 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                 model='gemini-2.5-flash',
                 contents=rules_prompt
             )
-            await log_token_usage(db, "Project Rules Generation", "gemini-2.5-flash", rules_res, project_id=project_id)
+            await log_token_usage(db, "Project Rules Injection", "gemini-2.5-flash", rules_res, project_id=project_id)
             rules_text = rules_res.text.strip()
+            
+            # --- Devil's Advocate Subagent ---
+            da_retries = 0
+            while da_retries < 2:
+                da_prompt = f"""
+                You are a Senior Staff Security & Architecture Reviewer. Review the following architecture draft:
+                {rules_text}
+                
+                Look for:
+                1. Missing database relationships or flawed data modeling.
+                2. Impossible library combinations.
+                3. Security flaws (e.g., missing auth rules).
+                
+                If the draft is fundamentally solid and free of major flaws, output exactly and ONLY: APPROVED
+                If there are flaws, output a concise bulleted list of the flaws. Do not output the word APPROVED.
+                """
+                await manager.broadcast(json.dumps({"type": "progress", "message": f"Pre-Flight: Devil's Advocate QA Review (Attempt {da_retries+1})...", "progress": 16}))
+                
+                da_res = await gemini_client.aio.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=da_prompt
+                )
+                await log_token_usage(db, "Devil's Advocate Review", "gemini-2.5-flash", da_res, project_id=project_id)
+                da_critique = da_res.text.strip()
+                
+                if da_critique.strip().upper() == "APPROVED":
+                    break
+                    
+                await manager.broadcast(json.dumps({"type": "progress", "message": "Healing Blueprint: Architect rewriting rules based on QA feedback...", "progress": 17}))
+                fix_prompt = f"""
+                You previously generated these project rules:
+                {rules_text}
+                
+                The QA reviewer found the following flaws:
+                {da_critique}
+                
+                Rewrite the precise contents of the `PROJECT_RULES.md` file to address these flaws. Maintain all required sections.
+                Output ONLY the text meant to go inside the file, no markdown code fences or surrounding chatter.
+                """
+                fix_res = await gemini_client.aio.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=fix_prompt
+                )
+                await log_token_usage(db, "Architect Rewrite", "gemini-2.5-flash", fix_res, project_id=project_id)
+                rules_text = fix_res.text.strip()
+                da_retries += 1
+            # --- END Devil's Advocate Subagent ---
             
             # --- NPM Package Validation Subagent ---
             retries = 0
@@ -1947,8 +2018,39 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                 break
             # --- END NPM Package Validation Subagent ---
             
+            # --- Visual Architecture Subagent (Mermaid.js) ---
+            await manager.broadcast(json.dumps({"type": "progress", "message": "Drafting visual Mermaid.js component architecture...", "progress": 19}))
+            mermaid_prompt = f"""
+            Based on the following PROJECT_RULES.md:
+            {rules_text}
+            
+            Generate a Mermaid.js diagram (using flowchart TD) that visualizes the core architecture, high-level user flow, and major component tree of this application.
+            Keep it clean and readable. Use standard mermaid syntax. Avoid special characters in node names.
+            Output ONLY the raw mermaid code. Do NOT wrap it in markdown ```mermaid fences, just the code itself.
+            """
+            try:
+                mermaid_res = await gemini_client.aio.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=mermaid_prompt
+                )
+                await log_token_usage(db, "Mermaid Diagram Generation", "gemini-2.5-flash", mermaid_res, project_id=project_id)
+                mermaid_code = mermaid_res.text.strip()
+                if mermaid_code.startswith("```mermaid"):
+                    mermaid_code = mermaid_code[10:]
+                if mermaid_code.startswith("```"):
+                    mermaid_code = mermaid_code[3:]
+                if mermaid_code.endswith("```"):
+                    mermaid_code = mermaid_code[:-3]
+                mermaid_code = mermaid_code.strip()
+            except Exception as e:
+                print("Failed to generate mermaid diagram:", e)
+                mermaid_code = ""
+            # --- END Visual Architecture Subagent ---
+            
             markdown_content += f"<a id='step-0-initialize-project-rules'></a>\n"
             markdown_content += f"## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='-1'> Step 0: Initialize Project Rules</label>\n\n"
+            if mermaid_code:
+                markdown_content += f"### Architecture Overview\n```mermaid\n{mermaid_code}\n```\n\n"
             markdown_content += "Create a `PROJECT_RULES.md` (or `.cursorrules`) file in the root of your project workspace and paste the following content into it. All subsequent steps will rely on these global instructions.\n\n"
             markdown_content += f"```text\n{rules_text}\n```\n\n---\n\n"
         except Exception as e:
@@ -2081,6 +2183,17 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                 rules_text = rules_res.text.strip() if 'rules_res' in locals() else "None"
                 
                 while not is_valid and retries < 2:
+                    # 1. Zero-Token Path Validation (Regex)
+                    import re
+                    # Look for file paths (e.g. src/components/Button.tsx)
+                    extracted_paths = set(re.findall(r"([a-zA-Z0-9_.-]+/[a-zA-Z0-9_./-]+\.[a-zA-Z0-9]+)", drafted_text))
+                    invalid_paths = [p for p in extracted_paths if p not in rules_text and not p.startswith("http")]
+                    
+                    path_warning = ""
+                    if invalid_paths:
+                        path_warning = f"CRITICAL PATH ERROR: The following paths do not exist in the PROJECT_RULES.md directory tree: {invalid_paths}. You MUST correct them to match the official tree."
+                        await manager.broadcast(json.dumps({"type": "progress", "message": f"Pre-Flight: Caught {len(invalid_paths)} hallucinated paths in '{chapter_title}'...", "progress": prog}))
+                    
                     inspector_prompt = f"""
                     You are the strict Architect Inspector.
                     We are drafting Chapter: '{chapter_title}' for {app_name}.
@@ -2094,8 +2207,11 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     Drafted Chapter Content to Review:
                     {drafted_text}
                     
+                    {path_warning}
+                    
                     Does the Drafted Chapter strictly adhere to the Project Rules and Previous Context? 
                     Does it hallucinate databases, columns, NPM packages, or UI components that contradict established architecture?
+                    { "Does it fix the hallucinated paths mentioned above?" if invalid_paths else "" }
                     
                     Return a JSON object exactly like this:
                     {{
@@ -2105,6 +2221,9 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     }}
                     If invalid, rewrite the chapter content entirely to fix the violations and place it in corrected_markdown.
                     """
+                    
+                    # If there are no invalid paths on the first pass, we can skip the Inspector to save tokens, 
+                    # OR we can still run the Inspector for logic bugs. Let's run it but it will be fast.
                     try:
                         inspector_res = await gemini_client.aio.models.generate_content(
                             model='gemini-2.5-flash',
@@ -2114,11 +2233,15 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                         await log_token_usage(db, "Inspector AI", "gemini-2.5-flash", inspector_res, project_id=project_id)
                         
                         inspector_data = json.loads(inspector_res.text.strip())
-                        if inspector_data.get("is_valid", True):
+                        if inspector_data.get("is_valid", True) and not invalid_paths:
                             is_valid = True
                         else:
-                            await manager.broadcast(json.dumps({"type": "progress", "message": f"Healing Blueprint: Fixing logic errors in '{chapter_title}'...", "progress": prog}))
-                            drafted_text = inspector_data.get("corrected_markdown", drafted_text)
+                            if inspector_data.get("is_valid", True) and invalid_paths:
+                                # The LLM ignored the path warning and said it was valid. We force retry.
+                                is_valid = False
+                            else:
+                                await manager.broadcast(json.dumps({"type": "progress", "message": f"Healing Blueprint: Fixing errors in '{chapter_title}'...", "progress": prog}))
+                                drafted_text = inspector_data.get("corrected_markdown", drafted_text)
                             retries += 1
                     except Exception as e:
                         print("Inspector AI failed, bypassing:", e)
