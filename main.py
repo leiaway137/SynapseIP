@@ -1582,17 +1582,21 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         
         2. **Project Directory Structure**: Output a complete ASCII folder tree showing exactly where every type of file should be placed (components, pages, API routes, utils, types, styles, tests). Every step in the blueprint will reference these exact paths.
         
-        3. **State Management Protocol**: Define the single source of truth for state. Specify which library to use (e.g., Zustand, React Context, Redux) and strict rules for when to use server-side vs client-side state.
+        3. **Component Modularity (150-Line Rule)**: Mandate that no React component may exceed 150 lines. Complex UIs MUST be broken down into smaller modular sub-components.
         
-        4. **UI/Styling Constraints**: Define the design system rules: color palette (exact hex/HSL values), typography (font families, sizes), spacing scale, border-radius conventions, and dark/light mode requirements.
+        4. **Data Fetching Strategy**: Explicitly define when to use Server Components vs Client Components. Pass data down as props. Only use `'use client'` for interactive leaf components. Define the strategy for caching and revalidating.
         
-        5. **Testing Requirements**: Specify the test runner (Jest, Vitest, Playwright), minimum coverage expectations, and the rule that tests must be written BEFORE implementation (Test-Driven Vibe Development).
+        5. **State Management Protocol**: Define the single source of truth for state. Specify which library to use (e.g., Zustand, React Context, Redux) and strict rules for when to use server-side vs client-side state.
         
-        6. **API & Data Conventions**: Define naming conventions for API routes, database tables/columns (snake_case vs camelCase), and how errors should be returned (e.g., standard error response shape).
+        6. **UI/Styling Constraints**: Define the design system rules: color palette (exact hex/HSL values), typography (font families, sizes), spacing scale, border-radius conventions, and dark/light mode requirements.
         
-        7. **Environment Variables Template**: Output a complete `.env.example` block listing every required environment variable with placeholder values and comments explaining each one.
+        7. **Testing Requirements**: Specify the test runner (Jest, Vitest, Playwright), minimum coverage expectations, and the rule that tests must be written BEFORE implementation (Test-Driven Vibe Development).
         
-        8. **Agent Safety Guardrails**: Rules the AI coding agent must follow, such as: "Never modify more than 3 files without an approved implementation plan", "Always run type-checking before committing", "Never delete existing tests".
+        8. **API & Data Conventions**: Define naming conventions for API routes, database tables/columns (snake_case vs camelCase), and how errors should be returned (e.g., standard error response shape).
+        
+        9. **Environment Variables Template**: Output a complete `.env.example` block listing every required environment variable with placeholder values and comments explaining each one.
+        
+        10. **Agent Safety Guardrails (Checkpoint Halts)**: Rules the AI coding agent must follow, such as: "Never modify more than 3 files without an approved implementation plan", "After completing any step, you MUST run the build command (`npm run build` or `tsc`). If it fails, halt and fix the errors before proceeding."
         
         Output ONLY the text meant to go inside the file, no markdown code fences or surrounding chatter.
         """
@@ -1656,7 +1660,8 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             3. Reference EXACT file paths from the project directory structure (defined in PROJECT_RULES.md). Do NOT invent or guess file paths. Use the established structure.
             4. If this step involves database operations, reference the exact table/column names from the schema defined in the earlier "Define Database Schema" step.
             5. If this step involves API calls, reference the exact endpoint paths and payload shapes from the "Define API Contracts" step.
-            6. YOU MUST output the exact Vibe Coding prompt inside a markdown code block so the user can easily copy and paste it into their IDE. The prompt MUST be highly detailed and uniquely tailored to this specific step. Fill out the bracketed placeholders `[...]` with rich, specific details.
+            6. If this step involves UI, you MUST mandate explicit handling for Loading states (`isPending`), Empty states (no data), and Error states (API failure).
+            7. YOU MUST output the exact Vibe Coding prompt inside a markdown code block so the user can easily copy and paste it into their IDE. The prompt MUST be highly detailed and uniquely tailored to this specific step. Fill out the bracketed placeholders `[...]` with rich, specific details.
             
             STRICT FORMATTING TEMPLATE YOU MUST FOLLOW:
             
@@ -1678,6 +1683,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             ```text
             [Objective]
             [Write a detailed, actionable technical objective for {chapter_title}. Specify exactly what core logic, UI, or backend feature needs to be implemented in this step.]
+            [If UI: Mandate exactly what the Loading, Empty, and Error states must look like.]
             
             [Artifact Locking & Pre-Flight]
             Before writing ANY code, please perform an Impact Analysis. First, review the following specific files to understand the current context:
@@ -1692,6 +1698,9 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             [Execution Constraints]
             Strictly adhere to the global project constraints defined in `PROJECT_RULES.md`.
             [List 1-2 strict technical constraints specifically relevant to THIS step ONLY, if any. Otherwise, omit this line.]
+            
+            [Verification]
+            [Provide the exact terminal command to verify this step (e.g., `npm run test -- src/components/login.test.tsx` or `npx tsc --noEmit`). If no test exists, mandate the agent runs linting or build checks.]
             ```
             
             Strict Formatting Rules:
