@@ -463,7 +463,14 @@ async def process_single_card(unprocessed_dict):
                 smart_title = smart_title[:100]
                 
             try:
-                topics = json.loads(extract_res.text)
+                parsed = json.loads(extract_res.text.replace('```json', '').replace('```', '').strip())
+                if isinstance(parsed, dict) and "topics" in parsed:
+                    topics = parsed["topics"]
+                else:
+                    topics = parsed
+                    
+                if not isinstance(topics, list):
+                    topics = []
             except Exception:
                 topics = [{"topic": "General Notes", "content": raw_content}]
                 
