@@ -6,6 +6,7 @@ import asyncio
 from dotenv import load_dotenv
 from google import genai
 from typing import List, Optional
+import httpx
 
 from fastapi import FastAPI, HTTPException, Depends, Request, WebSocket, WebSocketDisconnect, BackgroundTasks, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -1588,6 +1589,22 @@ async def generate_mockup_prompt(req: MockupPromptRequest, current_user: User = 
         raise HTTPException(status_code=500, detail=str(e))
     return None
 
+async def verify_npm_packages(packages: List[str]) -> List[str]:
+    """Queries the NPM registry and returns a list of packages that returned 404 (hallucinated)."""
+    invalid_packages = []
+    async with httpx.AsyncClient() as client:
+        for pkg in packages:
+            # Strip versions (e.g. "lucide-react@0.2.1" -> "lucide-react")
+            base_pkg = pkg.split('@')[0] if not pkg.startswith('@') else '@' + pkg[1:].split('@')[0]
+            try:
+                res = await client.get(f"https://registry.npmjs.org/{base_pkg}", timeout=5.0)
+                if res.status_code == 404:
+                    invalid_packages.append(pkg)
+            except Exception as e:
+                print(f"NPM validation failed for {pkg}: {e}")
+                # Assume valid if registry times out
+    return invalid_packages
+
 async def generate_architect_report(project_id: int, source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str, budget_constraints: str, ai_integration: str, security_auth: str, build_environment: str):
     db = SessionLocal()
     try:
@@ -1709,11 +1726,56 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                 contents=rules_prompt
             )
             await log_token_usage(db, "Project Rules Generation", "gemini-2.5-flash", rules_res, project_id=project_id)
+            rules_text = rules_res.text.strip()
+            
+            # --- NPM Package Validation Subagent ---
+            retries = 0
+            while retries < 2:
+                extract_prompt = f"""
+                Extract all NPM package names mentioned in the following text.
+                Return ONLY a JSON list of strings. If none, return [].
+                Do not include versions, just the base package name (e.g. 'lucide-react', '@supabase/supabase-js').
+                
+                Text:
+                {rules_text}
+                """
+                try:
+                    extract_res = await gemini_client.aio.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=extract_prompt,
+                        config={'response_mime_type': 'application/json'}
+                    )
+                    packages = json.loads(extract_res.text.strip())
+                    if packages and isinstance(packages, list):
+                        await manager.broadcast(json.dumps({"type": "progress", "message": f"Pre-Flight: Validating {len(packages)} NPM packages...", "progress": 18}))
+                        invalid_packages = await verify_npm_packages(packages)
+                        if invalid_packages:
+                            await manager.broadcast(json.dumps({"type": "progress", "message": f"Healing Blueprint: Fixing hallucinated packages...", "progress": 18}))
+                            fix_prompt = f"""
+                            You previously generated these project rules:
+                            {rules_text}
+                            
+                            The following packages DO NOT EXIST on NPM and are hallucinations:
+                            {json.dumps(invalid_packages)}
+                            
+                            Rewrite the project rules to silently remove or replace these hallucinated packages with standard, popular alternatives that actually exist. Maintain all formatting.
+                            """
+                            fix_res = await gemini_client.aio.models.generate_content(
+                                model='gemini-2.5-flash',
+                                contents=fix_prompt
+                            )
+                            rules_text = fix_res.text.strip()
+                            retries += 1
+                            continue
+                except Exception as e:
+                    print("NPM extraction/validation failed, bypassing:", e)
+                break
+            # --- END NPM Package Validation Subagent ---
             
             markdown_content += f"<a id='step-0-initialize-project-rules'></a>\n"
             markdown_content += f"## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='-1'> Step 0: Initialize Project Rules</label>\n\n"
             markdown_content += "Create a `PROJECT_RULES.md` (or `.cursorrules`) file in the root of your project workspace and paste the following content into it. All subsequent steps will rely on these global instructions.\n\n"
-            markdown_content += f"```text\n{rules_res.text.strip()}\n```\n\n---\n\n"
+            markdown_content += f"```text\n{rules_text}\n```\n\n---\n\n"
         except Exception as e:
             print(f"Failed to generate project rules: {e}")
     
