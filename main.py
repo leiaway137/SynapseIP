@@ -476,7 +476,7 @@ async def process_single_card(unprocessed_dict):
                         if pinecone_index is not None:
                             try:
                                 embed_res = await gemini_client.aio.models.embed_content(
-                                    model='text-embedding-004',
+                                    model='gemini-embedding-2',
                                     contents=f"Topic: {topic_name}\n\n{topic_content}"
                                 )
                                 vector = embed_res.embeddings[0].values
@@ -531,7 +531,7 @@ async def process_single_card(unprocessed_dict):
                         if pinecone_index is not None:
                             try:
                                 final_embed = await gemini_client.aio.models.embed_content(
-                                    model='text-embedding-004',
+                                    model='gemini-embedding-2',
                                     contents=f"Topic: {theme_record.theme_name}\n\n{theme_record.content}"
                                 )
                                 final_vector = final_embed.embeddings[0].values
@@ -1150,7 +1150,7 @@ async def prune_vectors_task(db: Session):
             for theme in missing_in_pinecone:
                 try:
                     res = await gemini_client.aio.models.embed_content(
-                        model='text-embedding-004',
+                        model='gemini-embedding-2',
                         contents=f"Topic: {theme.theme_name}\n\n{theme.content}"
                     )
                     vector = res.embeddings[0].values
@@ -1216,7 +1216,7 @@ async def update_project_theme(theme_id: int, update: ThemeUpdateRequest, projec
     if pinecone_index is not None and gemini_client is not None:
         try:
             embed_res = await gemini_client.aio.models.embed_content(
-                model='text-embedding-004',
+                model='gemini-embedding-2',
                 contents=f"Topic: {theme.theme_name}\n\n{theme.content}"
             )
             vector = embed_res.embeddings[0].values
@@ -1488,7 +1488,7 @@ async def semantic_search(q: str, current_user: User = Depends(get_current_user)
     
     try:
         res = gemini_client.models.embed_content(
-            model='text-embedding-004',
+            model='gemini-embedding-2',
             contents=q,
         )
         vector = res.embeddings[0].values
@@ -1585,7 +1585,7 @@ async def onboarding_chat(req: OnboardingRequest, current_user: User = Depends(g
         if pinecone_index is not None and gemini_client is not None:
             try:
                 res = gemini_client.models.embed_content(
-                    model='text-embedding-004',
+                    model='gemini-embedding-2',
                     contents=last_query,
                 )
                 vector = res.embeddings[0].values
@@ -2167,7 +2167,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                 try:
                     query_text = f"How to build {chapter_title} for {app_name}: {app_purpose}"
                     res = await gemini_client.aio.models.embed_content(
-                        model='text-embedding-004',
+                        model='gemini-embedding-2',
                         contents=query_text
                     )
                     vector = res.embeddings[0].values
