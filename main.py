@@ -1197,6 +1197,15 @@ async def trigger_prune_vectors(background_tasks: BackgroundTasks):
     background_tasks.add_task(task_wrapper)
     return {"message": "Vector pruning task started in the background."}
 
+@app.get("/api/admin/diagnostics")
+def get_diagnostics():
+    db = SessionLocal()
+    try:
+        failed = db.query(GeminiSource).filter(GeminiSource.title.like("⚠️ Processing Failed%")).all()
+        return [{"id": f.id, "title": f.title} for f in failed]
+    finally:
+        db.close()
+
 @app.get("/api/projects/{project_id}/themes")
 def get_project_themes(response: Response, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
     """Return all active themes for this project."""
