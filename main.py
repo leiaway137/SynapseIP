@@ -671,19 +671,13 @@ async def background_processor():
                 await asyncio.sleep(2)
                 continue
 
-            # Process the batch concurrently with timeouts
-            tasks = []
+            # Process the batch sequentially to avoid lock contention timeouts
             for c in cards_to_process:
-                # Add a 180 second strict timeout to prevent permanent hanging
-                tasks.append(asyncio.wait_for(process_single_card(c), timeout=180.0))
-            
-            # return_exceptions=True ensures one timeout doesn't crash the entire batch
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # Failsafe check to unlock any cards that crashed or timed out from the gather
-            for i, res in enumerate(results):
-                if isinstance(res, BaseException):
-                    c_id = cards_to_process[i]['id']
+                try:
+                    # Add a 180 second strict timeout per card to prevent permanent hanging
+                    await asyncio.wait_for(process_single_card(c), timeout=180.0)
+                except BaseException as res:
+                    c_id = c['id']
                     print(f"CRITICAL: Card {c_id} failed violently in background worker: {res}")
                     db_fail = SessionLocal()
                     try:
