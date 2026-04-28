@@ -111,9 +111,29 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 # ---------------------------------------------------------
 # Database Setup Setup
 # ---------------------------------------------------------
+import shutil
+
 DATA_DIR = os.environ.get("DATA_DIR", ".")
+target_db_path = os.path.join(DATA_DIR, 'gemini_sources.db')
+seed_db_path = "seed_db.sqlite3"
+
+if os.path.exists(seed_db_path):
+    should_copy = False
+    if not os.path.exists(target_db_path):
+        should_copy = True
+    elif os.path.getsize(target_db_path) < 100000:  # <100KB usually means it's an empty schema
+        should_copy = True
+        
+    if should_copy:
+        print(f"📦 Seeding persistent disk database from {seed_db_path}...")
+        try:
+            shutil.copy2(seed_db_path, target_db_path)
+            print("✅ Database successfully seeded!")
+        except Exception as e:
+            print("❌ Failed to seed database:", e)
+
 # Force SQLite connection string, ignoring any legacy DATABASE_URL
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.join(DATA_DIR, 'gemini_sources.db')}"
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{target_db_path}"
 
 # Initialize SQLite engine
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
