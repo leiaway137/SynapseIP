@@ -1836,10 +1836,61 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     contents=chapter_prompt
                 )
                 await log_token_usage(db, "Architect Generation", "gemini-2.5-flash", chap_res, project_id=project_id)
+                drafted_text = chap_res.text.strip()
+                
+                # Self-Healing Inspector Loop
+                is_valid = False
+                retries = 0
+                rules_text = rules_res.text.strip() if 'rules_res' in locals() else "None"
+                
+                while not is_valid and retries < 2:
+                    inspector_prompt = f"""
+                    You are the strict Architect Inspector.
+                    We are drafting Chapter: '{chapter_title}' for {app_name}.
+                    
+                    Global Project Rules (MUST NOT BE VIOLATED):
+                    {rules_text}
+                    
+                    Previous Architectural Decisions (MUST BE MAINTAINED):
+                    {rolling_architecture_context}
+                    
+                    Drafted Chapter Content to Review:
+                    {drafted_text}
+                    
+                    Does the Drafted Chapter strictly adhere to the Project Rules and Previous Context? 
+                    Does it hallucinate databases, columns, NPM packages, or UI components that contradict established architecture?
+                    
+                    Return a JSON object exactly like this:
+                    {{
+                        "is_valid": true,
+                        "violations_found": [],
+                        "corrected_markdown": ""
+                    }}
+                    If invalid, rewrite the chapter content entirely to fix the violations and place it in corrected_markdown.
+                    """
+                    try:
+                        inspector_res = await gemini_client.aio.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=inspector_prompt,
+                            config={'response_mime_type': 'application/json'}
+                        )
+                        await log_token_usage(db, "Inspector AI", "gemini-2.5-flash", inspector_res, project_id=project_id)
+                        
+                        inspector_data = json.loads(inspector_res.text.strip())
+                        if inspector_data.get("is_valid", True):
+                            is_valid = True
+                        else:
+                            await manager.broadcast(json.dumps({"type": "progress", "message": f"Healing Blueprint: Fixing logic errors in '{chapter_title}'...", "progress": prog}))
+                            drafted_text = inspector_data.get("corrected_markdown", drafted_text)
+                            retries += 1
+                    except Exception as e:
+                        print("Inspector AI failed, bypassing:", e)
+                        break
+
                 anchor = chapter_title.lower().replace(' ', '-').replace('.', '').replace(':', '')
                 markdown_content += f"<a id='step-{i+1}-{anchor}'></a>\n"
                 markdown_content += f"## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='{i}'> Step {i+1}: {chapter_title}</label>\n\n"
-                markdown_content += f"{chap_res.text}\n\n---\n\n"
+                markdown_content += f"{drafted_text}\n\n---\n\n"
                 
                 # Consistency Subagent Evaluation
                 try:
@@ -1849,7 +1900,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     Keep it extremely concise (bullet points). If no major technical decisions were made, output "None".
                     
                     Step Content:
-                    {chap_res.text}
+                    {drafted_text}
                     """
                     consist_res = await gemini_client.aio.models.generate_content(
                         model='gemini-2.5-flash',
