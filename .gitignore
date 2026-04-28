@@ -13,3 +13,5 @@ chroma_data/
 synapse.db
 server.log
 Reports/
+scratch/
+*.txt
