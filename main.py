@@ -1238,6 +1238,53 @@ def get_diagnostics():
     finally:
         db.close()
 
+@app.post("/api/admin/pull-legacy-cards")
+def pull_legacy_cards():
+    import os
+    from sqlalchemy import create_engine, text
+    
+    neon_url = os.environ.get("DATABASE_URL")
+    if not neon_url or "postgres" not in neon_url:
+        return {"error": "Neon DATABASE_URL not configured in environment"}
+        
+    try:
+        pg_engine = create_engine(neon_url)
+        with pg_engine.connect() as pg_conn:
+            # Get all sources from Neon
+            rows = pg_conn.execute(text("SELECT * FROM gemini_sources")).fetchall()
+            columns = pg_conn.execute(text("SELECT * FROM gemini_sources LIMIT 0")).keys()
+            col_names = list(columns)
+            
+        db = SessionLocal()
+        added_count = 0
+        try:
+            for row in rows:
+                row_dict = dict(zip(col_names, row))
+                # Check if it already exists in SQLite
+                existing = db.query(GeminiSource).filter(GeminiSource.id == row_dict['id']).first()
+                if not existing:
+                    # Create new SQLite record
+                    new_source = GeminiSource(
+                        id=row_dict.get('id'),
+                        user_id=row_dict.get('user_id'),
+                        project_id=row_dict.get('project_id'),
+                        title=row_dict.get('title'),
+                        content=row_dict.get('content'),
+                        timestamp=row_dict.get('timestamp'),
+                        source_url=row_dict.get('source_url'),
+                        processed=False, # Force false so the worker picks them up
+                        short_memory=row_dict.get('short_memory')
+                    )
+                    db.add(new_source)
+                    added_count += 1
+            db.commit()
+            return {"status": "success", "cards_imported": added_count}
+        finally:
+            db.close()
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/api/projects/{project_id}/themes")
 def get_project_themes(response: Response, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
     """Return all active themes for this project."""
