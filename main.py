@@ -49,7 +49,6 @@ def index_in_pinecone(document_id: str, title: str, text: str):
         response = gemini_client.models.embed_content(
             model='gemini-embedding-2',
             contents=text,
-            config=types.EmbedContentConfig(output_dimensionality=768)
         )
         vector = response.embeddings[0].values
         
@@ -478,8 +477,7 @@ async def process_single_card(unprocessed_dict):
                             try:
                                 embed_res = await gemini_client.aio.models.embed_content(
                                     model='gemini-embedding-2',
-                                    contents=f"Topic: {topic_name}\n\n{topic_content}",
-                                    config=types.EmbedContentConfig(output_dimensionality=768)
+                                    contents=f"Topic: {topic_name}\n\n{topic_content}"
                                 )
                                 vector = embed_res.embeddings[0].values
                             except Exception as e:
@@ -534,8 +532,7 @@ async def process_single_card(unprocessed_dict):
                             try:
                                 final_embed = await gemini_client.aio.models.embed_content(
                                     model='gemini-embedding-2',
-                                    contents=f"Topic: {theme_record.theme_name}\n\n{theme_record.content}",
-                                    config=types.EmbedContentConfig(output_dimensionality=768)
+                                    contents=f"Topic: {theme_record.theme_name}\n\n{theme_record.content}"
                                 )
                                 final_vector = final_embed.embeddings[0].values
                                 await asyncio.to_thread(
@@ -1155,8 +1152,7 @@ async def prune_vectors_task(db: Session):
                 try:
                     res = await gemini_client.aio.models.embed_content(
                         model='gemini-embedding-2',
-                        contents=f"Topic: {theme.theme_name}\n\n{theme.content}",
-                        config=types.EmbedContentConfig(output_dimensionality=768)
+                        contents=f"Topic: {theme.theme_name}\n\n{theme.content}"
                     )
                     vector = res.embeddings[0].values
                     await asyncio.to_thread(
@@ -1223,8 +1219,7 @@ async def update_project_theme(theme_id: int, update: ThemeUpdateRequest, projec
         try:
             embed_res = await gemini_client.aio.models.embed_content(
                 model='gemini-embedding-2',
-                contents=f"Topic: {theme.theme_name}\n\n{theme.content}",
-                config=types.EmbedContentConfig(output_dimensionality=768)
+                contents=f"Topic: {theme.theme_name}\n\n{theme.content}"
             )
             vector = embed_res.embeddings[0].values
             await asyncio.to_thread(
@@ -1498,7 +1493,6 @@ async def semantic_search(q: str, current_user: User = Depends(get_current_user)
         res = gemini_client.models.embed_content(
             model='gemini-embedding-2',
             contents=q,
-            config=types.EmbedContentConfig(output_dimensionality=768)
         )
         vector = res.embeddings[0].values
         
@@ -1596,7 +1590,6 @@ async def onboarding_chat(req: OnboardingRequest, current_user: User = Depends(g
                 res = gemini_client.models.embed_content(
                     model='gemini-embedding-2',
                     contents=last_query,
-                    config=types.EmbedContentConfig(output_dimensionality=768)
                 )
                 vector = res.embeddings[0].values
                 pinecone_query = pinecone_index.query(vector=vector, top_k=3, namespace="synapseip_notes")
@@ -2178,8 +2171,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     query_text = f"How to build {chapter_title} for {app_name}: {app_purpose}"
                     res = await gemini_client.aio.models.embed_content(
                         model='gemini-embedding-2',
-                        contents=query_text,
-                        config=types.EmbedContentConfig(output_dimensionality=768)
+                        contents=query_text
                     )
                     vector = res.embeddings[0].values
                     pinecone_query = pinecone_index.query(vector=vector, top_k=3, namespace="synapseip_themes")
