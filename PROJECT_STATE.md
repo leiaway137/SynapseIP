@@ -25,6 +25,14 @@ SynapseIP is an AI-powered "Vibe Coding Architect" platform. It takes a user's r
   - Features interactive HTML checkboxes to track progress (state is saved to the database).
   - Alerts users via visually distinct yellow boxes when a step requires manual action (e.g., creating an API account).
   - Supports exporting the entire blueprint as a PDF.
+- **Automated Blueprint QA Pipeline (Self-Healing):**
+  - **Devil's Advocate QA Review:** Debates the initial architecture draft to find logical and database flaws.
+  - **NPM Package Verification:** Pings `registry.npmjs.org` to ensure no dependencies are hallucinated.
+  - **Lookback Validation:** Prevents context drift during the 50-step generation by strictly enforcing previous decisions.
+  - **Zero-Token Path Validation:** Regex-based checker to automatically catch and correct file path drift without unnecessary LLM overhead.
+- **Visual Architecture:** Automatically renders a `mermaid.js` flowchart of the component tree and database.
+- **Multi-Modal Vision Ingestion:** Chrome extension allows capturing UI inspiration and extracts design tokens natively.
+- **Vector Drift Pruning:** Built-in garbage collection to sync SQLite notes with Pinecone vector embeddings.
 - **Follow-up AI Chat:** An integrated chatbot that can answer architectural questions based on the generated blueprint context.
 
 ## 🛠️ Developer Protocol
