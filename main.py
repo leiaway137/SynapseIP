@@ -1995,10 +1995,10 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                 await manager.broadcast(json.dumps({"type": "progress", "message": f"Pre-Flight: Devil's Advocate QA Review (Attempt {da_retries+1})...", "progress": 16}))
                 
                 da_res = await gemini_client.aio.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-2.5-pro',
                     contents=da_prompt
                 )
-                await log_token_usage(db, "Devil's Advocate Review", "gemini-2.5-flash", da_res, project_id=project_id)
+                await log_token_usage(db, "Devil's Advocate Review", "gemini-2.5-pro", da_res, project_id=project_id)
                 da_critique = da_res.text.strip()
                 
                 if da_critique.strip().upper() == "APPROVED":
@@ -2016,10 +2016,10 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                 Output ONLY the text meant to go inside the file, no markdown code fences or surrounding chatter.
                 """
                 fix_res = await gemini_client.aio.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-2.5-pro',
                     contents=fix_prompt
                 )
-                await log_token_usage(db, "Architect Rewrite", "gemini-2.5-flash", fix_res, project_id=project_id)
+                await log_token_usage(db, "Architect Rewrite", "gemini-2.5-pro", fix_res, project_id=project_id)
                 rules_text = fix_res.text.strip()
                 da_retries += 1
             # --- END Devil's Advocate Subagent ---
@@ -2313,10 +2313,10 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     {drafted_text}
                     """
                     consist_res = await gemini_client.aio.models.generate_content(
-                        model='gemini-2.5-flash',
+                        model='gemini-2.5-pro',
                         contents=consistency_prompt
                     )
-                    await log_token_usage(db, "Consistency Subagent", "gemini-2.5-flash", consist_res, project_id=project_id)
+                    await log_token_usage(db, "Consistency Subagent", "gemini-2.5-pro", consist_res, project_id=project_id)
                     
                     if consist_res.text and "None" not in consist_res.text:
                         if rolling_architecture_context == "No previous architectural decisions have been made yet.":
