@@ -1209,7 +1209,30 @@ def retry_missed_sources(project_id: int, background_tasks: BackgroundTasks, cur
             background_tasks.add_task(generate_short_memory, str(s.id))
             
         db.commit()
-        return {"status": "success", "requeued": len(stalled_sources)}
+        return {"status": "success", "queued": len(stalled_sources)}
+    finally:
+        db.close()
+
+@app.post("/api/admin/reprocess-all")
+def reprocess_all_sources(project_id: Optional[int] = None, current_user: User = Depends(get_current_user)):
+    """Admin endpoint to force all sources to be reprocessed through the new theme pipeline."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    db = SessionLocal()
+    try:
+        query = db.query(GeminiSource)
+        if project_id:
+            query = query.filter(GeminiSource.project_id == project_id)
+            
+        sources = query.all()
+        for s in sources:
+            s.processed = False
+            
+        db.commit()
+        
+        # We don't need to manually queue them; the background_processor loop runs every 5 seconds and will pick them up
+        return {"status": "success", "message": f"Successfully marked {len(sources)} sources for reprocessing. The background worker will pick them up shortly."}
     finally:
         db.close()
 
