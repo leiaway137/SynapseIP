@@ -91,6 +91,14 @@
                     </div>
                 </div>
                 
+                <!-- Agentic Memory Button -->
+                <div style="display: flex; gap: 12px; align-items: center; margin-left: auto; margin-right: 20px;">
+                    <button id="btn-theme-editor" class="glass-btn" style="padding: 8px 16px; font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z"></path><path d="M12 2a10 10 0 0 1 10 10h-10V2z"></path></svg>
+                        Agentic Memory
+                    </button>
+                </div>
+                
                 <!-- Profile Avatar Top Right -->
                 <div class="profile-wrapper">
                     <div id="avatar-btn" class="avatar-circle">
@@ -391,6 +399,39 @@
             <div style="font-size: 0.75rem; color: #94a3b8; text-align: center; margin-top: 8px; margin-bottom: 8px;">
                 Press <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Enter</kbd> to submit
             </div>
+        </div>
+    </div>
+
+    <!-- Theme Editor Drawer -->
+    <div id="theme-drawer-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 10001; opacity: 0; transition: opacity 0.3s ease;"></div>
+    <div id="theme-drawer" style="position: fixed; top: 0; right: -450px; width: 450px; height: 100vh; background: rgba(15, 17, 21, 0.98); border-left: 1px solid var(--glass-border); z-index: 10002; transition: right 0.3s ease; display: flex; flex-direction: column; box-shadow: -5px 0 30px rgba(0,0,0,0.5);">
+        <div style="padding: 20px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 8px; color: #f1f5f9;">
+                🧠 Agentic Memory
+            </h3>
+            <button id="close-theme-drawer" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        
+        <div id="theme-list-view" style="flex: 1; overflow-y: auto; padding: 20px;">
+            <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0;">Click any synthesized theme to manually edit the AI's assumptions and re-sync to the vector brain.</p>
+            <div id="drawer-theme-list" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Theme items injected here -->
+                <div style="color: #64748b; text-align: center; padding: 20px;">Loading themes...</div>
+            </div>
+        </div>
+        
+        <div id="theme-edit-view" style="display: none; flex: 1; flex-direction: column; padding: 20px; border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <button id="back-to-themes" style="background: none; border: none; color: var(--accent-color); cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 0.9rem;">
+                    &larr; Back
+                </button>
+                <span id="editing-theme-name" style="color: #cbd5e1; font-weight: 500; font-size: 0.95rem;">Editing...</span>
+            </div>
+            <textarea id="theme-edit-textarea" style="flex: 1; width: 100%; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px; color: #f1f5f9; padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; resize: none; margin-bottom: 12px; outline: none; box-sizing: border-box;"></textarea>
+            <button id="btn-sync-theme" class="generate-btn" style="padding: 12px; justify-content: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                Sync to Brain 🧠
+            </button>
+            <input type="hidden" id="editing-theme-id">
         </div>
     </div>
 

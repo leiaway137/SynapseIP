@@ -329,6 +329,9 @@ class ReportChangeRequest(BaseModel):
     hostname: str
     html_payload: str
 
+class ThemeUpdateRequest(BaseModel):
+    content: str
+
 # ---------------------------------------------------------
 # Security Helpers
 # ---------------------------------------------------------
@@ -970,6 +973,41 @@ def get_themes_dashboard(response: Response, project: Project = Depends(get_curr
         "is_consistent": project.is_consistent if project else False,
         "onboarding_config": project.onboarding_config if project else None
     }
+
+@app.get("/api/projects/{project_id}/themes")
+def get_project_themes(response: Response, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
+    """Return all active themes for this project."""
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project.id).all()
+    return [{"id": t.id, "theme_name": t.theme_name, "content": t.content} for t in themes]
+
+@app.put("/api/projects/{project_id}/themes/{theme_id}")
+async def update_project_theme(theme_id: int, update: ThemeUpdateRequest, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
+    """Update a theme manually and re-embed to Pinecone."""
+    theme = db.query(ProjectTheme).filter(ProjectTheme.id == theme_id, ProjectTheme.project_id == project.id).first()
+    if not theme:
+        raise HTTPException(status_code=404, detail="Theme not found")
+        
+    theme.content = update.content
+    db.commit()
+    
+    # Re-embed to Pinecone
+    if pinecone_index is not None and gemini_client is not None:
+        try:
+            embed_res = await gemini_client.aio.models.embed_content(
+                model='text-embedding-004',
+                contents=f"Topic: {theme.theme_name}\n\n{theme.content}"
+            )
+            vector = embed_res.embeddings[0].values
+            pinecone_index.upsert(
+                vectors=[(f"theme_{theme.id}", vector, {"title": theme.theme_name, "content": theme.content})],
+                namespace="synapseip_themes"
+            )
+        except Exception as e:
+            print("Failed to re-embed theme manually:", e)
+            
+    await manager.broadcast("themes_updated")
+    return {"status": "success"}
 
 @app.post("/api/projects/{project_id}/clear-onboarding")
 def clear_onboarding(project: Project = Depends(get_current_project), db: Session = Depends(get_db)):

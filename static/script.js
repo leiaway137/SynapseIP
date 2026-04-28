@@ -1541,5 +1541,139 @@ document.addEventListener('DOMContentLoaded', () => {
             // Clear selection
             window.getSelection().removeAllRanges();
         }
-    });
+    // Theme Editor Drawer
+    const btnThemeEditor = document.getElementById('btn-theme-editor');
+    const themeDrawer = document.getElementById('theme-drawer');
+    const themeDrawerOverlay = document.getElementById('theme-drawer-overlay');
+    const closeThemeDrawer = document.getElementById('close-theme-drawer');
+    const drawerThemeList = document.getElementById('drawer-theme-list');
+    
+    const themeListView = document.getElementById('theme-list-view');
+    const themeEditView = document.getElementById('theme-edit-view');
+    const backToThemesBtn = document.getElementById('back-to-themes');
+    const editingThemeName = document.getElementById('editing-theme-name');
+    const themeEditTextarea = document.getElementById('theme-edit-textarea');
+    const btnSyncTheme = document.getElementById('btn-sync-theme');
+    const editingThemeId = document.getElementById('editing-theme-id');
+
+    async function fetchAndRenderThemes() {
+        if (!activeProjectId) return;
+        const token = localStorage.getItem('synapseip_token');
+        try {
+            drawerThemeList.innerHTML = '<div style="color: #64748b; text-align: center; padding: 20px;">Loading themes...</div>';
+            const res = await fetch(`/api/projects/${activeProjectId}/themes`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error("Failed to load themes");
+            const themes = await res.json();
+            
+            drawerThemeList.innerHTML = '';
+            if (themes.length === 0) {
+                drawerThemeList.innerHTML = '<div style="color: #64748b; text-align: center; padding: 20px;">No themes synthesized yet.</div>';
+                return;
+            }
+            
+            themes.forEach(t => {
+                const div = document.createElement('div');
+                div.style.padding = '15px';
+                div.style.background = 'rgba(255,255,255,0.02)';
+                div.style.border = '1px solid var(--glass-border)';
+                div.style.borderRadius = '8px';
+                div.style.cursor = 'pointer';
+                div.style.transition = 'all 0.2s';
+                
+                div.addEventListener('mouseover', () => div.style.background = 'rgba(255,255,255,0.05)');
+                div.addEventListener('mouseout', () => div.style.background = 'rgba(255,255,255,0.02)');
+                
+                div.innerHTML = `<h4 style="margin: 0 0 5px 0; color: #f1f5f9;">${t.theme_name}</h4>
+                                 <p style="margin: 0; font-size: 0.8rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.content.substring(0, 80)}...</p>`;
+                
+                div.addEventListener('click', () => {
+                    themeListView.style.display = 'none';
+                    themeEditView.style.display = 'flex';
+                    editingThemeName.innerText = t.theme_name;
+                    themeEditTextarea.value = t.content;
+                    editingThemeId.value = t.id;
+                });
+                
+                drawerThemeList.appendChild(div);
+            });
+            
+        } catch (e) {
+            console.error(e);
+            drawerThemeList.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px;">Failed to load themes.</div>';
+        }
+    }
+
+    if (btnThemeEditor) {
+        btnThemeEditor.addEventListener('click', () => {
+            themeDrawer.style.right = '0';
+            themeDrawerOverlay.style.display = 'block';
+            setTimeout(() => themeDrawerOverlay.style.opacity = '1', 10);
+            fetchAndRenderThemes();
+        });
+    }
+
+    const closeDrawer = () => {
+        themeDrawer.style.right = '-450px';
+        themeDrawerOverlay.style.opacity = '0';
+        setTimeout(() => themeDrawerOverlay.style.display = 'none', 300);
+        setTimeout(() => {
+            themeListView.style.display = 'block';
+            themeEditView.style.display = 'none';
+        }, 300);
+    };
+
+    if (closeThemeDrawer) closeThemeDrawer.addEventListener('click', closeDrawer);
+    if (themeDrawerOverlay) themeDrawerOverlay.addEventListener('click', closeDrawer);
+
+    if (backToThemesBtn) {
+        backToThemesBtn.addEventListener('click', () => {
+            themeListView.style.display = 'block';
+            themeEditView.style.display = 'none';
+        });
+    }
+
+    if (btnSyncTheme) {
+        btnSyncTheme.addEventListener('click', async () => {
+            const tId = editingThemeId.value;
+            const content = themeEditTextarea.value;
+            if (!tId || !activeProjectId) return;
+            
+            btnSyncTheme.innerText = 'Syncing...';
+            btnSyncTheme.style.opacity = '0.7';
+            
+            const token = localStorage.getItem('synapseip_token');
+            try {
+                const res = await fetch(`/api/projects/${activeProjectId}/themes/${tId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ content: content })
+                });
+                
+                if (res.ok) {
+                    btnSyncTheme.innerText = 'Synced! ✅';
+                    setTimeout(() => {
+                        btnSyncTheme.innerText = 'Sync to Brain 🧠';
+                        btnSyncTheme.style.opacity = '1';
+                        fetchAndRenderThemes();
+                        themeListView.style.display = 'block';
+                        themeEditView.style.display = 'none';
+                    }, 1500);
+                } else {
+                    throw new Error("Failed");
+                }
+            } catch (e) {
+                console.error(e);
+                btnSyncTheme.innerText = 'Error ❌';
+                setTimeout(() => {
+                    btnSyncTheme.innerText = 'Sync to Brain 🧠';
+                    btnSyncTheme.style.opacity = '1';
+                }, 2000);
+            }
+        });
+    }
 });
