@@ -964,7 +964,7 @@ async function fetchSources() {
                 } else {
                     bHTML = `<span style="font-size:0.7rem; background:rgba(59,130,246,0.2); color:#60a5fa; padding:2px 6px; border-radius:4px; margin-left:8px;">Queued ⏳</span>`;
                 }
-            } else if (source.title && source.title.startsWith("AI Source Node")) {
+            } else if (source.title && (source.title.startsWith("AI Source Node") || source.title.includes("Processing Failed"))) {
                 bHTML = `<button class="retry-ai-btn" data-id="${source.id}" onclick="retrySourceProcessing(${source.id}, event)" style="font-size:0.65rem; background:rgba(16,185,129,0.2); color:#10b981; border:1px solid rgba(16,185,129,0.3); padding:2px 6px; border-radius:4px; margin-left:8px; cursor:pointer; transition:all 0.2s;">Retry AI 🔄</button>`;
             }
             card.innerHTML = `
