@@ -675,8 +675,8 @@ async def background_processor():
             # Process the batch sequentially to avoid lock contention timeouts
             for c in cards_to_process:
                 try:
-                    # Add a 180 second strict timeout per card to prevent permanent hanging
-                    await asyncio.wait_for(process_single_card(c), timeout=180.0)
+                    # Add a 600 second strict timeout per card to prevent permanent hanging
+                    await asyncio.wait_for(process_single_card(c), timeout=600.0)
                 except BaseException as res:
                     c_id = c['id']
                     print(f"CRITICAL: Card {c_id} failed violently in background worker: {res}")
