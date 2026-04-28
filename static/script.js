@@ -1559,11 +1559,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const editingThemeId = document.getElementById('editing-theme-id');
 
     async function fetchAndRenderThemes() {
-        if (!activeProjectId) return;
+        if (!currentProjectId) return;
         const token = localStorage.getItem('synapseip_token');
         try {
             drawerThemeList.innerHTML = '<div style="color: #64748b; text-align: center; padding: 20px;">Loading themes...</div>';
-            const res = await fetch(`/api/projects/${activeProjectId}/themes`, {
+            const res = await fetch(`/api/projects/${currentProjectId}/themes`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error("Failed to load themes");
@@ -1640,14 +1640,14 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSyncTheme.addEventListener('click', async () => {
             const tId = editingThemeId.value;
             const content = themeEditTextarea.value;
-            if (!tId || !activeProjectId) return;
+            if (!tId || !currentProjectId) return;
             
             btnSyncTheme.innerText = 'Syncing...';
             btnSyncTheme.style.opacity = '0.7';
             
             const token = localStorage.getItem('synapseip_token');
             try {
-                const res = await fetch(`/api/projects/${activeProjectId}/themes/${tId}`, {
+                const res = await fetch(`/api/projects/${currentProjectId}/themes/${tId}`, {
                     method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${token}`,
