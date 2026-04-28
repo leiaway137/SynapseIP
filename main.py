@@ -1235,18 +1235,6 @@ def reprocess_all_sources(project_id: Optional[int] = None, current_user: User =
     finally:
         db.close()
 
-@app.get("/api/hack/reprocess-all")
-def hack_reprocess():
-    db = SessionLocal()
-    try:
-        sources = db.query(GeminiSource).all()
-        for s in sources:
-            s.processed = False
-        db.commit()
-        return {"status": "success", "count": len(sources)}
-    finally:
-        db.close()
-
 # ---------------------------------------------------------
 # Extension API Endpoints (lightweight, for Chrome Extension overlay)
 # ---------------------------------------------------------
