@@ -1222,10 +1222,18 @@ def get_diagnostics():
         failed = db.query(GeminiSource).filter(GeminiSource.title.like("⚠️ Processing Failed%")).all()
         processing = db.query(GeminiSource).filter(GeminiSource.title.like("Processing 🔄%")).all()
         pending = db.query(GeminiSource).filter(GeminiSource.processed == False).all()
+        
+        qp_cards = db.query(GeminiSource).filter(GeminiSource.project_id == 4).count()
+        qp_themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == 4).count()
+        total_themes = db.query(ProjectTheme).count()
+        
         return {
             "failed": [{"id": f.id, "title": f.title} for f in failed],
             "processing": [{"id": p.id, "title": p.title} for p in processing],
-            "pending_count": len(pending)
+            "pending_count": len(pending),
+            "qingpath_total_cards": qp_cards,
+            "qingpath_total_themes": qp_themes,
+            "total_themes_all_projects": total_themes
         }
     finally:
         db.close()
