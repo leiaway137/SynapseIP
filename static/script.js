@@ -1541,6 +1541,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Clear selection
             window.getSelection().removeAllRanges();
         }
+    });
+
     // Theme Editor Drawer
     const btnThemeEditor = document.getElementById('btn-theme-editor');
     const themeDrawer = document.getElementById('theme-drawer');
