@@ -414,16 +414,24 @@ async def process_single_card(unprocessed_dict):
             
             # 2. Extract Multiple Topics & Generate Title (IN PARALLEL)
             extract_prompt = f"""
-            You are a data architect categorizing a new brainstorm note.
-            Extract all distinct high-fidelity architectural or technical topics from this raw note. 
-            If a topic strongly matches an existing theme from this project, use that EXACT existing theme name.
-            Current existing themes for this project: {theme_names if theme_names else 'None'}
+            Analyze the following brainstorm note and output a JSON object with two fields:
+            1. "summary": A brief 1-sentence summary of what this note is about.
+            2. "topics": An array of specific architectural components, UI features, or concepts discussed in the text.
             
-            New Note Content:
-            {raw_content}
+            CRITICAL RULES:
+            - You MUST extract a maximum of 5 topics. Only pick the top 3 to 5 most important core concepts.
+            - If a topic strongly matches an existing theme from this project, use that EXACT existing theme name.
+            - Current existing themes for this project: {theme_names if theme_names else 'None'}
             
-            Return ONLY a JSON array of objects with 'topic' and 'content'.
-            Example format: [{{"topic": "Theme Name", "content": "Detailed synthesis of the topic..."}}]
+            JSON FORMAT:
+            {{
+                "summary": "...",
+                "topics": [
+                    {{"topic": "Theme Name", "content": "The actual detailed insight from the text"}}
+                ]
+            }}
+            
+            Raw Note: {raw_content}
             """
             
             title_prompt = f"You are a neat summarization bot. Create a professional, catchy, 3 to 6 word title summarizing this interaction. Do not use quotes, labels, or generic prefixes. Only return the title itself.\n\nText: {raw_content[:1500]}"
@@ -465,10 +473,13 @@ async def process_single_card(unprocessed_dict):
             async with project_locks[target_project_id]:
                 await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Weaving into Agentic Memory...", "progress": 60}))
                 
-                for item in topics:
+                for item in topics[:5]: # Hard cap at 5 to absolutely guarantee no rate limit bursts
                     topic_name = item.get("topic")
                     topic_content = item.get("content")
                     if not topic_name or not topic_content: continue
+                    
+                    # Prevent Gemini 15 RPM rate limit backoff hanging
+                    await asyncio.sleep(2)
                     
                     db_merge = SessionLocal()
                     try:
