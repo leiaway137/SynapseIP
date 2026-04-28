@@ -1677,6 +1677,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 2000);
             }
         });
+    }
     const btnPruneVectors = document.getElementById('btn-prune-vectors');
     if (btnPruneVectors) {
         btnPruneVectors.addEventListener('click', async () => {
