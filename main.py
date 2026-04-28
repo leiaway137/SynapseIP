@@ -645,7 +645,10 @@ async def background_processor():
                     try:
                         err_item = db_err.query(GeminiSource).filter(GeminiSource.id == target_id).first()
                         if err_item and not err_item.processed:
+                            import traceback
+                            tb = traceback.format_exc()
                             err_item.title = f"⚠️ Processing Failed: {str(e)[:50]}"
+                            err_item.content = err_item.content + f"\n\n--- DIAGNOSTICS ---\n{tb}"
                             err_item.processed = True
                             db_err.commit()
                             await manager.broadcast("new_source")
