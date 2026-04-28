@@ -181,7 +181,7 @@ function renderProjectList(projects) {
             li.classList.toggle('expanded');
             if (li.classList.contains('expanded')) loadProjectDocuments(p.id);
             
-            selectProject(p.id, p.name, true);
+            selectProject(p.id, p.name);
         });
         
         list.appendChild(li);
@@ -319,7 +319,7 @@ async function createNewProject() {
     } catch(e) { alert("Failed to create project."); }
 }
 
-async function selectProject(projectId, projectName, silent = false) {
+async function selectProject(projectId, projectName) {
     currentProjectId = projectId;
     currentProjectName = projectName;
     document.getElementById('active-project-name').innerText = escapeHTML(projectName);
@@ -348,8 +348,6 @@ async function selectProject(projectId, projectName, silent = false) {
         const res = await fetch(`/api/projects/${projectId}/documents`);
         if (res.ok) {
             const data = await res.json();
-            
-            if (silent) return; // Wait! If it's a silent select, skip the auto-redirection block entirely!
             
             // Automatically surface the most recent blueprint if it exists
             if (data.blueprints && data.blueprints.length > 0) {
