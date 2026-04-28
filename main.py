@@ -486,7 +486,7 @@ async def process_single_card(unprocessed_dict):
                         theme_record = None
                         if vector and pinecone_index is not None:
                             try:
-                                pinecone_query = pinecone_index.query(vector=vector, top_k=1, namespace="synapseip_themes")
+                                pinecone_query = await asyncio.to_thread(pinecone_index.query, vector=vector, top_k=1, namespace="synapseip_themes")
                                 if pinecone_query.get('matches') and pinecone_query['matches'][0]['score'] > 0.80:
                                     match_id = pinecone_query['matches'][0]['id']
                                     if match_id.startswith("theme_"):
@@ -535,7 +535,8 @@ async def process_single_card(unprocessed_dict):
                                     contents=f"Topic: {theme_record.theme_name}\n\n{theme_record.content}"
                                 )
                                 final_vector = final_embed.embeddings[0].values
-                                pinecone_index.upsert(
+                                await asyncio.to_thread(
+                                    pinecone_index.upsert,
                                     vectors=[(f"theme_{theme_record.id}", final_vector, {"title": theme_record.theme_name, "content": theme_record.content})],
                                     namespace="synapseip_themes"
                                 )
@@ -1135,7 +1136,7 @@ async def prune_vectors_task(db: Session):
         for i in range(0, len(theme_ids), 100):
             batch = theme_ids[i:i+100]
             try:
-                fetch_res = pinecone_index.fetch(ids=batch, namespace="synapseip_themes")
+                fetch_res = await asyncio.to_thread(pinecone_index.fetch, ids=batch, namespace="synapseip_themes")
                 existing_pinecone_ids.update(fetch_res.get('vectors', {}).keys())
             except Exception as e:
                 print(f"Warning: Pinecone fetch failed: {e}")
@@ -1154,7 +1155,8 @@ async def prune_vectors_task(db: Session):
                         contents=f"Topic: {theme.theme_name}\n\n{theme.content}"
                     )
                     vector = res.embeddings[0].values
-                    pinecone_index.upsert(
+                    await asyncio.to_thread(
+                        pinecone_index.upsert,
                         vectors=[(f"theme_{theme.id}", vector, {"title": theme.theme_name, "content": theme.content})],
                         namespace="synapseip_themes"
                     )
@@ -1176,7 +1178,7 @@ async def prune_vectors_task(db: Session):
                             pass
             if orphans_to_delete:
                 print(f"🗑️ Deleting {len(orphans_to_delete)} orphan vectors from Pinecone...")
-                pinecone_index.delete(ids=orphans_to_delete, namespace="synapseip_themes")
+                await asyncio.to_thread(pinecone_index.delete, ids=orphans_to_delete, namespace="synapseip_themes")
         except Exception as e:
             pass # pod-based index list() not supported
             
@@ -1220,7 +1222,8 @@ async def update_project_theme(theme_id: int, update: ThemeUpdateRequest, projec
                 contents=f"Topic: {theme.theme_name}\n\n{theme.content}"
             )
             vector = embed_res.embeddings[0].values
-            pinecone_index.upsert(
+            await asyncio.to_thread(
+                pinecone_index.upsert,
                 vectors=[(f"theme_{theme.id}", vector, {"title": theme.theme_name, "content": theme.content})],
                 namespace="synapseip_themes"
             )
