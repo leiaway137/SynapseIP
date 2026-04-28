@@ -626,8 +626,11 @@ async def background_processor():
             cards_to_process = []
             project_id_to_check = None
             try:
-                # Fetch a batch of up to 5 unprocessed cards
-                unprocessed_cards = db.query(GeminiSource).filter(GeminiSource.processed == False).order_by(GeminiSource.timestamp.asc()).limit(5).all()
+                # Fetch a batch of up to 5 unprocessed cards that aren't already locked
+                unprocessed_cards = db.query(GeminiSource).filter(
+                    GeminiSource.processed == False,
+                    ~GeminiSource.title.startswith("Processing 🔄")
+                ).order_by(GeminiSource.timestamp.asc()).limit(5).all()
                 
                 if not unprocessed_cards:
                     # Check for consistency check
@@ -643,8 +646,7 @@ async def background_processor():
                             'content': card.content,
                             'project_id': card.project_id
                         })
-                        # Mark as processed in DB to prevent duplicate pickup in next loop iteration if loop finishes fast
-                        card.processed = True
+                        # Mark title to lock it, but leave processed=False so UI knows it's pending
                         card.title = "Processing 🔄 " + card.title
                     db.commit()
             finally:

@@ -937,7 +937,6 @@ async function fetchSources() {
         window.currentSources = data;
         badge.innerText = `${data.length} Note(s)`;
 
-        let hasProcessing = false;
         data.forEach((source, index) => {
             const card = document.createElement('div');
             card.className = 'source-card';
@@ -954,19 +953,20 @@ async function fetchSources() {
                 let fallback = plainText.split(/[.\n]/)[0].replace(/[*_#>]/g, '').trim();
                 smartTitle = fallback.length > 3 ? fallback : "Synced Note";
             }
-            if (smartTitle.length > 50) smartTitle = smartTitle.substring(0, 50) + "...";
 
             let bHTML = '';
             if (!source.processed) {
-                if (!hasProcessing) {
+                if (smartTitle.startsWith("Processing 🔄")) {
                     bHTML = `<span style="font-size:0.7rem; background:rgba(245,158,11,0.2); color:#fbbf24; padding:2px 6px; border-radius:4px; margin-left:8px;">Processing 🔄</span>`;
-                    hasProcessing = true;
+                    smartTitle = smartTitle.replace("Processing 🔄 ", "").trim();
                 } else {
                     bHTML = `<span style="font-size:0.7rem; background:rgba(59,130,246,0.2); color:#60a5fa; padding:2px 6px; border-radius:4px; margin-left:8px;">Queued ⏳</span>`;
                 }
             } else if (source.title && (source.title.startsWith("AI Source Node") || source.title.includes("Processing Failed"))) {
                 bHTML = `<button class="retry-ai-btn" data-id="${source.id}" onclick="retrySourceProcessing(${source.id}, event)" style="font-size:0.65rem; background:rgba(16,185,129,0.2); color:#10b981; border:1px solid rgba(16,185,129,0.3); padding:2px 6px; border-radius:4px; margin-left:8px; cursor:pointer; transition:all 0.2s;">Retry AI 🔄</button>`;
             }
+            
+            if (smartTitle.length > 50) smartTitle = smartTitle.substring(0, 50) + "...";
             card.innerHTML = `
                 <div class="source-title"><span style="color:var(--accent-color); margin-right:6px;">#${index+1}</span>${escapeHTML(smartTitle)}${bHTML}</div>
                 <div class="source-time">${sourceHost} &bull; ${date}</div>
