@@ -1255,19 +1255,28 @@ def pull_legacy_cards(source_url: str = None):
             columns = pg_conn.execute(text("SELECT * FROM gemini_sources LIMIT 0")).keys()
             col_names = list(columns)
             
+            # Map Neon Project IDs to Names
+            pg_projects = pg_conn.execute(text("SELECT id, name FROM projects")).fetchall()
+            neon_id_to_name = {r.id: r.name for r in pg_projects}
+            
         db = SessionLocal()
         added_count = 0
         try:
+            # Map SQLite Project Names to IDs
+            sqlite_projects = {p.name.lower(): p.id for p in db.query(Project).all()}
+            
             for row in rows:
                 row_dict = dict(zip(col_names, row))
-                # Check if it already exists in SQLite
-                existing = db.query(GeminiSource).filter(GeminiSource.id == row_dict['id']).first()
+                # Check if it already exists by content to avoid ID collisions
+                existing = db.query(GeminiSource).filter(GeminiSource.content == row_dict.get('content')).first()
                 if not existing:
-                    # Create new SQLite record
+                    neon_proj_name = neon_id_to_name.get(row_dict.get('project_id'))
+                    sqlite_proj_id = sqlite_projects.get(neon_proj_name.lower()) if neon_proj_name else row_dict.get('project_id')
+                    
+                    # Create new SQLite record (omit id so it autoincrements)
                     new_source = GeminiSource(
-                        id=row_dict.get('id'),
                         user_id=row_dict.get('user_id'),
-                        project_id=row_dict.get('project_id'),
+                        project_id=sqlite_proj_id,
                         title=row_dict.get('title'),
                         content=row_dict.get('content'),
                         timestamp=row_dict.get('timestamp'),
