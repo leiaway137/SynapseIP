@@ -427,6 +427,9 @@ async def background_processor():
                 await asyncio.sleep(2)
                 continue
 
+            # Start of processing for this card
+            await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Initializing AI synthesis...", "progress": 10}))
+
             smart_title = raw_title
             if gemini_client:
                 try:
@@ -453,6 +456,8 @@ async def background_processor():
                     """
                     
                     title_prompt = f"You are a neat summarization bot. Create a professional, catchy, 3 to 6 word title summarizing this interaction. Do not use quotes, labels, or generic prefixes. Only return the title itself.\n\nText: {raw_content[:1500]}"
+                    
+                    await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Extracting architectural themes...", "progress": 30}))
                     
                     extract_res = await gemini_client.aio.models.generate_content(
                         model='gemini-2.5-flash',
@@ -484,6 +489,8 @@ async def background_processor():
                         topics = [{"topic": "General Notes", "content": raw_content}]
                         
                     # 3. Continuous Agentic Memory Merge
+                    await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Weaving into Agentic Memory...", "progress": 60}))
+                    
                     for item in topics:
                         topic_name = item.get("topic")
                         topic_content = item.get("content")
@@ -570,6 +577,8 @@ async def background_processor():
                             db_merge.close()
                     
                     # 4. Generate Suggested Themes
+                    await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Upserting to Pinecone Vector DB...", "progress": 80}))
+                    
                     db_sugg = SessionLocal()
                     try:
                         current_themes = db_sugg.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id).all()
@@ -607,6 +616,7 @@ async def background_processor():
                     
                 except Exception as e:
                     print("Background processing theme consolidation failed.", e)
+                    smart_title = "⚠️ Processing Failed"
             
             # Reopen connection for swift instantaneous commit
             db2 = SessionLocal()
@@ -626,8 +636,24 @@ async def background_processor():
 
             # Notify UI to update instantly
             await manager.broadcast("new_source")
+            await manager.broadcast(json.dumps({"type": "source_progress_complete", "source_id": target_id}))
         except Exception as e:
             print("Error in background processor:", e)
+            try:
+                if 'target_id' in locals():
+                    db_err = SessionLocal()
+                    try:
+                        err_item = db_err.query(GeminiSource).filter(GeminiSource.id == target_id).first()
+                        if err_item and not err_item.processed:
+                            err_item.title = "⚠️ Processing Failed"
+                            err_item.processed = True
+                            db_err.commit()
+                            await manager.broadcast("new_source")
+                            await manager.broadcast(json.dumps({"type": "source_progress_complete", "source_id": target_id}))
+                    finally:
+                        db_err.close()
+            except Exception as inner_e:
+                print("Failed to handle poison pill:", inner_e)
         await asyncio.sleep(2)
 
 def _run_one_time_migration():

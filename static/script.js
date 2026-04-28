@@ -1068,7 +1068,7 @@ function initWebSocket() {
                 if (data.markdown_content) {
                     showBlueprint(data.markdown_content);
                 }
-            } else if (data.type === "progress") {
+            } else if (data.type === "progress" || data.type === "source_progress") {
                 // Ensure UI tracker is visible globally
                 const tracker = document.getElementById('global-activity-tracker');
                 tracker.style.display = 'flex';
@@ -1076,7 +1076,12 @@ function initWebSocket() {
                 document.getElementById('global-tracker-msg').innerText = data.message;
                 document.getElementById('global-tracker-fill').style.width = `${data.progress}%`;
                 
-            } else if (data.type === "sources_deleted") fetchSources();
+            } else if (data.type === "source_progress_complete") {
+                const tracker = document.getElementById('global-activity-tracker');
+                tracker.style.display = 'none';
+            } else if (data.type === "sources_deleted") {
+                fetchSources();
+            }
             return;
         } catch (e) {}
 
