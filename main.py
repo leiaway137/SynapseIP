@@ -1661,7 +1661,9 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             4. If this step involves database operations, reference the exact table/column names from the schema defined in the earlier "Define Database Schema" step.
             5. If this step involves API calls, reference the exact endpoint paths and payload shapes from the "Define API Contracts" step.
             6. If this step involves UI, you MUST mandate explicit handling for Loading states (`isPending`), Empty states (no data), and Error states (API failure).
-            7. YOU MUST output the exact Vibe Coding prompt inside a markdown code block so the user can easily copy and paste it into their IDE. The prompt MUST be highly detailed and uniquely tailored to this specific step. Fill out the bracketed placeholders `[...]` with rich, specific details.
+            7. YOU MUST output the exact Vibe Coding prompts inside markdown code blocks so the user can easily copy and paste them into their IDE.
+            8. IMPORTANT: DO NOT write out raw file contents (like `package.json`, `schema.sql`, or source code) in your response. The IDE's AI will generate the actual code. Your job is just to write the INSTRUCTION prompts for the IDE AI.
+            9. BREAK PROMPTS INTO MULTIPLE PHASES: To prevent overwhelming the IDE's context window, break the instructions into two separate copy-paste blocks: "Phase 1: Planning" and "Phase 2: Execution".
             
             STRICT FORMATTING TEMPLATE YOU MUST FOLLOW:
             
@@ -1679,34 +1681,41 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             
             **Watch Out:** [What could go wrong or common errors]
             
-            **Copy & Paste this into your IDE:**
+            **Phase 1: Planning (Copy & Paste this into your IDE first)**
             ```text
             [Objective]
-            [Write a detailed, actionable technical objective for {chapter_title}. Specify exactly what core logic, UI, or backend feature needs to be implemented in this step.]
-            [If UI: Mandate exactly what the Loading, Empty, and Error states must look like.]
+            [Write a concise technical objective for {chapter_title}. Specify exactly what core logic, UI, or backend feature needs to be implemented.]
             
             [Artifact Locking & Pre-Flight]
-            Before writing ANY code, please perform an Impact Analysis. First, review the following specific files to understand the current context:
-            [List 2-3 specific files, directories, or components the IDE AI must review first based on this feature]
+            Before writing ANY code, please perform an Impact Analysis. First, review the following files:
+            [List 2-3 specific files or directories the IDE AI must review first based on this feature]
             
             Output an `implementation_plan.md` detailing:
             1. Which files will be modified, created, or deleted.
             2. What specific shell commands or terminal scripts will be executed.
             3. The exact API calls, schema changes, or dependencies that will be added/altered.
             DO NOT generate code or run commands until I explicitly approve the implementation plan.
+            ```
             
+            **Phase 2: Execution (Copy & Paste this into your IDE after approving the plan)**
+            ```text
             [Execution Constraints]
             Strictly adhere to the global project constraints defined in `PROJECT_RULES.md`.
-            [List 1-2 strict technical constraints specifically relevant to THIS step ONLY, if any. Otherwise, omit this line.]
+            [List 1-2 strict technical constraints specifically relevant to THIS step ONLY, if any. Otherwise, omit this section.]
+            [If UI: Mandate exactly what the Loading, Empty, and Error states must look like.]
+            
+            Now, please execute the approved `implementation_plan.md` for this step.
             
             [Verification]
+            After execution, run the following command to verify:
             [Provide the exact terminal command to verify this step (e.g., `npm run test -- src/components/login.test.tsx` or `npx tsc --noEmit`). If no test exists, mandate the agent runs linting or build checks.]
             ```
             
             Strict Formatting Rules:
             1. DO NOT output a `#` or `##` header for the chapter title itself. The system will handle the chapter title. Just output the content.
-            2. All data points outside the text block MUST be in a bulleted list (`*`) or a Markdown table.
-            3. In the "Copy & Paste" code block, REPLACE all bracketed text `[...]` with your generated, highly specific instructions for the target AI. Do not output the brackets themselves.
+            2. All data points outside the text blocks MUST be in a bulleted list (`*`) or a Markdown table.
+            3. In the "Copy & Paste" code blocks, REPLACE all bracketed text `[...]` with your generated, highly specific instructions for the target AI. Do not output the brackets themselves.
+            4. DO NOT output massive JSON or markdown file contents inside or outside the copy-paste blocks. Keep the prompts concise.
         
             [PREVIOUS ARCHITECTURAL DECISIONS (Maintain Strict Consistency with these)]:
             {rolling_architecture_context}
