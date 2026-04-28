@@ -1293,6 +1293,41 @@ def pull_legacy_cards(source_url: str = None):
     except Exception as e:
         return {"error": str(e)}
 
+@app.post("/api/admin/sync-pinecone")
+async def sync_pinecone():
+    """Force sync all SQLite themes to Pinecone."""
+    if pinecone_index is None or gemini_client is None:
+        return {"error": "Pinecone or Gemini not initialized"}
+        
+    db = SessionLocal()
+    try:
+        themes = db.query(ProjectTheme).all()
+        upserted_count = 0
+        
+        for theme in themes:
+            try:
+                # Generate fresh embedding for the theme
+                embed_res = await gemini_client.aio.models.embed_content(
+                    model='gemini-embedding-2',
+                    contents=f"Topic: {theme.theme_name}\n\n{theme.content}"
+                )
+                vector = embed_res.embeddings[0].values
+                
+                # Upsert to Pinecone
+                import asyncio
+                await asyncio.to_thread(
+                    pinecone_index.upsert,
+                    vectors=[(f"theme_{theme.id}", vector, {"title": theme.theme_name, "content": theme.content})],
+                    namespace="synapseip_themes"
+                )
+                upserted_count += 1
+                await asyncio.sleep(1) # Prevent rate limits
+            except Exception as e:
+                print(f"Failed to sync theme {theme.id}: {e}")
+                
+        return {"status": "success", "themes_synced": upserted_count, "total_db_themes": len(themes)}
+    finally:
+        db.close()
 
 @app.get("/api/projects/{project_id}/themes")
 def get_project_themes(response: Response, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
