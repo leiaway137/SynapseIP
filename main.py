@@ -669,6 +669,21 @@ def _run_one_time_migration():
     except Exception as e:
         print(f"❌ Migration failed: {e}")
 
+async def daily_vector_pruner():
+    """Background loop to prune vectors once a day."""
+    while True:
+        # Wait 5 minutes on boot before running to prevent startup blocking
+        await asyncio.sleep(300) 
+        db = SessionLocal()
+        try:
+            await prune_vectors_task(db)
+        except Exception as e:
+            print(f"Daily vector pruner failed: {e}")
+        finally:
+            db.close()
+        # Wait the remaining 24 hours
+        await asyncio.sleep(86100)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create the database tables on startup
@@ -684,6 +699,7 @@ async def lifespan(app: FastAPI):
     _run_one_time_migration()
     
     asyncio.create_task(background_processor())
+    asyncio.create_task(daily_vector_pruner())
     yield
     # Any cleanup could go here
 
@@ -994,6 +1010,82 @@ def get_themes_dashboard(response: Response, project: Project = Depends(get_curr
         "is_consistent": project.is_consistent if project else False,
         "onboarding_config": project.onboarding_config if project else None
     }
+
+async def prune_vectors_task(db: Session):
+    """Background task to synchronize Pinecone with SQLite."""
+    if pinecone_index is None:
+        return
+        
+    try:
+        print("🧹 Starting Vector Drift Pruning...")
+        all_themes = db.query(ProjectTheme).all()
+        
+        # Phase 2: Heal missing vectors
+        theme_ids = [f"theme_{t.id}" for t in all_themes]
+        existing_pinecone_ids = set()
+        
+        for i in range(0, len(theme_ids), 100):
+            batch = theme_ids[i:i+100]
+            try:
+                fetch_res = pinecone_index.fetch(ids=batch, namespace="synapseip_themes")
+                existing_pinecone_ids.update(fetch_res.get('vectors', {}).keys())
+            except Exception as e:
+                print(f"Warning: Pinecone fetch failed: {e}")
+                
+        missing_in_pinecone = []
+        for theme in all_themes:
+            if f"theme_{theme.id}" not in existing_pinecone_ids:
+                missing_in_pinecone.append(theme)
+                
+        if missing_in_pinecone and gemini_client:
+            print(f"🩹 Healing {len(missing_in_pinecone)} missing vectors into Pinecone...")
+            for theme in missing_in_pinecone:
+                try:
+                    res = await gemini_client.aio.models.embed_content(
+                        model='text-embedding-004',
+                        contents=f"Topic: {theme.theme_name}\n\n{theme.content}"
+                    )
+                    vector = res.embeddings[0].values
+                    pinecone_index.upsert(
+                        vectors=[(f"theme_{theme.id}", vector, {"title": theme.theme_name, "content": theme.content})],
+                        namespace="synapseip_themes"
+                    )
+                    await asyncio.sleep(0.5)
+                except Exception as e:
+                    print(f"Failed to heal vector for theme {theme.id}: {e}")
+                    
+        # Phase 1: Try to delete orphans using list()
+        orphans_to_delete = []
+        try:
+            for ids in pinecone_index.list(namespace="synapseip_themes"):
+                for pid in ids:
+                    if pid.startswith("theme_"):
+                        try:
+                            db_id = int(pid.split("_")[1])
+                            if not any(t.id == db_id for t in all_themes):
+                                orphans_to_delete.append(pid)
+                        except:
+                            pass
+            if orphans_to_delete:
+                print(f"🗑️ Deleting {len(orphans_to_delete)} orphan vectors from Pinecone...")
+                pinecone_index.delete(ids=orphans_to_delete, namespace="synapseip_themes")
+        except Exception as e:
+            pass # pod-based index list() not supported
+            
+        print("✅ Vector Drift Pruning Complete.")
+    except Exception as e:
+        print(f"❌ Vector pruning failed: {e}")
+
+@app.post("/api/admin/prune-vectors")
+async def trigger_prune_vectors(background_tasks: BackgroundTasks):
+    bg_db = SessionLocal()
+    async def task_wrapper():
+        try:
+            await prune_vectors_task(bg_db)
+        finally:
+            bg_db.close()
+    background_tasks.add_task(task_wrapper)
+    return {"message": "Vector pruning task started in the background."}
 
 @app.get("/api/projects/{project_id}/themes")
 def get_project_themes(response: Response, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):

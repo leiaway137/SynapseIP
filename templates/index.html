@@ -413,7 +413,10 @@
         </div>
         
         <div id="theme-list-view" style="flex: 1; overflow-y: auto; padding: 20px;">
-            <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0;">Click any synthesized theme to manually edit the AI's assumptions and re-sync to the vector brain.</p>
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0; flex: 1; padding-right: 15px;">Click any synthesized theme to manually edit the AI's assumptions and re-sync to the vector brain.</p>
+                <button id="btn-prune-vectors" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; white-space: nowrap;">Prune Drift 🧹</button>
+            </div>
             <div id="drawer-theme-list" style="display: flex; flex-direction: column; gap: 10px;">
                 <!-- Theme items injected here -->
                 <div style="color: #64748b; text-align: center; padding: 20px;">Loading themes...</div>

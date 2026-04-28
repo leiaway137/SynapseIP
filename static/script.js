@@ -1677,5 +1677,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 2000);
             }
         });
+    const btnPruneVectors = document.getElementById('btn-prune-vectors');
+    if (btnPruneVectors) {
+        btnPruneVectors.addEventListener('click', async () => {
+            const token = localStorage.getItem('synapseip_token');
+            btnPruneVectors.innerText = 'Pruning...';
+            btnPruneVectors.style.opacity = '0.7';
+            
+            try {
+                const res = await fetch('/api/admin/prune-vectors', {
+                    method: 'POST',
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+                if (res.ok) {
+                    btnPruneVectors.innerText = 'Pruning Started ✅';
+                } else {
+                    throw new Error("Failed");
+                }
+            } catch (e) {
+                console.error(e);
+                btnPruneVectors.innerText = 'Error ❌';
+            }
+            
+            setTimeout(() => {
+                btnPruneVectors.innerText = 'Prune Drift 🧹';
+                btnPruneVectors.style.opacity = '1';
+            }, 3000);
+        });
     }
 });
