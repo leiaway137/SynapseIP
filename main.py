@@ -387,29 +387,270 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 # ---------------------------------------------------------
-async def background_processor():
+from collections import defaultdict
+import traceback
+
+project_locks = defaultdict(asyncio.Lock)
+
+async def process_single_card(unprocessed_dict):
     import json
+    target_id = unprocessed_dict['id']
+    raw_title = unprocessed_dict['title']
+    raw_content = unprocessed_dict['content']
+    target_project_id = unprocessed_dict['project_id']
+    
+    smart_title = raw_title
+    try:
+        await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Initializing AI synthesis...", "progress": 10}))
+        
+        if gemini_client:
+            # 1. Fetch existing themes
+            db_themes = SessionLocal()
+            try:
+                existing_themes = db_themes.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id).all()
+                theme_names = [t.theme_name for t in existing_themes]
+            finally:
+                db_themes.close()
+            
+            # 2. Extract Multiple Topics & Generate Title (IN PARALLEL)
+            extract_prompt = f"""
+            You are a data architect categorizing a new brainstorm note.
+            Extract all distinct high-fidelity architectural or technical topics from this raw note. 
+            If a topic strongly matches an existing theme from this project, use that EXACT existing theme name.
+            Current existing themes for this project: {theme_names if theme_names else 'None'}
+            
+            New Note Content:
+            {raw_content}
+            
+            Return ONLY a JSON array of objects with 'topic' and 'content'.
+            Example format: [{{"topic": "Theme Name", "content": "Detailed synthesis of the topic..."}}]
+            """
+            
+            title_prompt = f"You are a neat summarization bot. Create a professional, catchy, 3 to 6 word title summarizing this interaction. Do not use quotes, labels, or generic prefixes. Only return the title itself.\n\nText: {raw_content[:1500]}"
+            
+            await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Extracting architectural themes...", "progress": 30}))
+            
+            # Run LLM calls in parallel
+            extract_task = gemini_client.aio.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=extract_prompt,
+                config={'response_mime_type': 'application/json'}
+            )
+            title_task = gemini_client.aio.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=title_prompt
+            )
+            
+            extract_res, title_res = await asyncio.gather(extract_task, title_task)
+            
+            temp_db = SessionLocal()
+            try:
+                await log_token_usage(temp_db, "Note Categorization", "gemini-2.5-flash", extract_res, project_id=target_project_id)
+                await log_token_usage(temp_db, "Note Titling", "gemini-2.5-flash", title_res, project_id=target_project_id)
+            finally:
+                temp_db.close()
+                
+            smart_title = title_res.text.strip().strip('"').strip("'")
+            if len(smart_title) > 100:
+                smart_title = smart_title[:100]
+                
+            try:
+                topics = json.loads(extract_res.text)
+            except Exception:
+                topics = [{"topic": "General Notes", "content": raw_content}]
+                
+            # 3. Continuous Agentic Memory Merge (WITH PROJECT LOCK)
+            await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Waiting for Agentic Memory Lock...", "progress": 50}))
+            
+            async with project_locks[target_project_id]:
+                await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Weaving into Agentic Memory...", "progress": 60}))
+                
+                for item in topics:
+                    topic_name = item.get("topic")
+                    topic_content = item.get("content")
+                    if not topic_name or not topic_content: continue
+                    
+                    db_merge = SessionLocal()
+                    try:
+                        vector = None
+                        if pinecone_index is not None:
+                            try:
+                                embed_res = await gemini_client.aio.models.embed_content(
+                                    model='text-embedding-004',
+                                    contents=f"Topic: {topic_name}\n\n{topic_content}"
+                                )
+                                vector = embed_res.embeddings[0].values
+                            except Exception as e:
+                                print("Embedding failed:", e)
+                                
+                        theme_record = None
+                        if vector and pinecone_index is not None:
+                            try:
+                                pinecone_query = pinecone_index.query(vector=vector, top_k=1, namespace="synapseip_themes")
+                                if pinecone_query.get('matches') and pinecone_query['matches'][0]['score'] > 0.80:
+                                    match_id = pinecone_query['matches'][0]['id']
+                                    if match_id.startswith("theme_"):
+                                        db_theme_id = int(match_id.split("_")[1])
+                                        theme_record = db_merge.query(ProjectTheme).filter(ProjectTheme.id == db_theme_id, ProjectTheme.project_id == target_project_id).first()
+                            except Exception as e:
+                                print("Pinecone theme query failed:", e)
+                                
+                        if not theme_record:
+                            theme_record = db_merge.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id, ProjectTheme.theme_name == topic_name).first()
+                            
+                        if theme_record:
+                            merge_prompt = f"""
+                            You are a highly analytical AI Synthesizer. Your job is to update an existing architecture document theme with new information.
+                            Do NOT lose any important technical details, requirements, or insights from either text.
+                            Seamlessly weave the new note's insights into the existing theme document. Do not just append it to the end; synthesize it logically.
+                            
+                            EXISTING THEME DOCUMENT:
+                            {theme_record.content}
+                            
+                            NEW NOTE TO INTEGRATE:
+                            {topic_content}
+                            
+                            Output ONLY the newly synthesized and merged Markdown document.
+                            """
+                            merge_res = await gemini_client.aio.models.generate_content(
+                                model='gemini-2.5-flash',
+                                contents=merge_prompt
+                            )
+                            theme_record.content = merge_res.text.strip()
+                            db_merge.commit()
+                        else:
+                            theme_record = ProjectTheme(
+                                project_id=target_project_id,
+                                theme_name=topic_name,
+                                content=f"## {topic_name}\n\n{topic_content}"
+                            )
+                            db_merge.add(theme_record)
+                            db_merge.commit()
+                            db_merge.refresh(theme_record)
+                            
+                        if pinecone_index is not None:
+                            try:
+                                final_embed = await gemini_client.aio.models.embed_content(
+                                    model='text-embedding-004',
+                                    contents=f"Topic: {theme_record.theme_name}\n\n{theme_record.content}"
+                                )
+                                final_vector = final_embed.embeddings[0].values
+                                pinecone_index.upsert(
+                                    vectors=[(f"theme_{theme_record.id}", final_vector, {"title": theme_record.theme_name, "content": theme_record.content})],
+                                    namespace="synapseip_themes"
+                                )
+                            except Exception as e:
+                                print("Upsert theme failed:", e)
+                                
+                    finally:
+                        db_merge.close()
+                
+                # Generate Suggested Themes (Still inside lock to ensure atomic updates)
+                await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Suggesting Next Themes...", "progress": 85}))
+                
+                db_sugg = SessionLocal()
+                try:
+                    current_themes = db_sugg.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id).all()
+                    current_theme_names = [t.theme_name for t in current_themes]
+                    
+                    sugg_prompt = f"""
+                    You are an expert app architect.
+                    Currently captured themes for this app project: {current_theme_names}
+                    
+                    What are 3-4 critical architectural themes that are MISSING and still need to be brainstormed?
+                    Examples could include: "Authentication & Security", "Monetization", "Database Schema", "UI/UX System", "Third-party APIs".
+                    Output ONLY a raw JSON array of strings representing the missing theme names. No markdown blocks, no explanation.
+                    """
+                    
+                    sugg_res = await gemini_client.aio.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=sugg_prompt
+                    )
+                    await log_token_usage(db_sugg, "Theme Suggestion", "gemini-2.5-flash", sugg_res, project_id=target_project_id)
+                    
+                    clean_sugg = sugg_res.text.strip()
+                    if clean_sugg.startswith("```json"):
+                        clean_sugg = clean_sugg[7:-3].strip()
+                    elif clean_sugg.startswith("```"):
+                        clean_sugg = clean_sugg[3:-3].strip()
+                        
+                    project = db_sugg.query(Project).filter(Project.id == target_project_id).first()
+                    if project:
+                        project.suggested_themes = clean_sugg
+                        db_sugg.commit()
+                finally:
+                    db_sugg.close()
+                
+                await manager.broadcast("themes_updated")
+                
+        # Reopen connection for swift instantaneous commit
+        db2 = SessionLocal()
+        try:
+            finished_item = db2.query(GeminiSource).filter(GeminiSource.id == target_id).first()
+            if finished_item:
+                finished_item.title = smart_title
+                finished_item.processed = True
+                
+                p = db2.query(Project).filter(Project.id == target_project_id).first()
+                if p:
+                    p.notes_since_last_check += 1
+                    
+                db2.commit()
+        finally:
+            db2.close()
+
+        # Notify UI to update instantly
+        await manager.broadcast("new_source")
+        await manager.broadcast(json.dumps({"type": "source_progress_complete", "source_id": target_id}))
+
+    except Exception as e:
+        print(f"Error in processing card {target_id}:", e)
+        db_err = SessionLocal()
+        try:
+            err_item = db_err.query(GeminiSource).filter(GeminiSource.id == target_id).first()
+            if err_item:
+                tb = traceback.format_exc()
+                err_item.title = f"⚠️ Processing Failed: {str(e)[:50]}"
+                err_item.content = err_item.content + f"\n\n--- DIAGNOSTICS ---\n{tb}"
+                err_item.processed = True
+                db_err.commit()
+                await manager.broadcast("new_source")
+                await manager.broadcast(json.dumps({"type": "source_progress_complete", "source_id": target_id}))
+        finally:
+            db_err.close()
+
+async def background_processor():
     while True:
         try:
             db = SessionLocal()
+            cards_to_process = []
             project_id_to_check = None
             try:
-                unprocessed = db.query(GeminiSource).filter(GeminiSource.processed == False).order_by(GeminiSource.timestamp.asc()).first()
-                if not unprocessed:
+                # Fetch a batch of up to 5 unprocessed cards
+                unprocessed_cards = db.query(GeminiSource).filter(GeminiSource.processed == False).order_by(GeminiSource.timestamp.asc()).limit(5).all()
+                
+                if not unprocessed_cards:
                     # Check for consistency check
                     project_to_check = db.query(Project).filter(Project.notes_since_last_check >= 5).first()
                     if project_to_check:
                         project_id_to_check = project_to_check.id
                 else:
-                    # Detach payload from DB transaction to prevent SQLite full-table lock
-                    target_id = unprocessed.id
-                    raw_title = unprocessed.title
-                    raw_content = unprocessed.content
-                    target_project_id = unprocessed.project_id
+                    # Detach payloads and mark as temporarily processing to lock them from other theoretical loops
+                    for card in unprocessed_cards:
+                        cards_to_process.append({
+                            'id': card.id,
+                            'title': card.title,
+                            'content': card.content,
+                            'project_id': card.project_id
+                        })
+                        # Mark as processed in DB to prevent duplicate pickup in next loop iteration if loop finishes fast
+                        card.processed = True
+                        card.title = "Processing 🔄 " + card.title
+                    db.commit()
             finally:
                 db.close()
 
-            if not unprocessed:
+            if not cards_to_process:
                 if project_id_to_check:
                     try:
                         await perform_consistency_check(project_id_to_check)
@@ -428,235 +669,13 @@ async def background_processor():
                 await asyncio.sleep(2)
                 continue
 
-            # Start of processing for this card
-            await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Initializing AI synthesis...", "progress": 10}))
+            # Process the batch concurrently
+            tasks = [process_single_card(c) for c in cards_to_process]
+            await asyncio.gather(*tasks)
 
-            smart_title = raw_title
-            if gemini_client:
-                try:
-                    # 1. Fetch existing themes
-                    db_themes = SessionLocal()
-                    try:
-                        existing_themes = db_themes.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id).all()
-                        theme_names = [t.theme_name for t in existing_themes]
-                    finally:
-                        db_themes.close()
-                    
-                    # 2. Extract Multiple Topics & Generate Title
-                    extract_prompt = f"""
-                    You are a data architect categorizing a new brainstorm note.
-                    Extract all distinct high-fidelity architectural or technical topics from this raw note. 
-                    If a topic strongly matches an existing theme from this project, use that EXACT existing theme name.
-                    Current existing themes for this project: {theme_names if theme_names else 'None'}
-                    
-                    New Note Content:
-                    {raw_content}
-                    
-                    Return ONLY a JSON array of objects with 'topic' and 'content'.
-                    Example format: [{{"topic": "Theme Name", "content": "Detailed synthesis of the topic..."}}]
-                    """
-                    
-                    title_prompt = f"You are a neat summarization bot. Create a professional, catchy, 3 to 6 word title summarizing this interaction. Do not use quotes, labels, or generic prefixes. Only return the title itself.\n\nText: {raw_content[:1500]}"
-                    
-                    await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Extracting architectural themes...", "progress": 30}))
-                    
-                    extract_res = await gemini_client.aio.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=extract_prompt,
-                        config={'response_mime_type': 'application/json'}
-                    )
-                    
-                    title_res = await gemini_client.aio.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=title_prompt
-                    )
-                    
-                    temp_db = SessionLocal()
-                    try:
-                        await log_token_usage(temp_db, "Note Categorization", "gemini-2.5-flash", extract_res, project_id=target_project_id)
-                        await log_token_usage(temp_db, "Note Titling", "gemini-2.5-flash", title_res, project_id=target_project_id)
-                    finally:
-                        temp_db.close()
-                        
-                    smart_title = title_res.text.strip().strip('"').strip("'")
-                    if len(smart_title) > 100:
-                        smart_title = smart_title[:100]
-                        
-                    # Parse JSON
-                    try:
-                        topics = json.loads(extract_res.text)
-                    except Exception:
-                        topics = [{"topic": "General Notes", "content": raw_content}]
-                        
-                    # 3. Continuous Agentic Memory Merge
-                    await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Weaving into Agentic Memory...", "progress": 60}))
-                    
-                    for item in topics:
-                        topic_name = item.get("topic")
-                        topic_content = item.get("content")
-                        if not topic_name or not topic_content: continue
-                        
-                        db_merge = SessionLocal()
-                        try:
-                            # Embed topic to check Pinecone
-                            vector = None
-                            if pinecone_index is not None:
-                                try:
-                                    embed_res = await gemini_client.aio.models.embed_content(
-                                        model='text-embedding-004',
-                                        contents=f"Topic: {topic_name}\n\n{topic_content}"
-                                    )
-                                    vector = embed_res.embeddings[0].values
-                                except Exception as e:
-                                    print("Embedding failed:", e)
-                                    
-                            theme_record = None
-                            if vector and pinecone_index is not None:
-                                try:
-                                    pinecone_query = pinecone_index.query(vector=vector, top_k=1, namespace="synapseip_themes")
-                                    if pinecone_query.get('matches') and pinecone_query['matches'][0]['score'] > 0.80:
-                                        match_id = pinecone_query['matches'][0]['id']
-                                        if match_id.startswith("theme_"):
-                                            db_theme_id = int(match_id.split("_")[1])
-                                            theme_record = db_merge.query(ProjectTheme).filter(ProjectTheme.id == db_theme_id, ProjectTheme.project_id == target_project_id).first()
-                                except Exception as e:
-                                    print("Pinecone theme query failed:", e)
-                                    
-                            if not theme_record:
-                                # Fallback match by name
-                                theme_record = db_merge.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id, ProjectTheme.theme_name == topic_name).first()
-                                
-                            if theme_record:
-                                # Intelligent Merge
-                                merge_prompt = f"""
-                                You are a highly analytical AI Synthesizer. Your job is to update an existing architecture document theme with new information.
-                                Do NOT lose any important technical details, requirements, or insights from either text.
-                                Seamlessly weave the new note's insights into the existing theme document. Do not just append it to the end; synthesize it logically.
-                                
-                                EXISTING THEME DOCUMENT:
-                                {theme_record.content}
-                                
-                                NEW NOTE TO INTEGRATE:
-                                {topic_content}
-                                
-                                Output ONLY the newly synthesized and merged Markdown document.
-                                """
-                                merge_res = await gemini_client.aio.models.generate_content(
-                                    model='gemini-2.5-flash',
-                                    contents=merge_prompt
-                                )
-                                theme_record.content = merge_res.text.strip()
-                                db_merge.commit()
-                            else:
-                                # New Theme
-                                theme_record = ProjectTheme(
-                                    project_id=target_project_id,
-                                    theme_name=topic_name,
-                                    content=f"## {topic_name}\n\n{topic_content}"
-                                )
-                                db_merge.add(theme_record)
-                                db_merge.commit()
-                                db_merge.refresh(theme_record)
-                                
-                            # Upsert Synthesized Vector to Pinecone
-                            if pinecone_index is not None:
-                                try:
-                                    final_embed = await gemini_client.aio.models.embed_content(
-                                        model='text-embedding-004',
-                                        contents=f"Topic: {theme_record.theme_name}\n\n{theme_record.content}"
-                                    )
-                                    final_vector = final_embed.embeddings[0].values
-                                    pinecone_index.upsert(
-                                        vectors=[(f"theme_{theme_record.id}", final_vector, {"title": theme_record.theme_name, "content": theme_record.content})],
-                                        namespace="synapseip_themes"
-                                    )
-                                except Exception as e:
-                                    print("Upsert theme failed:", e)
-                                    
-                        finally:
-                            db_merge.close()
-                    
-                    # 4. Generate Suggested Themes
-                    await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Upserting to Pinecone Vector DB...", "progress": 80}))
-                    
-                    db_sugg = SessionLocal()
-                    try:
-                        current_themes = db_sugg.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id).all()
-                        current_theme_names = [t.theme_name for t in current_themes]
-                        
-                        sugg_prompt = f"""
-                        You are an expert app architect.
-                        Currently captured themes for this app project: {current_theme_names}
-                        
-                        What are 3-4 critical architectural themes that are MISSING and still need to be brainstormed?
-                        Examples could include: "Authentication & Security", "Monetization", "Database Schema", "UI/UX System", "Third-party APIs".
-                        Output ONLY a raw JSON array of strings representing the missing theme names. No markdown blocks, no explanation.
-                        """
-                        
-                        sugg_res = await gemini_client.aio.models.generate_content(
-                            model='gemini-2.5-flash',
-                            contents=sugg_prompt
-                        )
-                        await log_token_usage(db_sugg, "Theme Suggestion", "gemini-2.5-flash", sugg_res, project_id=target_project_id)
-                        
-                        clean_sugg = sugg_res.text.strip()
-                        if clean_sugg.startswith("```json"):
-                            clean_sugg = clean_sugg[7:-3].strip()
-                        elif clean_sugg.startswith("```"):
-                            clean_sugg = clean_sugg[3:-3].strip()
-                            
-                        project = db_sugg.query(Project).filter(Project.id == target_project_id).first()
-                        if project:
-                            project.suggested_themes = clean_sugg
-                            db_sugg.commit()
-                    finally:
-                        db_sugg.close()
-                    
-                    await manager.broadcast("themes_updated")
-                    
-                except Exception as e:
-                    print("Background processing theme consolidation failed.", e)
-                    smart_title = f"⚠️ Processing Failed: {str(e)[:50]}"
-            
-            # Reopen connection for swift instantaneous commit
-            db2 = SessionLocal()
-            try:
-                finished_item = db2.query(GeminiSource).filter(GeminiSource.id == target_id).first()
-                if finished_item:
-                    finished_item.title = smart_title
-                    finished_item.processed = True
-                    
-                    p = db2.query(Project).filter(Project.id == target_project_id).first()
-                    if p:
-                        p.notes_since_last_check += 1
-                        
-                    db2.commit()
-            finally:
-                db2.close()
-
-            # Notify UI to update instantly
-            await manager.broadcast("new_source")
-            await manager.broadcast(json.dumps({"type": "source_progress_complete", "source_id": target_id}))
         except Exception as e:
-            print("Error in background processor:", e)
-            try:
-                if 'target_id' in locals():
-                    db_err = SessionLocal()
-                    try:
-                        err_item = db_err.query(GeminiSource).filter(GeminiSource.id == target_id).first()
-                        if err_item and not err_item.processed:
-                            import traceback
-                            tb = traceback.format_exc()
-                            err_item.title = f"⚠️ Processing Failed: {str(e)[:50]}"
-                            err_item.content = err_item.content + f"\n\n--- DIAGNOSTICS ---\n{tb}"
-                            err_item.processed = True
-                            db_err.commit()
-                            await manager.broadcast("new_source")
-                            await manager.broadcast(json.dumps({"type": "source_progress_complete", "source_id": target_id}))
-                    finally:
-                        db_err.close()
-            except Exception as inner_e:
-                print("Failed to handle poison pill:", inner_e)
+            print("Outer error in background processor loop:", e)
+            
         await asyncio.sleep(2)
 
 def _run_one_time_migration():
