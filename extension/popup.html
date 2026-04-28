@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SynapseIP Vision Capture</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      width: 300px;
+      margin: 0;
+      padding: 16px;
+      background: #0f1115;
+      color: #f1f5f9;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 16px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .description {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 16px;
+    }
+    button {
+      width: 100%;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.2s;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    button:disabled {
+      background: #334155;
+      color: #94a3b8;
+      cursor: not-allowed;
+    }
+    #status {
+      margin-top: 12px;
+      font-size: 12px;
+      text-align: center;
+      min-height: 16px;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+  <h2>👁️ Vision Ingestion</h2>
+  <p class="description">Capture the current screen to extract design tokens (colors, layout rules, typography) into the Agentic Memory.</p>
+  
+  <button id="capture-btn">📸 Capture UI Inspiration</button>
+  <div id="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

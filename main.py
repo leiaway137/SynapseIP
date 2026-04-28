@@ -5,8 +5,10 @@ import json
 import asyncio
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 from typing import List, Optional
 import httpx
+import base64
 
 from fastapi import FastAPI, HTTPException, Depends, Request, WebSocket, WebSocketDisconnect, BackgroundTasks, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -238,6 +240,11 @@ class SourceCreate(BaseModel):
     content: str
     source_url: str
     project_id: Optional[int] = None
+
+class VisionSourceCreate(BaseModel):
+    project_id: int
+    source_url: str
+    image_base64: str
 
 class ProjectCreate(BaseModel):
     name: str
@@ -1293,8 +1300,62 @@ async def ingest_source(source: SourceCreate, background_tasks: BackgroundTasks,
         timestamp=db_source.timestamp,
         source_url=db_source.source_url,
         total_count=total,
-        processed=False
+        processed=db_source.processed
     )
+
+@app.post("/api/ext/sources/vision")
+async def ingest_vision_source(
+    req: VisionSourceCreate, 
+    background_tasks: BackgroundTasks, 
+    current_user: User = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    """Extension endpoint to capture UI designs, run vision extraction, and save as a standard text source."""
+    if not gemini_client:
+        raise HTTPException(status_code=500, detail="Gemini client not initialized")
+        
+    try:
+        # Decode base64 image (stripping data URL scheme if present)
+        b64_str = req.image_base64
+        if "," in b64_str:
+            b64_str = b64_str.split(",")[1]
+        image_bytes = base64.b64decode(b64_str)
+        
+        prompt = "You are an expert UI/UX Engineer. Analyze this UI screenshot. Extract the layout constraints, styling rules, typography hints, and exact hex color palettes. Output a structured markdown design token summary."
+        
+        response = await gemini_client.aio.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg'),
+                prompt
+            ]
+        )
+        
+        extracted_content = response.text.strip()
+        
+        db_source = GeminiSource(
+            user_id=current_user.id,
+            project_id=req.project_id,
+            title=f"Vision Extraction: {req.source_url[:30]}...",
+            content=extracted_content,
+            source_url=req.source_url,
+            timestamp=datetime.utcnow(),
+            processed=False
+        )
+        db.add(db_source)
+        project = db.query(Project).filter(Project.id == req.project_id).first()
+        if project:
+            project.is_consistent = False
+        db.commit()
+        db.refresh(db_source)
+        
+        background_tasks.add_task(generate_short_memory, str(db_source.id))
+        await manager.broadcast("new_source")
+        
+        return {"status": "success", "source_id": db_source.id}
+    except Exception as e:
+        print(f"Vision ingestion error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/search")
 async def semantic_search(q: str, current_user: User = Depends(get_current_user)):

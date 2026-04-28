@@ -9,6 +9,7 @@
     "clipboardRead"
   ],
   "host_permissions": [
+    "<all_urls>",
     "https://chatgpt.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*",
@@ -49,6 +50,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "SynapseIP Messenger Active"
+    "default_title": "SynapseIP Messenger",
+    "default_popup": "popup.html"
   }
 }
