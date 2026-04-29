@@ -504,7 +504,7 @@ async def process_single_card(unprocessed_dict):
                         theme_record = None
                         if vector and pinecone_index is not None:
                             try:
-                                pinecone_query = await asyncio.to_thread(pinecone_index.query, vector=vector, top_k=1, namespace="synapseip_themes")
+                                pinecone_query = await asyncio.to_thread(pinecone_index.query, vector=vector, top_k=20, namespace="synapseip_themes")
                                 if pinecone_query.get('matches') and pinecone_query['matches'][0]['score'] > 0.80:
                                     match_id = pinecone_query['matches'][0]['id']
                                     if match_id.startswith("theme_"):
@@ -1631,7 +1631,7 @@ async def semantic_search(q: str, current_user: User = Depends(get_current_user)
         
         results = pinecone_index.query(
             vector=vector,
-            top_k=5,
+            top_k=20,
             namespace="synapseip_notes",
             include_metadata=True
         )
@@ -1725,18 +1725,23 @@ async def onboarding_chat(req: OnboardingRequest, current_user: User = Depends(g
                     contents=last_query,
                 )
                 vector = res.embeddings[0].values
-                pinecone_query = pinecone_index.query(vector=vector, top_k=3, namespace="synapseip_notes")
-                relevant_ids = [str(match['id']) for match in pinecone_query.get('matches', [])]
+                pinecone_query = pinecone_index.query(vector=vector, top_k=20, namespace="synapseip_themes")
+                relevant_ids = [int(match['id'].split("_")[1]) for match in pinecone_query.get('matches', []) if match['id'].startswith("theme_")]
             except Exception as e:
                 print("Pinecone warning on onboarding:", e)
                 
         memories = []
+        if project and relevant_ids:
+            # Inject relevant synthesized themes
+            db_themes = db.query(ProjectTheme).filter(ProjectTheme.id.in_(relevant_ids), ProjectTheme.project_id == project.id).all()
+            for t in db_themes:
+                memories.append(f"RELEVANT ARCHITECTURE THEME: {t.theme_name}\n{t.content}")
+        
+        # Also include short memories from raw cards for broad context
         for s in sources:
-            if str(s.id) in relevant_ids:
-                memories.append(f"RELEVANT FULL SOURCE: {s.title}\n{s.content}")
-            else:
-                mem = s.short_memory if s.short_memory else "(Memory processing...)"
-                memories.append(f"Source Outline: {s.title}\n{mem}")
+            mem = s.short_memory if s.short_memory else "(Memory processing...)"
+            memories.append(f"Raw Source Context: {s.title}\n{mem}")
+            
         context_text = "\n\n".join(memories) if memories else "No sources provided yet."
     
     context_text = truncate_context_for_tokens(context_text)
@@ -2307,7 +2312,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                         contents=query_text
                     )
                     vector = res.embeddings[0].values
-                    pinecone_query = pinecone_index.query(vector=vector, top_k=3, namespace="synapseip_themes")
+                    pinecone_query = pinecone_index.query(vector=vector, top_k=20, namespace="synapseip_themes")
                     
                     relevant_ids = [int(match['id'].split("_")[1]) for match in pinecone_query.get('matches', []) if match['id'].startswith("theme_")]
                     if relevant_ids:
