@@ -1303,13 +1303,14 @@ async def sync_pinecone():
     try:
         themes = db.query(ProjectTheme).all()
         upserted_count = 0
+        failed_themes = []
         
         for theme in themes:
             try:
                 # Generate fresh embedding for the theme
                 embed_res = await gemini_client.aio.models.embed_content(
                     model='gemini-embedding-2',
-                    contents=f"Topic: {theme.theme_name}\n\n{theme.content}"
+                    contents=f"Topic: {theme.theme_name}\n\n{theme.content}"[:10000] # Safe truncate
                 )
                 vector = embed_res.embeddings[0].values
                 
@@ -1317,15 +1318,15 @@ async def sync_pinecone():
                 import asyncio
                 await asyncio.to_thread(
                     pinecone_index.upsert,
-                    vectors=[(f"theme_{theme.id}", vector, {"title": theme.theme_name, "content": theme.content})],
+                    vectors=[(f"theme_{theme.id}", vector, {"title": theme.theme_name, "content": theme.content[:10000]})],
                     namespace="synapseip_themes"
                 )
                 upserted_count += 1
                 await asyncio.sleep(1) # Prevent rate limits
             except Exception as e:
-                print(f"Failed to sync theme {theme.id}: {e}")
+                failed_themes.append({"id": theme.id, "name": theme.theme_name, "length": len(theme.content), "error": str(e)})
                 
-        return {"status": "success", "themes_synced": upserted_count, "total_db_themes": len(themes)}
+        return {"status": "success", "themes_synced": upserted_count, "total_db_themes": len(themes), "failed_themes": failed_themes}
     finally:
         db.close()
 
