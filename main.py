@@ -1330,6 +1330,50 @@ async def sync_pinecone():
     finally:
         db.close()
 
+@app.post("/api/admin/reformat-intel")
+def reformat_intel():
+    """Quick fix to reformat the most recent Intel Report without regenerating."""
+    import re
+    import json
+    db = SessionLocal()
+    try:
+        report = db.query(ProjectIntel).order_by(ProjectIntel.id.desc()).first()
+        if not report:
+            return {"error": "No reports found"}
+            
+        data = json.loads(report.report_data)
+        
+        # Helper to fix spacing
+        def fix_spacing(text):
+            if not text: return text
+            t = text
+            t = t.replace("###", "\n\n###")
+            t = t.replace("**Strengths:**", "\n\n**Strengths:**\n")
+            t = t.replace("**Weaknesses:**", "\n\n**Weaknesses:**\n")
+            t = t.replace("**Opportunities:**", "\n\n**Opportunities:**\n")
+            t = t.replace("**Threats:**", "\n\n**Threats:**\n")
+            t = t.replace("**Benefits:**", "\n\n**Benefits:**\n")
+            t = t.replace("**Costs:**", "\n\n**Costs:**\n")
+            t = t.replace("Benefits:", "\n\n**Benefits:**\n")
+            t = t.replace("Costs:", "\n\n**Costs:**\n")
+            t = t.replace("* ", "\n* ")
+            # clean up multiple newlines
+            t = re.sub(r'\n{3,}', '\n\n', t)
+            return t.strip()
+            
+        if "market_analysis" in data:
+            data["market_analysis"] = fix_spacing(data["market_analysis"])
+        if "swot" in data:
+            data["swot"] = fix_spacing(data["swot"])
+        if "cost_benefit" in data:
+            data["cost_benefit"] = fix_spacing(data["cost_benefit"])
+            
+        report.report_data = json.dumps(data)
+        db.commit()
+        return {"status": "success", "fixed_id": report.id}
+    finally:
+        db.close()
+
 @app.get("/api/projects/{project_id}/themes")
 def get_project_themes(response: Response, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
     """Return all active themes for this project."""
