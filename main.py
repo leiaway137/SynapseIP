@@ -1923,10 +1923,10 @@ async def analyze_sources(req: AnalyzeRequest, current_user: User = Depends(get_
     2. Use `##` for Chapter Titles / Core Categories.
     3. Use `###` for all Sub-headers. 
     4. Use `---` (horizontal rules) to separate distinct logic blocks.
-    5. All data points MUST be in a bulleted list (`*`) or a Markdown table.
-    - Format `market_analysis` properly: Start each competitor/alternative section with a strict `### Target Competitor Name` header on its own line, followed by detailed bullet points underneath. Do NOT nest headers inside bullets!
-    - Format `swot` properly: MUST be formatted in Markdown with bold categories (**Strengths:**) and double line breaks (`\n\n`) between each category.
-    - Format `cost_benefit` properly: MUST be formatted in Markdown with two distinct headers (**Benefits** and **Costs**), and the points under each must be formatted as a bulleted list.
+    5. VERY IMPORTANT: You must use double line breaks (`\n\n`) to separate paragraphs and ideas! DO NOT output massive walls of text. Use bullet points (`* `) extensively for high readability.
+    - Format `market_analysis` properly: Start each competitor/alternative section with a strict `### Target Competitor Name` header on its own line, followed by double line breaks (`\n\n`), and then detailed bullet points underneath. Do NOT nest headers inside bullets!
+    - Format `swot` properly: MUST be formatted in Markdown with bold categories (**Strengths:**), bullet points under each category, and double line breaks (`\n\n`) separating them.
+    - Format `cost_benefit` properly: MUST be formatted in Markdown with two distinct headers (**Benefits** and **Costs**), with a bulleted list (`* `) under each. Use double line breaks (`\n\n`) between items!
     - Format `blindspots` properly: MUST be formatted as a Markdown bulleted list, with double line breaks (`\n\n`) between each bullet point.
     
     Brainstorm Context:
