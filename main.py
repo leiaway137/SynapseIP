@@ -1335,44 +1335,49 @@ def reformat_intel():
     """Quick fix to reformat the most recent Intel Report without regenerating."""
     import re
     import json
-    db = SessionLocal()
+    import traceback
+    
     try:
-        report = db.query(ProjectIntel).order_by(ProjectIntel.id.desc()).first()
-        if not report:
-            return {"error": "No reports found"}
+        db = SessionLocal()
+        try:
+            report = db.query(GeneratedReport).order_by(GeneratedReport.id.desc()).first()
+            if not report:
+                return {"error": "No reports found"}
+                
+            data = json.loads(report.report_data)
             
-        data = json.loads(report.report_data)
-        
-        # Helper to fix spacing
-        def fix_spacing(text):
-            if not text: return text
-            t = text
-            t = t.replace("###", "\n\n###")
-            t = t.replace("**Strengths:**", "\n\n**Strengths:**\n")
-            t = t.replace("**Weaknesses:**", "\n\n**Weaknesses:**\n")
-            t = t.replace("**Opportunities:**", "\n\n**Opportunities:**\n")
-            t = t.replace("**Threats:**", "\n\n**Threats:**\n")
-            t = t.replace("**Benefits:**", "\n\n**Benefits:**\n")
-            t = t.replace("**Costs:**", "\n\n**Costs:**\n")
-            t = t.replace("Benefits:", "\n\n**Benefits:**\n")
-            t = t.replace("Costs:", "\n\n**Costs:**\n")
-            t = t.replace("* ", "\n* ")
-            # clean up multiple newlines
-            t = re.sub(r'\n{3,}', '\n\n', t)
-            return t.strip()
-            
-        if "market_analysis" in data:
-            data["market_analysis"] = fix_spacing(data["market_analysis"])
-        if "swot" in data:
-            data["swot"] = fix_spacing(data["swot"])
-        if "cost_benefit" in data:
-            data["cost_benefit"] = fix_spacing(data["cost_benefit"])
-            
-        report.report_data = json.dumps(data)
-        db.commit()
-        return {"status": "success", "fixed_id": report.id}
-    finally:
-        db.close()
+            # Helper to fix spacing
+            def fix_spacing(text):
+                if not text: return text
+                t = str(text)
+                t = t.replace("###", "\n\n###")
+                t = t.replace("**Strengths:**", "\n\n**Strengths:**\n")
+                t = t.replace("**Weaknesses:**", "\n\n**Weaknesses:**\n")
+                t = t.replace("**Opportunities:**", "\n\n**Opportunities:**\n")
+                t = t.replace("**Threats:**", "\n\n**Threats:**\n")
+                t = t.replace("**Benefits:**", "\n\n**Benefits:**\n")
+                t = t.replace("**Costs:**", "\n\n**Costs:**\n")
+                t = t.replace("Benefits:", "\n\n**Benefits:**\n")
+                t = t.replace("Costs:", "\n\n**Costs:**\n")
+                t = t.replace("* ", "\n* ")
+                # clean up multiple newlines
+                t = re.sub(r'\n{3,}', '\n\n', t)
+                return t.strip()
+                
+            if "market_analysis" in data:
+                data["market_analysis"] = fix_spacing(data["market_analysis"])
+            if "swot" in data:
+                data["swot"] = fix_spacing(data["swot"])
+            if "cost_benefit" in data:
+                data["cost_benefit"] = fix_spacing(data["cost_benefit"])
+                
+            report.report_data = json.dumps(data)
+            db.commit()
+            return {"status": "success", "fixed_id": report.id}
+        finally:
+            db.close()
+    except Exception as e:
+        return {"error": str(e), "trace": traceback.format_exc()}
 
 @app.get("/api/projects/{project_id}/themes")
 def get_project_themes(response: Response, project: Project = Depends(get_current_project), db: Session = Depends(get_db)):
@@ -2132,6 +2137,16 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         markdown_content += "---\n\n"
         markdown_content += f"## Executive Purpose\n{app_purpose}\n\n"
         markdown_content += "---\n\n"
+        markdown_content += "## 🧭 How to Use This Blueprint\n\n"
+        markdown_content += "> [!IMPORTANT]\n"
+        markdown_content += "> **The Backend-First Approach:** Because this application requires a robust data foundation, this blueprint is designed 'Backend-First'. This is different from a typical 'UI-First' vibe coding approach where you start with a visual mockup.\n> \n"
+        markdown_content += "> **What to expect:** For the first half of this blueprint, you are building the 'engine'—database schemas, APIs, and background pipelines. **You will not see a visual user interface during these steps.** Once the engine is secure, the later steps will guide you to build the frontend UI that connects to it.\n\n"
+        markdown_content += "### 💡 Copy-Paste Workflow\n"
+        markdown_content += "Every step in this document contains **Copy & Paste blocks** for your IDE's AI (like Cursor, Windsurf, or OpenClaw).\n"
+        markdown_content += "1. Copy the **Phase 1: Planning** block and paste it into your AI chat.\n"
+        markdown_content += "2. Wait for the AI to generate an `implementation_plan.md` and review it.\n"
+        markdown_content += "3. Once approved, copy the **Phase 2: Execution** block to instruct the AI to write the actual code.\n\n"
+        markdown_content += "---\n\n"
         markdown_content += "## Table of Contents\n\n"
     
         # Generate TOC
@@ -2160,7 +2175,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             You are an elite software architect.
             Define the golden standard `PROJECT_RULES.md` for a {normalized_platform} project.
             This will be used as a master template.
-            Include: 1. Tech Stack Version Lock, 2. Project Directory Structure (ASCII), 3. Component Modularity (150 lines max), 4. Data Fetching, 5. State Management, 6. UI/Styling constraints, 7. Testing Requirements, 8. API & Data Conventions, 9. Environment Variables Template, 10. Agent Safety Guardrails.
+            Include: 1. Tech Stack Version Lock (MUST include a strict 'Tech Matrix' explicitly declaring the chosen Frontend, Backend, Database, Deployment, and AI Provider), 2. Project Directory Structure (ASCII), 3. Component Modularity (150 lines max), 4. Data Fetching, 5. State Management (Explicitly define the architecture for Global vs Local state, and mandate that all UI components clearly declare which state they consume), 6. UI/Styling constraints, 7. Testing Requirements (Must explicitly mandate testing for both 'happy paths' (successful execution) AND 'error boundaries/edge cases' (failures), detailing unit vs integration strategies), 8. API & Data Conventions, 9. Environment Variables Template, 10. Agent Safety Guardrails (Must include mandatory verification checkpoints after each major sub-task, instructing the AI to run automated verification checks—like unit tests or tsc compile checks—to verify success before proceeding), 11. Data Validation Standards (Define how constraints like min/max lengths, required fields, and regex matching should be handled across the database, API, and frontend), 12. Error Handling & Edge Cases (Must define a standardized API error response schema, exact HTTP status codes to use, and conventions for handling edge cases like duplicate records or rate limits), 13. Infrastructure Physics (Use standard serverless API routes for simple tasks like streaming text, but establish an asynchronous 'Long-Running Task' pattern—e.g., background workers—ONLY for truly heavy processing like bulk scraping), 14. Separation of AI Concerns (Keep AI features simple for the MVP using single-shot prompts when possible. Only mandate secondary 'Evaluator AIs' or Human-in-the-Loop verification if the specific feature requires high-stakes precision), 15. Deterministic Data Contracts (When an AI feature returns data for a database or UI, you MUST mandate SDK-level Structured Outputs with strict JSON Schema definitions—e.g., passing a Zod schema to the AI provider API. Never rely on basic string prompting like 'Please return JSON').
             Output ONLY the raw text for the file. Do not wrap in markdown fences.
             """
             pro_res = await gemini_client.aio.models.generate_content(model='gemini-2.5-pro', contents=pro_prompt)
@@ -2330,7 +2345,12 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             markdown_content += f"## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='-1'> Step 0: Initialize Project Rules</label>\n\n"
             if mermaid_code:
                 markdown_content += f"### Architecture Overview\n```mermaid\n{mermaid_code}\n```\n\n"
-            markdown_content += "Create a `PROJECT_RULES.md` (or `.cursorrules`) file in the root of your project workspace and paste the following content into it. All subsequent steps will rely on these global instructions.\n\n"
+            markdown_content += "### ⚠️ Don't Panic! This file is huge.\n"
+            markdown_content += "The code block below contains the master architectural rules for your entire project. **You do not need to read or understand it.**\n\n"
+            markdown_content += "**Instructions:**\n"
+            markdown_content += "1. Create a file named `PROJECT_RULES.md` in the root folder of your project.\n"
+            markdown_content += "2. Copy the *entire* text block below and paste it into that file.\n"
+            markdown_content += "3. Your AI coding assistant will automatically read this file to ensure it doesn't break your architecture in future steps.\n\n"
             markdown_content += f"```text\n{rules_text}\n```\n\n---\n\n"
         except Exception as e:
             print(f"Failed to generate project rules: {e}")
@@ -2380,11 +2400,18 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             2. Provide exactly what to expect if it works or fails.
             3. Reference EXACT file paths from the project directory structure (defined in PROJECT_RULES.md). Do NOT invent or guess file paths. Use the established structure.
             4. If this step involves database operations, reference the exact table/column names from the schema defined in the earlier "Define Database Schema" step.
-            5. If this step involves API calls, reference the exact endpoint paths and payload shapes from the "Define API Contracts" step.
-            6. If this step involves UI, you MUST mandate explicit handling for Loading states (`isPending`), Empty states (no data), and Error states (API failure).
+            5. If this step involves API calls, reference the exact endpoint paths, payload shapes, AND specific error responses (e.g., 400 Bad Request for validation failure, 404 for not found) from the "Define API Contracts" step. You MUST explicitly define how edge cases are handled.
+            6. If this step involves UI, you MUST mandate explicit handling for Loading states (`isPending`), Empty states (no data), and Error states (API failure). Additionally, you MUST explicitly map out which components rely on Global State (e.g., Redux/Context/Zustand) versus Local State (e.g., useState).
             7. YOU MUST output the exact Vibe Coding prompts inside markdown code blocks so the user can easily copy and paste them into their IDE.
             8. IMPORTANT: DO NOT write out raw file contents (like `package.json`, `schema.sql`, or source code) in your response. The IDE's AI will generate the actual code. Your job is just to write the INSTRUCTION prompts for the IDE AI.
             9. BREAK PROMPTS INTO MULTIPLE PHASES: To prevent overwhelming the IDE's context window, break the instructions into two separate copy-paste blocks: "Phase 1: Planning" and "Phase 2: Execution".
+            10. DATA VALIDATION MANDATE: Whenever defining a database schema, API payload, or frontend form, you MUST list explicit data constraints (e.g., required fields, maximum character lengths, enum values, and specific regex patterns for fields like email/passwords). Never just say "String".
+            11. TESTING MANDATE: You MUST explicitly define exactly what needs to be tested for this step. This must include explicitly testing the 'Happy Path' (successful execution) and explicitly testing the 'Error Boundaries / Edge Cases' (failure states).
+            12. VERIFICATION CHECKPOINTS: Within the 'Phase 2: Execution' block, you MUST insert explicit 'Verification Checkpoints'. For example, instruct the agent to run automated verification checks (like a unit test or `npx tsc`) before proceeding to the frontend integration. Do not let the agent build the entire step blindly.
+            13. GLOBAL STATE REGISTRY CONSTRAINT: You MUST read the Tech Matrix defined in the PROJECT_RULES.md. You are STRICTLY FORBIDDEN from suggesting packages, cloud providers, or architectures that are not explicitly listed in that matrix. (e.g., If the matrix says Vercel, do not suggest AWS Lambda).
+            14. INFRASTRUCTURE PHYSICS: Use standard serverless API routes for simple tasks (like streaming AI chat). You should ONLY mandate a decoupled asynchronous queue pattern (e.g., background workers) for truly heavy, long-running tasks like bulk scraping.
+            15. SEPARATION OF AI CONCERNS: Keep AI features simple for the MVP (single-shot prompts). You should ONLY architect distinct Generate and Evaluate operations (secondary Evaluator AI) if the specific feature requires high-stakes precision.
+            16. STRUCTURED OUTPUTS MANDATE: If this step involves an AI generating structured data (like JSON), you are STRICTLY FORBIDDEN from instructing the coding AI to just use a text prompt like 'return JSON'. You MUST instruct the coding AI to define a strict JSON Schema (e.g., using Zod) and pass it directly into the AI provider's SDK to enforce deterministic structured outputs.
             
             STRICT FORMATTING TEMPLATE YOU MUST FOLLOW:
             
@@ -2490,6 +2517,16 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     
                     Does the Drafted Chapter strictly adhere to the Project Rules and Previous Context? 
                     Does it hallucinate databases, columns, NPM packages, or UI components that contradict established architecture?
+                    Does it explicitly define Data Validation constraints (min/max length, required, enums) for all schemas and forms? If it defines a schema without constraints, it is a violation.
+                    Does it explicitly define standard HTTP error responses and edge-case behaviors for all newly defined API endpoints? If an API contract lacks an error schema or edge-case handling, it is a violation.
+                    Does it explicitly define Testing Requirements covering both successful paths and error boundaries for this step? If it omits specific testing criteria, it is a violation.
+                    Does it explicitly include Verification Checkpoints instructing the coding agent to run automated verification checks (e.g., test API before building UI)? If it lacks verification checkpoints, it is a violation.
+                    If the drafted step involves UI components, does it explicitly map out which state is Global vs Local? If it introduces UI state ambiguously, it is a violation.
+                    Does the draft suggest any technology, package, or cloud service (e.g., AWS, OpenAI, React Native) that contradicts the locked Tech Matrix in the Project Rules? If it violates the Tech Matrix, it is a critical violation.
+                    If the draft involves truly heavy processing (e.g., bulk scraping), does it use a decoupled asynchronous queue pattern? If it places heavy processing in a standard serverless API route, it is a critical violation. (Note: simple AI streaming chat in an API route is permitted).
+                    If the draft requires high-stakes precision, does it mandate a secondary Evaluator AI? If it commits the 'Self-Grading Homework Fallacy' for high-stakes logic, it is a violation. (Note: simple MVP AI features can use single-shot prompts).
+                    Does the draft instruct an AI to generate JSON by just asking for it in a text prompt? If it fails to mandate SDK-level Structured Outputs (e.g., passing a JSON Schema constraint to the provider API), it is a critical violation.
+                    Does the technical instruction provided in the draft ACTUALLY accomplish the specific goal stated in its Title? You must cross-reference the Title, Rationale, and Execution blocks for semantic alignment. If the draft hallucinates instructions (e.g., instructing the agent to build a UI when the title explicitly says Database Setup), it is a critical violation.
                     { "Does it fix the hallucinated paths mentioned above?" if invalid_paths else "" }
                     
                     Return a JSON object exactly like this:
