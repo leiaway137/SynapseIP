@@ -135,11 +135,13 @@ if os.path.exists(seed_db_path):
         except Exception as e:
             print("❌ Failed to seed database:", e)
 
-# Force SQLite connection string, ignoring any legacy DATABASE_URL
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{target_db_path}"
-
-# Initialize SQLite engine
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# Allow deployment to Render (Postgres) via DATABASE_URL, fallback to SQLite locally
+if os.getenv("DATABASE_URL"):
+    SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL").replace("postgres://", "postgresql://")
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
+else:
+    SQLALCHEMY_DATABASE_URL = f"sqlite:///{target_db_path}"
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -193,6 +195,17 @@ class ArchitectBlueprint(Base):
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     blueprint_data = Column(Text)
     timestamp = Column(DateTime, default=datetime.utcnow)
+
+class ArchitectDraftState(Base):
+    __tablename__ = "architect_draft_states"
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), unique=True)
+    current_loop = Column(Integer, default=0)
+    loop0_draft = Column(Text, nullable=True)
+    loop1_draft = Column(Text, nullable=True)
+    loop2_draft = Column(Text, nullable=True)
+    loop3_outline = Column(Text, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class ProjectTheme(Base):
     __tablename__ = "project_themes"
@@ -311,6 +324,25 @@ class BulkDeleteRequest(BaseModel):
 class OutlineSchema(BaseModel):
     chapters: list[str]
 
+class ArchitectLoopRequest(BaseModel):
+    project_id: int
+    target_platform: str
+    designer_name: str
+    app_name: str
+    app_purpose: str
+    budget_constraints: str
+    ai_integration: str
+    security_auth: str
+    build_environment: str
+    standout_features: list[str]
+    feedback: Optional[str] = None
+
+class ArchitectStateResponse(BaseModel):
+    current_loop: int
+    loop0_draft: Optional[str] = None
+    loop1_draft: Optional[str] = None
+    loop2_draft: Optional[str] = None
+
 class ChatMessage(BaseModel):
     role: str
     content: str
@@ -412,48 +444,62 @@ async def process_single_card(unprocessed_dict):
             finally:
                 db_themes.close()
             
-            # 2. Extract Multiple Topics & Generate Title (IN PARALLEL)
-            extract_prompt = f"""
-            Analyze the following brainstorm note and output a JSON object with two fields:
-            1. "summary": A brief 1-sentence summary of what this note is about.
-            2. "topics": An array of specific architectural components, UI features, or concepts discussed in the text.
-            
-            CRITICAL RULES:
-            - You MUST extract a maximum of 5 topics. Only pick the top 3 to 5 most important core concepts.
-            - If a topic strongly matches an existing theme from this project, use that EXACT existing theme name.
-            - Current existing themes for this project: {theme_names if theme_names else 'None'}
-            
-            JSON FORMAT:
-            {{
-                "summary": "...",
-                "topics": [
-                    {{"topic": "Theme Name", "content": "The actual detailed insight from the text"}}
-                ]
-            }}
-            
-            Raw Note: {raw_content}
-            """
+            # 2. Extract Multiple Topics & Generate Title (Chunked to prevent 128k penalty)
+            content_chunks = [raw_content[i:i+300000] for i in range(0, len(raw_content), 300000)]
+            all_topics = []
             
             title_prompt = f"You are a neat summarization bot. Create a professional, catchy, 3 to 6 word title summarizing this interaction. Do not use quotes, labels, or generic prefixes. Only return the title itself.\n\nText: {raw_content[:1500]}"
+            title_res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=title_prompt)
             
-            await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Extracting architectural themes...", "progress": 30}))
+            await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": f"Extracting architectural themes (0/{len(content_chunks)} chunks)...", "progress": 30}))
             
-            # Run LLM calls in parallel
-            extract_task = gemini_client.aio.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=extract_prompt,
-                config={'response_mime_type': 'application/json'}
-            )
-            title_task = gemini_client.aio.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=title_prompt
-            )
-            
-            extract_res, title_res = await asyncio.gather(extract_task, title_task)
-            
+            for chunk_idx, chunk in enumerate(content_chunks):
+                extract_prompt = f"""
+                Analyze the following brainstorm note and output a JSON object with two fields:
+                1. "summary": A brief 1-sentence summary of what this note is about.
+                2. "topics": An array of specific architectural components, UI features, or concepts discussed in the text.
+                
+                CRITICAL RULES:
+                - You MUST extract a maximum of 5 topics. Only pick the top 3 to 5 most important core concepts.
+                - If a topic strongly matches an existing theme from this project, use that EXACT existing theme name.
+                - Current existing themes for this project: {theme_names if theme_names else 'None'}
+                
+                JSON FORMAT:
+                {{
+                    "summary": "...",
+                    "topics": [
+                        {{"topic": "Theme Name", "content": "The actual detailed insight from the text"}}
+                    ]
+                }}
+                
+                Raw Note (Part {chunk_idx+1}/{len(content_chunks)}): {chunk}
+                """
+                
+                extract_res = await gemini_client.aio.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=extract_prompt,
+                    config={'response_mime_type': 'application/json'}
+                )
+                
+                temp_db = SessionLocal()
+                try:
+                    await log_token_usage(temp_db, f"Note Categorization (Chunk {chunk_idx+1})", "gemini-2.5-flash", extract_res, project_id=target_project_id)
+                finally:
+                    temp_db.close()
+                    
+                try:
+                    parsed = json.loads(extract_res.text.replace('```json', '').replace('```', '').strip())
+                    chunk_topics = parsed.get("topics", []) if isinstance(parsed, dict) else parsed
+                    if isinstance(chunk_topics, list):
+                        all_topics.extend(chunk_topics)
+                except Exception:
+                    pass
+                
+                await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": f"Extracting architectural themes ({chunk_idx+1}/{len(content_chunks)} chunks)...", "progress": 30 + int(20 * (chunk_idx+1)/len(content_chunks))}))
+                await asyncio.sleep(1) # Prevent rate limits
+                
             temp_db = SessionLocal()
             try:
-                await log_token_usage(temp_db, "Note Categorization", "gemini-2.5-flash", extract_res, project_id=target_project_id)
                 await log_token_usage(temp_db, "Note Titling", "gemini-2.5-flash", title_res, project_id=target_project_id)
             finally:
                 temp_db.close()
@@ -462,17 +508,7 @@ async def process_single_card(unprocessed_dict):
             if len(smart_title) > 100:
                 smart_title = smart_title[:100]
                 
-            try:
-                parsed = json.loads(extract_res.text.replace('```json', '').replace('```', '').strip())
-                if isinstance(parsed, dict) and "topics" in parsed:
-                    topics = parsed["topics"]
-                else:
-                    topics = parsed
-                    
-                if not isinstance(topics, list):
-                    topics = []
-            except Exception:
-                topics = [{"topic": "General Notes", "content": raw_content}]
+            topics = all_topics if all_topics else [{"topic": "General Notes", "content": raw_content[:1500]}]
                 
             # 3. Continuous Agentic Memory Merge (WITH PROJECT LOCK)
             await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Waiting for Agentic Memory Lock...", "progress": 50}))
@@ -528,12 +564,14 @@ async def process_single_card(unprocessed_dict):
                             NEW NOTE TO INTEGRATE:
                             {topic_content}
                             
+                            CRITICAL RULE: The final merged output MUST NEVER exceed 500 words. Aggressively condense older information to make room for the new insight to prevent the theme from becoming bloated.
                             Output ONLY the newly synthesized and merged Markdown document.
                             """
                             merge_res = await gemini_client.aio.models.generate_content(
                                 model='gemini-2.5-flash',
                                 contents=merge_prompt
                             )
+                            await log_token_usage(db_merge, "Memory Synthesis", "gemini-2.5-flash", merge_res, project_id=target_project_id)
                             theme_record.content = merge_res.text.strip()
                             db_merge.commit()
                         else:
@@ -877,9 +915,15 @@ async def log_token_usage(db: Session, action: str, model: str, res, project_id:
         
         cost = 0.0
         if "flash" in model.lower():
-            cost = (in_toks / 1000000.0) * 0.075 + (out_toks / 1000000.0) * 0.30
+            if in_toks <= 128000:
+                cost = (in_toks / 1000000.0) * 0.075 + (out_toks / 1000000.0) * 0.30
+            else:
+                cost = (in_toks / 1000000.0) * 0.15 + (out_toks / 1000000.0) * 0.60
         elif "pro" in model.lower():
-            cost = (in_toks / 1000000.0) * 1.25 + (out_toks / 1000000.0) * 5.00
+            if in_toks <= 128000:
+                cost = (in_toks / 1000000.0) * 1.25 + (out_toks / 1000000.0) * 5.00
+            else:
+                cost = (in_toks / 1000000.0) * 2.50 + (out_toks / 1000000.0) * 10.00
             
         final_user_id = user_id
         if project_id:
@@ -2071,7 +2115,7 @@ async def verify_npm_packages(packages: List[str]) -> List[str]:
                 # Assume valid if registry times out
     return invalid_packages
 
-async def generate_architect_report(project_id: int, source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str, budget_constraints: str, ai_integration: str, security_auth: str, build_environment: str):
+async def generate_architect_report(project_id: int, source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str, budget_constraints: str, ai_integration: str, security_auth: str, build_environment: str, loop0_draft: str = "", loop1_draft: str = "", loop2_draft: str = ""):
     db = SessionLocal()
     try:
         await manager.broadcast(json.dumps({"type": "progress", "message": "Initializing Architect Framework...", "progress": 10}))
@@ -2086,6 +2130,15 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         AI Role & Functionality: {ai_integration}
         Security & Authentication Strategy: {security_auth}
         Build Environment: {build_environment}
+        
+        APPROVED LOOP 0 (Layman's Overview):
+        {loop0_draft}
+        
+        APPROVED LOOP 1 (System Workflow):
+        {loop1_draft}
+        
+        APPROVED LOOP 2 (Tech Stack):
+        {loop2_draft}
     
         Analyze the raw notes below and output a strict structural outline. 
         The outline must be restricted to logical MVP feature building steps following 2026 Vibe Coding best practices (Intent -> Plan -> Generate -> Vibe-Check). Include chronological layer-building: Data schema first -> API next -> UI/Frontend components last.
@@ -2093,7 +2146,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         CRITICAL RULES FOR QUALITY OVER QUANTITY:
         - Build Environment Rule: You must tailor your steps to the "{build_environment}" classification. If it is "Greenfield (New)", provide foundational setup instructions (e.g., 'Initialize Next.js project', 'Setup base database schemas'). If it is "Brownfield (Existing)", you MUST assume the core project already exists. Focus your outline exclusively on safely integrating new features into the existing architecture, requiring adapter patterns, non-breaking schema migrations, and heavy regression-testing rules.
         - Do NOT ignore Agentic Memory. The very first step MUST be establishing `.cursorrules` or `AGENTS.md` context files with strict guardrails ("Never edit >3 files without confirmed plan. Always run tsc").
-        - Build Atomically (Chain Prompting). Break down the architecture into micro-steps. Do not try to build an entire feature in one step. An ideal project should have between 20 to 50 highly granular, atomic steps.
+        - Build Efficiently & Thoroughly. Break down the architecture into logical, cohesive steps. Do not enforce a strict quota or cap on the number of steps, but ensure the outline is concise enough to avoid excessive verbosity, while remaining thorough enough to securely build the MVP. Ensure high quality.
         - Artifact Locking: Dictate explicitly where the user should execute a "Pre-Flight Impact Analysis" to force the agent to write an `implementation_plan.md` detailing "Dependency Risks" and "Verification Strategy" before risking regression on core components.
         - Chapter titles MUST be written in extremely simple, concise layman's terms (e.g., "User Login Screen", "Database Setup", "Save Button Logic"). Do not use overly technical jargon or long run-on sentences for the title.
         - Because you know the Budget/Hosting Constraints: During the infrastructure architecture phase, you MUST explicitly recommend whether they should use platforms like Render, Vercel, Supabase, Pinecone, or other alternatives based exactly on their Budget ({budget_constraints}) and Target Audience. Explain the tradeoff briefly.
@@ -2416,8 +2469,8 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             Based ONLY on the following context, write a highly concise, systematic, ordered step-by-step logic guide to build this specific feature.
         
             REQUIREMENTS:
-            1. Explain why this feature is needed and its calculation/logic.
-            2. Provide exactly what to expect if it works or fails.
+            1. Be extremely concise. Explain why this feature is needed in 1-2 sentences. Avoid all redundant boilerplate.
+            2. Provide exactly what to expect if it works or fails in 1-2 sentences.
             3. Reference EXACT file paths from the project directory structure (defined in PROJECT_RULES.md). Do NOT invent or guess file paths. Use the established structure.
             4. If this step involves database operations, reference the exact table/column names from the schema defined in the earlier "Define Database Schema" step.
             5. If this step involves API calls, reference the exact endpoint paths, payload shapes, AND specific error responses (e.g., 400 Bad Request for validation failure, 404 for not found) from the "Define API Contracts" step. You MUST explicitly define how edge cases are handled.
@@ -2677,8 +2730,13 @@ def admin_metrics(db: Session = Depends(get_db), current_user: User = Depends(ge
     
     from sqlalchemy import desc
     
+    if "sqlite" in engine.url.drivername:
+        hour_func = func.strftime('%Y-%m-%d %H:00:00', TokenLog.timestamp)
+    else:
+        hour_func = func.date_trunc('hour', TokenLog.timestamp)
+    
     results = db.query(
-        func.date_trunc('hour', TokenLog.timestamp).label("hour_group"),
+        hour_func.label("hour_group"),
         func.max(TokenLog.timestamp).label("last_run_time"),
         TokenLog.action,
         Project.name.label("project_name"),
@@ -2689,7 +2747,7 @@ def admin_metrics(db: Session = Depends(get_db), current_user: User = Depends(ge
         func.count(TokenLog.id).label("requests_count")
     ).outerjoin(Project, TokenLog.project_id == Project.id)\
      .outerjoin(User, TokenLog.user_id == User.id)\
-     .group_by(func.date_trunc('hour', TokenLog.timestamp), TokenLog.action, Project.name, User.id, User.username)\
+     .group_by(hour_func, TokenLog.action, Project.name, User.id, User.username)\
      .order_by(desc("last_run_time")).all()
      
     breakdown = []
@@ -2714,32 +2772,150 @@ def admin_metrics(db: Session = Depends(get_db), current_user: User = Depends(ge
 async def admin_page(request: Request):
     return templates.TemplateResponse(request=request, name="admin.html")
 
-@app.post("/api/architect/start")
-async def start_architect(req: AnalyzeRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    project = db.query(Project).filter(Project.id == req.project_id, Project.user_id == current_user.id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found or not owned by user")
+def get_project_context(project_id: int, db: Session):
+    # Fetch the latest generated intelligence report first to avoid recursive token explosion from raw notes
+    latest_intel = db.query(GeneratedReport).filter(GeneratedReport.project_id == project_id).order_by(GeneratedReport.timestamp.desc()).first()
+    if latest_intel:
+        return f"--- LATEST APPROVED INTELLIGENCE REPORT ---\n{latest_intel.report_data}\n--- END INTELLIGENCE REPORT ---"
         
-    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project.id).all()
-    
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project_id).limit(10).all()
     if not themes:
-        # Fallback to raw sources if no themes exist yet (e.g. legacy data)
-        sources = db.query(GeminiSource).filter(GeminiSource.project_id == project.id).all()
-        if not sources:
-            raise HTTPException(status_code=400, detail="No sources available. Sync some datanodes first.")
+        sources = db.query(GeminiSource).filter(GeminiSource.project_id == project_id).limit(10).all()
+        if not sources: return "No intelligence context available."
         memories = []
         for s in sources:
-            if s.short_memory:
-                memories.append(f"Source: {s.title}\nSummary: {s.short_memory}")
-            else:
-                memories.append(f"Source: {s.title}\nContent snippet: {s.content[:500]}...")
-        combined_text = "\n\n---\n\n".join(memories)
-    else:
-        combined_text = "\n\n---\n\n".join([f"THEME: {t.theme_name}\n{t.content}" for t in themes])
-        
-    combined_text = truncate_context_for_tokens(combined_text)
-    background_tasks.add_task(generate_architect_report, req.project_id, combined_text, req.target_platform, req.designer_name, req.app_name, req.app_purpose, req.budget_constraints, req.ai_integration, req.security_auth, req.build_environment)
+            if s.short_memory: memories.append(f"Source: {s.title}\nSummary: {s.short_memory}")
+            else: memories.append(f"Source: {s.title}\nContent snippet: {s.content[:500]}...")
+        return "\n\n---\n\n".join(memories)
+    # Truncate theme content to avoid massive context dumps
+    return "\n\n---\n\n".join([f"THEME: {t.theme_name}\n{t.content[:1500]}" for t in themes])
+
+@app.get("/api/architect/state/{project_id}")
+async def get_architect_state(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id, Project.user_id == current_user.id).first()
+    if not project: raise HTTPException(status_code=404, detail="Project not found")
+    state = db.query(ArchitectDraftState).filter(ArchitectDraftState.project_id == project.id).first()
+    if not state:
+        state = ArchitectDraftState(project_id=project.id, current_loop=0)
+        db.add(state)
+        db.commit()
+        db.refresh(state)
+    return ArchitectStateResponse(
+        current_loop=state.current_loop,
+        loop0_draft=state.loop0_draft,
+        loop1_draft=state.loop1_draft,
+        loop2_draft=state.loop2_draft
+    )
+
+@app.post("/api/architect/loop0")
+async def generate_loop0(req: ArchitectLoopRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == req.project_id, Project.user_id == current_user.id).first()
+    if not project: raise HTTPException(status_code=404)
+    state = db.query(ArchitectDraftState).filter(ArchitectDraftState.project_id == project.id).first()
+    if not state:
+        state = ArchitectDraftState(project_id=project.id)
+        db.add(state)
     
-    return {"status": "started", "message": "Architect pipeline initiated."}
+    context = truncate_context_for_tokens(get_project_context(project.id, db))
+    feedback_str = f"\n\nUSER FEEDBACK / REFINEMENT:\n{req.feedback}" if req.feedback else ""
+    prior_draft = f"\n\nPRIOR DRAFT TO REFINE:\n{state.loop0_draft}" if state.loop0_draft and req.feedback else ""
+    
+    prompt = f"""
+    You are the Principal Architect. Provide a 'Layman's App Overview' (Loop 0).
+    App Name: {req.app_name}
+    App Purpose: {req.app_purpose}
+    Target Audience: {req.target_audience if hasattr(req, 'target_audience') else 'General'}
+    Standout Features: {", ".join(req.standout_features)}
+    Context: {context}
+    {prior_draft}
+    {feedback_str}
+    
+    Synthesize this and output a purely Layman's summary. Format with Markdown. Do NOT write code. Just explain the app's core purpose, its target audience, and the exact features we are going to build. If there is USER FEEDBACK, you must incorporate their changes.
+    """
+    
+    try:
+        res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+        state.loop0_draft = res.text.strip()
+        state.current_loop = 0
+        db.commit()
+        return {"draft": state.loop0_draft, "current_loop": state.current_loop}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/architect/loop1")
+async def generate_loop1(req: ArchitectLoopRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    state = db.query(ArchitectDraftState).filter(ArchitectDraftState.project_id == req.project_id).first()
+    if not state or not state.loop0_draft: raise HTTPException(status_code=400, detail="Loop 0 not completed")
+    
+    feedback_str = f"\n\nUSER FEEDBACK / REFINEMENT:\n{req.feedback}" if req.feedback else ""
+    prior_draft = f"\n\nPRIOR DRAFT TO REFINE:\n{state.loop1_draft}" if state.loop1_draft and req.feedback else ""
+    
+    prompt = f"""
+    You are the Principal Architect. Provide the 'System Workflow Mapping' (Loop 1).
+    Approved Features (Loop 0): {state.loop0_draft}
+    {prior_draft}
+    {feedback_str}
+    
+    Take the approved features and create a highly-visual, non-code breakdown of how the system will operate logically.
+    Discuss:
+    1. Where and why a database will be needed (e.g., "We need to store user profiles").
+    2. Where AI or 3rd-party APIs are required.
+    3. Generate a Mermaid.js flowchart mapping the general workflow.
+    Do NOT assign specific rigid frameworks (like Next.js) yet. Use Markdown. If there is USER FEEDBACK, adjust accordingly.
+    """
+    
+    try:
+        res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+        state.loop1_draft = res.text.strip()
+        state.current_loop = 1
+        db.commit()
+        return {"draft": state.loop1_draft, "current_loop": state.current_loop}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/architect/loop2")
+async def generate_loop2(req: ArchitectLoopRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    state = db.query(ArchitectDraftState).filter(ArchitectDraftState.project_id == req.project_id).first()
+    if not state or not state.loop1_draft: raise HTTPException(status_code=400, detail="Loop 1 not completed")
+    
+    feedback_str = f"\n\nUSER FEEDBACK / REFINEMENT:\n{req.feedback}" if req.feedback else ""
+    prior_draft = f"\n\nPRIOR DRAFT TO REFINE:\n{state.loop2_draft}" if state.loop2_draft and req.feedback else ""
+    
+    prompt = f"""
+    You are the Principal Architect. Provide 'The Skeleton' (Loop 2).
+    Target Platform specified by user: {req.target_platform}
+    Approved Workflow (Loop 1): {state.loop1_draft}
+    {prior_draft}
+    {feedback_str}
+    
+    1. Assign hard specifics to the workflow. Identify the most cohesive Tech Stack Matrix (Framework, UI, DB, State) based on the target platform {req.target_platform}.
+    2. Create a high-level PROJECT_RULES.md summary detailing this matrix and the core directory structure.
+    If there is USER FEEDBACK, adjust the tech stack or rules accordingly. Use Markdown.
+    """
+    
+    try:
+        res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+        state.loop2_draft = res.text.strip()
+        state.current_loop = 2
+        db.commit()
+        return {"draft": state.loop2_draft, "current_loop": state.current_loop}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/architect/loop3_4")
+async def generate_loop3_4(req: ArchitectLoopRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    state = db.query(ArchitectDraftState).filter(ArchitectDraftState.project_id == req.project_id).first()
+    if not state or not state.loop2_draft: raise HTTPException(status_code=400, detail="Loop 2 not completed")
+    
+    state.current_loop = 3
+    db.commit()
+    
+    context = truncate_context_for_tokens(get_project_context(req.project_id, db))
+    
+    # We pass the previously approved state directly into the background task so it can synthesize the final blueprint
+    background_tasks.add_task(generate_architect_report, req.project_id, context, req.target_platform, req.designer_name, req.app_name, req.app_purpose, req.budget_constraints, req.ai_integration, req.security_auth, req.build_environment, state.loop0_draft, state.loop1_draft, state.loop2_draft)
+    
+    return {"status": "started", "message": "Final compilation started."}
+
 
 # To run: uvicorn main:app --reload

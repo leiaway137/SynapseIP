@@ -483,6 +483,11 @@ async function sendOnboardingMessage(initial = false) {
     const userText = chatInput ? chatInput.value.trim() : "";
     if (!initial && !userText) return;
     
+    // Check for 128k Limit (roughly 400,000 characters)
+    if (!initial && userText.length > 400000) {
+        alert("⚠️ Large payload detected. This document exceeds the 128k token threshold and will be automatically chunked by the server to prevent premium billing spikes.");
+    }
+    
     if (!initial) {
         onboardingHistory.push({ role: "user", content: userText });
         const userBubble = document.createElement('div');
@@ -789,51 +794,134 @@ async function sendFollowupMessage(silentSeed = false) {
     histEl.scrollTop = histEl.scrollHeight;
 }
 
-// Phase 4: Architect Generation
+// Phase 4: Architect Generation (Interactive State Machine)
+let currentArchitectLoop = 0;
+
 async function startArchitectPipeline() {
     const btn = document.getElementById('build-blueprint-btn');
     btn.innerHTML = `<span class='loading-dots'>Allocating Resources...</span>`;
     btn.disabled = true;
     
+    document.getElementById('intelligence-dashboard').style.display = 'none';
+    document.getElementById('architect-workbench').style.display = 'flex';
+    
+    mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+    await loadArchitectState();
+}
+
+async function loadArchitectState() {
     try {
-        const ideSelectorValue = document.getElementById('ide-selector') ? document.getElementById('ide-selector').value : "Antigravity";
-        const res = await fetch('/api/architect/start', {
+        const res = await fetch(`/api/architect/state/${currentProjectId}`);
+        const state = await res.json();
+        currentArchitectLoop = state.current_loop;
+        
+        if (currentArchitectLoop === 0 && !state.loop0_draft) {
+            await triggerArchitectLoop(0);
+        } else if (currentArchitectLoop === 1 && !state.loop1_draft) {
+            await triggerArchitectLoop(1);
+        } else if (currentArchitectLoop === 2 && !state.loop2_draft) {
+            await triggerArchitectLoop(2);
+        } else {
+            renderWorkbenchState(state);
+        }
+    } catch (e) {
+        alert("Failed to load architect state.");
+    }
+}
+
+async function triggerArchitectLoop(loopIndex, feedback = "") {
+    document.getElementById('workbench-draft-content').innerHTML = `<span class='loading-dots'>Architect is thinking...</span>`;
+    document.getElementById('workbench-refine-btn').disabled = true;
+    document.getElementById('workbench-approve-btn').disabled = true;
+    
+    const ideSelectorValue = document.getElementById('ide-selector') ? document.getElementById('ide-selector').value : "Antigravity";
+    
+    const payload = {
+        target_platform: ideSelectorValue,
+        designer_name: document.getElementById('config-designer').value || "Unknown",
+        app_name: currentProjectName,
+        app_purpose: document.getElementById('config-purpose').value || "N/A",
+        target_audience: document.getElementById('config-audience').value || "N/A",
+        app_type: document.getElementById('config-apptype').value || "Commercial",
+        build_environment: document.getElementById('config-environment') ? document.getElementById('config-environment').value : "Greenfield (New)",
+        budget_constraints: document.getElementById('config-budget').value || "N/A",
+        ai_integration: document.getElementById('config-ai_integration').value || "N/A",
+        security_auth: document.getElementById('config-security').value || "N/A",
+        standout_features: JSON.parse(document.getElementById('config-features').value || "[]"),
+        project_id: currentProjectId,
+        feedback: feedback
+    };
+    
+    try {
+        let endpoint = `/api/architect/loop${loopIndex}`;
+        if (loopIndex >= 3) endpoint = `/api/architect/loop3_4`;
+        
+        const res = await fetch(endpoint, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                target_platform: ideSelectorValue,
-                designer_name: currentUser ? currentUser.username : "Unknown",
-                app_name: currentProjectName,
-                app_purpose: "Automated via Follow-Up",
-                target_audience: "N/A",
-                app_type: "Commercial",
-                build_environment: document.getElementById('config-environment') ? document.getElementById('config-environment').value : "Greenfield (New)",
-                standout_features: [],
-                project_id: currentProjectId
-            })
+            body: JSON.stringify(payload)
         });
-        if (!res.ok) {
-            let errText = "Failed to start logic router.";
-            try {
-                const errData = await res.json();
-                errText += " " + (errData.detail || `Status: ${res.status}`);
-            } catch(e) {
-                errText += ` (Status: ${res.status})`;
-            }
-            throw new Error(errText);
+        
+        if (!res.ok) throw new Error("Failed to generate loop");
+        
+        if (loopIndex >= 3) {
+            document.getElementById('workbench-draft-content').innerHTML = `<div style='text-align:center; padding: 40px;'><h3 style='color:#34d399;'>Compiling Final Architect Blueprint</h3><p style='color:#94a3b8;'>Building remaining chapters (Database, API, UI). This process will take 1-2 minutes.<br>You will be automatically redirected to the PDF Viewer when complete.</p><div class='loading-state'></div></div>`;
+            return;
         }
-    } catch(e) {
-        btn.innerHTML = `Build Architect Blueprint`;
-        btn.disabled = false;
+        
+        const data = await res.json();
+        currentArchitectLoop = data.current_loop;
+        
+        // Fetch full state again to render
+        await loadArchitectState();
+    } catch (e) {
         alert(e.message);
+        document.getElementById('workbench-draft-content').innerHTML = `Error: ${e.message}`;
+        document.getElementById('workbench-refine-btn').disabled = false;
     }
-    // Result hand-handled by WebSocket
 }
+
+function renderWorkbenchState(state) {
+    document.getElementById('workbench-refine-btn').disabled = false;
+    document.getElementById('workbench-approve-btn').disabled = false;
+    document.getElementById('workbench-feedback').value = "";
+    
+    const loopNames = ["Loop 0: Layman's App Overview", "Loop 1: System Workflow Mapping", "Loop 2: Tech Stack Skeleton", "Compiling Final Blueprint"];
+    const btnNames = ["Approve Overview", "Approve Workflow", "Approve Foundation", "Processing..."];
+    
+    document.getElementById('workbench-loop-badge').innerText = `Loop ${state.current_loop}`;
+    document.getElementById('workbench-draft-title').innerText = loopNames[state.current_loop] || "Finalizing...";
+    document.getElementById('workbench-approve-btn').innerText = btnNames[state.current_loop] || "Finish";
+    
+    let draftHtml = "";
+    if (state.current_loop === 0) draftHtml = marked.parse(state.loop0_draft || "");
+    else if (state.current_loop === 1) draftHtml = marked.parse(state.loop1_draft || "");
+    else if (state.current_loop === 2) draftHtml = marked.parse(state.loop2_draft || "");
+    
+    document.getElementById('workbench-draft-content').innerHTML = draftHtml;
+    
+    // Render mermaid if present
+    setTimeout(() => {
+        try { mermaid.init(undefined, document.querySelectorAll('.language-mermaid')); } catch(e) {}
+    }, 100);
+}
+
+document.getElementById('workbench-refine-btn')?.addEventListener('click', () => {
+    const fb = document.getElementById('workbench-feedback').value;
+    triggerArchitectLoop(currentArchitectLoop, fb);
+});
+
+document.getElementById('workbench-approve-btn')?.addEventListener('click', () => {
+    const nextLoop = currentArchitectLoop + 1;
+    triggerArchitectLoop(nextLoop, "");
+});
+
 
 // Blueprint Viewer Route
 function showBlueprint(markdownText) {
     document.getElementById('intelligence-dashboard').style.display = 'none';
     document.getElementById('onboarding-screen').style.display = 'none';
+    document.getElementById('architect-workbench').style.display = 'none';
     document.getElementById('blueprint-viewer').style.display = 'flex';
     
     document.getElementById('blueprint-content').innerHTML = marked.parse(markdownText);
