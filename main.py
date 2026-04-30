@@ -2763,22 +2763,30 @@ async def admin_page(request: Request):
     return templates.TemplateResponse(request=request, name="admin.html")
 
 def get_project_context(project_id: int, db: Session):
-    # Fetch the latest generated intelligence report first to avoid recursive token explosion from raw notes
+    final_context = []
+    
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project_id).limit(10).all()
+    if themes:
+        theme_str = "\n\n---\n\n".join([f"THEME: {t.theme_name}\n{t.content[:1500]}" for t in themes])
+        final_context.append(f"--- HIGH FIDELITY PROJECT THEMES ---\n{theme_str}\n--- END THEMES ---")
+    else:
+        sources = db.query(GeminiSource).filter(GeminiSource.project_id == project_id).limit(10).all()
+        if sources:
+            memories = []
+            for s in sources:
+                if s.short_memory: memories.append(f"Source: {s.title}\nSummary: {s.short_memory}")
+                else: memories.append(f"Source: {s.title}\nContent snippet: {s.content[:500]}...")
+            raw_str = "\n\n---\n\n".join(memories)
+            final_context.append(f"--- RAW BRAINSTORM NOTES ---\n{raw_str}\n--- END RAW NOTES ---")
+            
     latest_intel = db.query(GeneratedReport).filter(GeneratedReport.project_id == project_id).order_by(GeneratedReport.timestamp.desc()).first()
     if latest_intel:
-        return f"--- LATEST APPROVED INTELLIGENCE REPORT ---\n{latest_intel.report_data}\n--- END INTELLIGENCE REPORT ---"
+        final_context.append(f"--- LATEST APPROVED INTELLIGENCE REPORT ---\n{latest_intel.report_data}\n--- END INTELLIGENCE REPORT ---")
         
-    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project_id).limit(10).all()
-    if not themes:
-        sources = db.query(GeminiSource).filter(GeminiSource.project_id == project_id).limit(10).all()
-        if not sources: return "No intelligence context available."
-        memories = []
-        for s in sources:
-            if s.short_memory: memories.append(f"Source: {s.title}\nSummary: {s.short_memory}")
-            else: memories.append(f"Source: {s.title}\nContent snippet: {s.content[:500]}...")
-        return "\n\n---\n\n".join(memories)
-    # Truncate theme content to avoid massive context dumps
-    return "\n\n---\n\n".join([f"THEME: {t.theme_name}\n{t.content[:1500]}" for t in themes])
+    if not final_context:
+        return "No intelligence context available."
+        
+    return "\n\n".join(final_context)
 
 @app.get("/api/architect/state/{project_id}")
 async def get_architect_state(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
