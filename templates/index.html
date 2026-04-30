@@ -278,10 +278,7 @@
                         <p id="rep-blindspots" class="text-sm">Loading...</p>
                     </div>
 
-                    <div class="timeline-container" id="card-timeline">
-                        <h3>Proposed Vibe Coding Pipeline</h3>
-                        <div class="timeline" id="rep-timeline"></div>
-                    </div>
+
                     
                     <!-- Phase 3: Follow-Up Architecture Chat (Moved to Global Floating UI) -->
                     <!-- Phase 4 Branching Choices -->
@@ -312,6 +309,7 @@
                 <div class="dashboard-header" style="justify-content: space-between;">
                     <h2>Architecture Blueprint</h2>
                     <div style="display:flex; gap:12px;">
+                        <button id="blueprint-export-md" class="generate-btn" style="padding:6px 12px; font-size:13px; height:auto; background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); cursor:pointer;">⬇️ Download Markdown (.md)</button>
                         <button id="blueprint-export-pdf" class="generate-btn" style="padding:6px 12px; font-size:13px; height:auto; background: linear-gradient(135deg, #10b981 0%, #059669 100%); cursor:pointer;">Export Blueprint PDF</button>
                     </div>
                 </div>
@@ -484,6 +482,6 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-    <script src="/static/script.js?v=9"></script>
+    <script src="/static/script.js?v=11"></script>
 </body>
 </html>

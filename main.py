@@ -216,6 +216,14 @@ class ProjectTheme(Base):
     content = Column(Text)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
+class ProjectThemeFragment(Base):
+    __tablename__ = "project_theme_fragments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    theme_id = Column(Integer, ForeignKey("project_themes.id"))
+    content = Column(Text)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
 class SystemConfig(Base):
     __tablename__ = "system_configs"
     key = Column(String, primary_key=True, index=True)
@@ -283,11 +291,7 @@ class ProjectResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class PipelineStep(BaseModel):
-    title: str = Field(description="The name of this specific architecture step (e.g., 'Database Setup').")
-    why: str = Field(description="Explanation of why this step exists.")
-    expectation: str = Field(description="What the project state should look like after running it.")
-    error_warnings: str = Field(description="What red flags to look out for regarding errors.")
+
 
 class AnalysisSchema(BaseModel):
     summary: str = Field(description="Brief product overview.")
@@ -299,7 +303,6 @@ class AnalysisSchema(BaseModel):
     the_harsh_truth: str = Field(description="The single biggest 'Flop Risk' for this idea.")
     the_pivot_path: str = Field(description="One structural change to the idea that would increase its health score by at least 20 points.")
     verdict: str = Field(description="Either 'Green Light (Build)', 'Yellow Light (Refine)', or 'Red Light (Pivot/Abandon)'.")
-    vibe_coding_pipeline: list[PipelineStep] = Field(description="Sequential timeline of implementation prompts.")
 
 class AnalyzeRequest(BaseModel):
     target_platform: str = "Antigravity"
@@ -550,54 +553,25 @@ async def process_single_card(unprocessed_dict):
                                 print("Pinecone theme query failed:", e)
                                 
                         if not theme_record:
-                            theme_record = db_merge.query(ProjectTheme).filter(ProjectTheme.project_id == target_project_id, ProjectTheme.theme_name == topic_name).first()
-                            
-                        if theme_record:
-                            merge_prompt = f"""
-                            You are a highly analytical AI Synthesizer. Your job is to update an existing architecture document theme with new information.
-                            Do NOT lose any important technical details, requirements, or insights from either text.
-                            Seamlessly weave the new note's insights into the existing theme document. Do not just append it to the end; synthesize it logically.
-                            
-                            EXISTING THEME DOCUMENT:
-                            {theme_record.content}
-                            
-                            NEW NOTE TO INTEGRATE:
-                            {topic_content}
-                            
-                            CRITICAL RULE: The final merged output MUST NEVER exceed 500 words. Aggressively condense older information to make room for the new insight to prevent the theme from becoming bloated.
-                            Output ONLY the newly synthesized and merged Markdown document.
-                            """
-                            merge_res = await gemini_client.aio.models.generate_content(
-                                model='gemini-2.5-flash',
-                                contents=merge_prompt
-                            )
-                            await log_token_usage(db_merge, "Memory Synthesis", "gemini-2.5-flash", merge_res, project_id=target_project_id)
-                            theme_record.content = merge_res.text.strip()
-                            db_merge.commit()
-                        else:
                             theme_record = ProjectTheme(
                                 project_id=target_project_id,
                                 theme_name=topic_name,
-                                content=f"## {topic_name}\n\n{topic_content}"
+                                content=""
                             )
                             db_merge.add(theme_record)
                             db_merge.commit()
                             db_merge.refresh(theme_record)
                             
-                        if pinecone_index is not None:
-                            try:
-                                final_embed = await gemini_client.aio.models.embed_content(
-                                    model='gemini-embedding-2',
-                                    contents=f"Topic: {theme_record.theme_name}\n\n{theme_record.content}"
-                                )
-                                final_vector = final_embed.embeddings[0].values
-                                await asyncio.to_thread(
-                                    pinecone_index.upsert,
-                                    vectors=[(f"theme_{theme_record.id}", final_vector, {"title": theme_record.theme_name, "content": theme_record.content})],
-                                    namespace="synapseip_themes"
-                                )
-                            except Exception as e:
-                                print("Upsert theme failed:", e)
+                        # INSTANT INGESTION: Save fragment directly to the bucket. No LLM merging.
+                        fragment = ProjectThemeFragment(
+                            theme_id=theme_record.id,
+                            content=topic_content
+                        )
+                        db_merge.add(fragment)
+                        db_merge.commit()
+                        
+                        # We intentionally do NOT upsert to Pinecone here because the fragments are raw.
+                        # Pinecone upsert will happen during the high-fidelity consolidation step.
                                 
                     finally:
                         db_merge.close()
@@ -1955,15 +1929,28 @@ async def analyze_sources(req: AnalyzeRequest, current_user: User = Depends(get_
         raise HTTPException(status_code=404, detail="Project not found or not owned by user")
         
     sources = db.query(GeminiSource).filter(GeminiSource.project_id == project.id).order_by(GeminiSource.timestamp.asc()).all()
-    if not sources:
-        raise HTTPException(status_code=400, detail="No sources found to analyze.")
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project.id).all()
+    
+    if not sources and not themes:
+        raise HTTPException(status_code=400, detail="No sources or themes found to analyze.")
         
     memories = []
-    for s in sources:
-        if s.short_memory:
-            memories.append(f"Source: {s.title}\nSummary: {s.short_memory}")
-        else:
-            memories.append(f"Source: {s.title}\nContent snippet: {s.content[:500]}...")
+    
+    # Primary Context: High-Fidelity Themes
+    if themes:
+        memories.append("### High-Fidelity Synthesized Architecture Themes ###")
+        for t in themes:
+            memories.append(f"Theme: {t.theme_name}\nContent:\n{t.content}")
+    
+    # Fallback Context: Raw Sources (if no themes exist)
+    if not themes and sources:
+        memories.append("### Raw Uploaded Source Snippets ###")
+        for s in sources:
+            if s.short_memory:
+                memories.append(f"Source: {s.title}\nSummary: {s.short_memory}")
+            else:
+                memories.append(f"Source: {s.title}\nContent snippet: {s.content[:500]}...")
+                
     context_text = "\n\n".join(memories)
     context_text = truncate_context_for_tokens(context_text)
     
@@ -1987,7 +1974,8 @@ async def analyze_sources(req: AnalyzeRequest, current_user: User = Depends(get_
         """
 
     prompt = f"""
-    You are SynapseIP, an objective Business Intelligence Architect. Your goal is to evaluate new app concepts.
+    You are SynapseIP, a ruthless, highly skeptical Business Intelligence Architect and Venture Capitalist. Your goal is to critically evaluate new app concepts.
+    CRITICAL ANTI-SYCOPHANCY RULE: You must NEVER blindly validate the user's ideas to appease their ego. Do not artificially inflate the viability score. Be brutally honest about market saturation, technical hurdles, and bad product ideas. Your job is to protect the user from wasting time on unviable projects, not to be a cheerleader.
     Project Name: {req.app_name}
     Designer Name: {req.designer_name}
     Core Purpose: {req.app_purpose}
@@ -1999,11 +1987,6 @@ async def analyze_sources(req: AnalyzeRequest, current_user: User = Depends(get_
     Your priority is to ensure the resulting MVP is not just technically sound, but features a beautiful, highly usable, and modern User Interface for human users. Start the pipeline with UI exploration and scaffolding.
     Analyze the following brainstorm notes and output a rigorous structured analysis based on the exact JSON schema requested.
     The target vibe coding platform the user will use is [{req.target_platform}]. 
-    The 'vibe_coding_pipeline' should be a PRELIMINARY high-level table of contents. DO NOT generate the actual copy-paste prompts here. The exact granular prompts will be generated later during the Master Architect Blueprint phase. Just provide the sequential timeline of steps (e.g., Step 1: Database Setup, Step 2: Authentication, etc.).
-    
-    CRITICAL OUTLINE ENGINEERING RULES:
-    1. Layered Construction: Chain your outline chronologically: Data Layer (Schema) -> API Layer (Endpoints) -> UI Layer (Components).
-    2. Atomic Scoping: Steps MUST be vertical slices ("Single Responsibility"). Never combine massive features.
     
     For every idea submitted:
     {rubric_text}
@@ -2474,24 +2457,23 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             3. Reference EXACT file paths from the project directory structure (defined in PROJECT_RULES.md). Do NOT invent or guess file paths. Use the established structure.
             4. If this step involves database operations, reference the exact table/column names from the schema defined in the earlier "Define Database Schema" step.
             5. If this step involves API calls, reference the exact endpoint paths, payload shapes, AND specific error responses (e.g., 400 Bad Request for validation failure, 404 for not found) from the "Define API Contracts" step. You MUST explicitly define how edge cases are handled.
-            6. If this step involves UI, you MUST mandate explicit handling for Loading states (`isPending`), Empty states (no data), and Error states (API failure). Additionally, you MUST explicitly map out which components rely on Global State (e.g., Redux/Context/Zustand) versus Local State (e.g., useState).
-            7. YOU MUST output the exact Vibe Coding prompts inside markdown code blocks so the user can easily copy and paste them into their IDE.
-            8. IMPORTANT: DO NOT write out raw file contents (like `package.json`, `schema.sql`, or source code) in your response. The IDE's AI will generate the actual code. Your job is just to write the INSTRUCTION prompts for the IDE AI.
-            9. BREAK PROMPTS INTO MULTIPLE PHASES: To prevent overwhelming the IDE's context window, break the instructions into two separate copy-paste blocks: "Phase 1: Planning" and "Phase 2: Execution".
+            9. ADAPTIVE PROMPT STRUCTURE: You MUST format the copy-paste prompt block based on the Target Platform ({platform}):
+               - If the platform is "Antigravity", provide a SINGLE-PHASE prompt. (Antigravity natively utilizes a 'Planning Mode' artifact system).
+               - If the platform is "Cursor", "Windsurf", or "OpenClaw", you MUST break the prompt into TWO phases ("Phase 1: Planning" and "Phase 2: Execution") to prevent overwhelming the AI's context window.
             10. DATA VALIDATION MANDATE: Whenever defining a database schema, API payload, or frontend form, you MUST list explicit data constraints (e.g., required fields, maximum character lengths, enum values, and specific regex patterns for fields like email/passwords). Never just say "String".
             11. TESTING MANDATE: You MUST explicitly define exactly what needs to be tested for this step. This must include explicitly testing the 'Happy Path' (successful execution) and explicitly testing the 'Error Boundaries / Edge Cases' (failure states).
-            12. VERIFICATION CHECKPOINTS: Within the 'Phase 2: Execution' block, you MUST insert explicit 'Verification Checkpoints'. For example, instruct the agent to run automated verification checks (like a unit test or `npx tsc`) before proceeding to the frontend integration. Do not let the agent build the entire step blindly.
+            12. VERIFICATION CHECKPOINTS: Within the prompt, you MUST insert explicit 'Verification Checkpoints'. Instruct the AI to verify its changes (e.g., run `npx tsc` or run a test script) before completing the task.
             13. GLOBAL STATE REGISTRY CONSTRAINT: You MUST read the Tech Matrix defined in the PROJECT_RULES.md. You are STRICTLY FORBIDDEN from suggesting packages, cloud providers, or architectures that are not explicitly listed in that matrix. (e.g., If the matrix says Vercel, do not suggest AWS Lambda).
             14. INFRASTRUCTURE PHYSICS: Use standard serverless API routes for simple tasks (like streaming AI chat). You should ONLY mandate a decoupled asynchronous queue pattern (e.g., background workers) for truly heavy, long-running tasks like bulk scraping.
             15. SEPARATION OF AI CONCERNS: NEVER allow an AI to grade its own output. If a task requires content generation and validation, you MUST architect distinct Generate and Evaluate operations (a secondary Evaluator AI). Complex multi-step generations must be split into separate API calls.
             16. STRUCTURED OUTPUTS MANDATE: If this step involves an AI generating structured data (like JSON), you are STRICTLY FORBIDDEN from instructing the coding AI to just use a text prompt like 'return JSON'. You MUST instruct the coding AI to define a strict JSON Schema (e.g., using Zod) and pass it directly into the AI provider's SDK to enforce deterministic structured outputs.
             
-            STRICT FORMATTING TEMPLATE YOU MUST FOLLOW:
+            STRICT FORMATTING TEMPLATE YOU MUST FOLLOW (Adapt the `text` block section to the target IDE {platform}):
             
             <div class="manual-action-alert">
             <h4>⚠️ Manual Developer Action Required</h4>
             <ul>
-                <li>[If the developer MUST do something manually outside the IDE before writing code (e.g., signing up for an API account, generating an API key, creating a Supabase project, or configuring a third-party dashboard), list the exact steps here as bullet points.]</li>
+                <li>[If the developer MUST do something manually outside the IDE before writing code, list the exact steps here as bullet points.]</li>
             </ul>
             </div>
             *(NOTE: Only include the above HTML block if manual actions are actually required. If no manual account setup or configuration is required, omit it completely.)*
@@ -2502,34 +2484,42 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             
             **Watch Out:** [What could go wrong or common errors]
             
+            [IF TARGET IDE IS ANTIGRAVITY, use this block:]
+            **Prompt (Copy & Paste this as your request to Antigravity)**
+            ```text
+            [Objective]
+            [Write a concise technical objective for {chapter_title}.]
+            
+            [Target Files & Impact Analysis]
+            [List the exact 2-3 files to review first.]
+            Please review these files and generate an `implementation_plan.md` detailing your approach before writing any code.
+            
+            [Execution Constraints]
+            Strictly adhere to the global project constraints defined in `PROJECT_RULES.md`.
+            [List strict technical constraints specifically relevant to THIS step ONLY.]
+            
+            [Verification]
+            After executing the plan, please run the following command to verify your changes: [Command]
+            ```
+            
+            [IF TARGET IDE IS CURSOR/WINDSURF/OPENCLAW, use these two blocks instead:]
             **Phase 1: Planning (Copy & Paste this into your IDE first)**
             ```text
             [Objective]
-            [Write a concise technical objective for {chapter_title}. Specify exactly what core logic, UI, or backend feature needs to be implemented.]
+            [Write a concise technical objective for {chapter_title}.]
             
             [Artifact Locking & Pre-Flight]
-            Before writing ANY code, please perform an Impact Analysis. First, review the following files:
-            [List 2-3 specific files or directories the IDE AI must review first based on this feature]
-            
-            Output an `implementation_plan.md` detailing:
-            1. Which files will be modified, created, or deleted.
-            2. What specific shell commands or terminal scripts will be executed.
-            3. The exact API calls, schema changes, or dependencies that will be added/altered.
-            DO NOT generate code or run commands until I explicitly approve the implementation plan.
+            Before writing ANY code, please perform an Impact Analysis by reviewing these files: [List 2-3 files].
+            Output an `implementation_plan.md` detailing the files modified and commands executed. DO NOT generate code until I explicitly approve the plan.
             ```
             
             **Phase 2: Execution (Copy & Paste this into your IDE after approving the plan)**
             ```text
             [Execution Constraints]
             Strictly adhere to the global project constraints defined in `PROJECT_RULES.md`.
-            [List 1-2 strict technical constraints specifically relevant to THIS step ONLY, if any. Otherwise, omit this section.]
-            [If UI: Mandate exactly what the Loading, Empty, and Error states must look like.]
+            [List 1-2 strict technical constraints specifically relevant to THIS step ONLY.]
             
-            Now, please execute the approved `implementation_plan.md` for this step.
-            
-            [Verification]
-            After execution, run the following command to verify:
-            [Provide the exact terminal command to verify this step (e.g., `npm run test -- src/components/login.test.tsx` or `npx tsc --noEmit`). If no test exists, mandate the agent runs linting or build checks.]
+            Now, please execute the approved `implementation_plan.md` for this step. After execution, run the following command to verify: [Command]
             ```
             
             Strict Formatting Rules:
@@ -2856,11 +2846,12 @@ async def generate_loop1(req: ArchitectLoopRequest, current_user: User = Depends
     {prior_draft}
     {feedback_str}
     
-    Take the approved features and create a highly-visual, non-code breakdown of how the system will operate logically.
+    Take the approved features and create a highly-visual, rigorous breakdown of how the system will operate logically.
     Discuss:
-    1. Where and why a database will be needed (e.g., "We need to store user profiles").
-    2. Where AI or 3rd-party APIs are required.
-    3. Generate a Mermaid.js flowchart mapping the general workflow.
+    1. **Data & Variables:** Define the core variables, database schemas, and state management required (e.g., "We need a User object containing id, email, and preferences").
+    2. **Feature Mechanics:** Provide a step-by-step logical breakdown of exactly how the core features will function from a data perspective.
+    3. **External Dependencies:** Where AI, 3rd-party APIs, or external services are required.
+    4. **Workflow Diagram:** Generate a Mermaid.js flowchart mapping the complete logical workflow.
     Do NOT assign specific rigid frameworks (like Next.js) yet. Use Markdown. If there is USER FEEDBACK, adjust accordingly.
     """
     
@@ -2888,10 +2879,11 @@ async def generate_loop2(req: ArchitectLoopRequest, current_user: User = Depends
     {prior_draft}
     {feedback_str}
     
-    1. Assign hard specifics to the workflow. Identify the most cohesive Tech Stack Matrix (Framework, UI, DB, State) based on the target platform {req.target_platform}.
-    2. Create a high-level PROJECT_RULES.md summary detailing this matrix and the core directory structure.
-    If there is USER FEEDBACK, adjust the tech stack or rules accordingly. Use Markdown.
-    """
+    1. Review the workflow. Identify 2-3 viable Tech Stack options (Framework, Database, Auth, State) that fit the {req.target_platform} environment.
+    2. For each option, provide a brief analysis of its Strengths and Drawbacks (Trade-offs) specific to this project's scale and features.
+    3. Conclude with your primary recommendation, but ask the user to confirm or choose an option via the refinement box.
+    4. Provide a preliminary high-level directory structure based on your primary recommendation.
+    If there is USER FEEDBACK selecting an option, lock it in and draft the PROJECT_RULES.md for that stack. Use Markdown.
     
     try:
         res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=prompt)
@@ -2917,5 +2909,80 @@ async def generate_loop3_4(req: ArchitectLoopRequest, background_tasks: Backgrou
     
     return {"status": "started", "message": "Final compilation started."}
 
+class ThemeConsolidateRequest(BaseModel):
+    project_id: int
+
+@app.get("/api/projects/{project_id}/themes")
+async def get_project_themes(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id, Project.user_id == current_user.id).first()
+    if not project: raise HTTPException(status_code=404)
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project_id).all()
+    
+    result = []
+    for t in themes:
+        fragments = db.query(ProjectThemeFragment).filter(ProjectThemeFragment.theme_id == t.id).count()
+        result.append({
+            "id": t.id,
+            "theme_name": t.theme_name,
+            "content": t.content,
+            "has_unconsolidated_fragments": fragments > 0
+        })
+    return result
+
+@app.post("/api/architect/consolidate-themes")
+async def consolidate_themes(req: ThemeConsolidateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == req.project_id, Project.user_id == current_user.id).first()
+    if not project: raise HTTPException(status_code=404)
+    
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == req.project_id).all()
+    consolidated_count = 0
+    
+    for theme in themes:
+        fragments = db.query(ProjectThemeFragment).filter(ProjectThemeFragment.theme_id == theme.id).all()
+        if not fragments:
+            continue # Already consolidated or empty
+            
+        fragment_text = "\n---\n".join([f.content for f in fragments])
+        
+        prompt = f"""
+        You are a Principal Software Architect. We are writing a master theme document for a new application.
+        Theme Category: {theme.theme_name}
+        
+        Below is a bucket of raw, unorganized brainstorm fragments and notes captured by the user related to this theme:
+        {fragment_text}
+        
+        Write a highly cohesive, professional, and well-structured "High-Fidelity Explanation" of this theme based on the fragments.
+        Organize it logically. Remove redundancies. Format beautifully with Markdown.
+        """
+        
+        try:
+            res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+            theme.content = res.text.strip()
+            
+            # Delete fragments since they are now consolidated
+            db.query(ProjectThemeFragment).filter(ProjectThemeFragment.theme_id == theme.id).delete()
+            db.commit()
+            
+            if pinecone_index is not None:
+                try:
+                    final_embed = await gemini_client.aio.models.embed_content(
+                        model='gemini-embedding-2',
+                        contents=f"Topic: {theme.theme_name}\n\n{theme.content}"
+                    )
+                    final_vector = final_embed.embeddings[0].values
+                    await asyncio.to_thread(
+                        pinecone_index.upsert,
+                        vectors=[(f"theme_{theme.id}", final_vector, {"title": theme.theme_name, "content": theme.content})],
+                        namespace="synapseip_themes"
+                    )
+                except Exception as e:
+                    print("Upsert consolidated theme failed:", e)
+                    
+            consolidated_count += 1
+            await asyncio.sleep(2) # rate limit protection
+        except Exception as e:
+            print(f"Failed to consolidate theme {theme.id}: {e}")
+            
+    return {"status": "success", "consolidated_themes": consolidated_count}
 
 # To run: uvicorn main:app --reload
