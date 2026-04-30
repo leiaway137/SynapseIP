@@ -135,11 +135,13 @@ if os.path.exists(seed_db_path):
         except Exception as e:
             print("❌ Failed to seed database:", e)
 
-# Force SQLite connection string, ignoring any legacy DATABASE_URL
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{target_db_path}"
-
-# Initialize SQLite engine
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# Allow deployment to Render (Postgres) via DATABASE_URL, fallback to SQLite locally
+if os.getenv("DATABASE_URL"):
+    SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL").replace("postgres://", "postgresql://")
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
+else:
+    SQLALCHEMY_DATABASE_URL = f"sqlite:///{target_db_path}"
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -438,22 +440,62 @@ async def process_single_card(unprocessed_dict):
             
             await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Extracting architectural themes...", "progress": 30}))
             
-            # Run LLM calls in parallel
-            extract_task = gemini_client.aio.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=extract_prompt,
-                config={'response_mime_type': 'application/json'}
-            )
-            title_task = gemini_client.aio.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=title_prompt
-            )
+            # 2. Extract Multiple Topics & Generate Title (Chunked to prevent 128k penalty)
+            content_chunks = [raw_content[i:i+300000] for i in range(0, len(raw_content), 300000)]
+            all_topics = []
             
-            extract_res, title_res = await asyncio.gather(extract_task, title_task)
+            title_prompt = f"You are a neat summarization bot. Create a professional, catchy, 3 to 6 word title summarizing this interaction. Do not use quotes, labels, or generic prefixes. Only return the title itself.\n\nText: {raw_content[:1500]}"
+            title_res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=title_prompt)
             
+            await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": f"Extracting architectural themes (0/{len(content_chunks)} chunks)...", "progress": 30}))
+            
+            for chunk_idx, chunk in enumerate(content_chunks):
+                extract_prompt = f"""
+                Analyze the following brainstorm note and output a JSON object with two fields:
+                1. "summary": A brief 1-sentence summary of what this note is about.
+                2. "topics": An array of specific architectural components, UI features, or concepts discussed in the text.
+                
+                CRITICAL RULES:
+                - You MUST extract a maximum of 5 topics. Only pick the top 3 to 5 most important core concepts.
+                - If a topic strongly matches an existing theme from this project, use that EXACT existing theme name.
+                - Current existing themes for this project: {theme_names if theme_names else 'None'}
+                
+                JSON FORMAT:
+                {{
+                    "summary": "...",
+                    "topics": [
+                        {{"topic": "Theme Name", "content": "The actual detailed insight from the text"}}
+                    ]
+                }}
+                
+                Raw Note (Part {chunk_idx+1}/{len(content_chunks)}): {chunk}
+                """
+                
+                extract_res = await gemini_client.aio.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=extract_prompt,
+                    config={'response_mime_type': 'application/json'}
+                )
+                
+                temp_db = SessionLocal()
+                try:
+                    await log_token_usage(temp_db, f"Note Categorization (Chunk {chunk_idx+1})", "gemini-2.5-flash", extract_res, project_id=target_project_id)
+                finally:
+                    temp_db.close()
+                    
+                try:
+                    parsed = json.loads(extract_res.text.replace('```json', '').replace('```', '').strip())
+                    chunk_topics = parsed.get("topics", []) if isinstance(parsed, dict) else parsed
+                    if isinstance(chunk_topics, list):
+                        all_topics.extend(chunk_topics)
+                except Exception:
+                    pass
+                
+                await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": f"Extracting architectural themes ({chunk_idx+1}/{len(content_chunks)} chunks)...", "progress": 30 + int(20 * (chunk_idx+1)/len(content_chunks))}))
+                await asyncio.sleep(1) # Prevent rate limits
+                
             temp_db = SessionLocal()
             try:
-                await log_token_usage(temp_db, "Note Categorization", "gemini-2.5-flash", extract_res, project_id=target_project_id)
                 await log_token_usage(temp_db, "Note Titling", "gemini-2.5-flash", title_res, project_id=target_project_id)
             finally:
                 temp_db.close()
@@ -462,17 +504,7 @@ async def process_single_card(unprocessed_dict):
             if len(smart_title) > 100:
                 smart_title = smart_title[:100]
                 
-            try:
-                parsed = json.loads(extract_res.text.replace('```json', '').replace('```', '').strip())
-                if isinstance(parsed, dict) and "topics" in parsed:
-                    topics = parsed["topics"]
-                else:
-                    topics = parsed
-                    
-                if not isinstance(topics, list):
-                    topics = []
-            except Exception:
-                topics = [{"topic": "General Notes", "content": raw_content}]
+            topics = all_topics if all_topics else [{"topic": "General Notes", "content": raw_content[:1500]}]
                 
             # 3. Continuous Agentic Memory Merge (WITH PROJECT LOCK)
             await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Waiting for Agentic Memory Lock...", "progress": 50}))
@@ -528,6 +560,7 @@ async def process_single_card(unprocessed_dict):
                             NEW NOTE TO INTEGRATE:
                             {topic_content}
                             
+                            CRITICAL RULE: The final merged output MUST NEVER exceed 500 words. Aggressively condense older information to make room for the new insight to prevent the theme from becoming bloated.
                             Output ONLY the newly synthesized and merged Markdown document.
                             """
                             merge_res = await gemini_client.aio.models.generate_content(
@@ -2677,8 +2710,13 @@ def admin_metrics(db: Session = Depends(get_db), current_user: User = Depends(ge
     
     from sqlalchemy import desc
     
+    if "sqlite" in engine.url.drivername:
+        hour_func = func.strftime('%Y-%m-%d %H:00:00', TokenLog.timestamp)
+    else:
+        hour_func = func.date_trunc('hour', TokenLog.timestamp)
+    
     results = db.query(
-        func.date_trunc('hour', TokenLog.timestamp).label("hour_group"),
+        hour_func.label("hour_group"),
         func.max(TokenLog.timestamp).label("last_run_time"),
         TokenLog.action,
         Project.name.label("project_name"),
@@ -2689,7 +2727,7 @@ def admin_metrics(db: Session = Depends(get_db), current_user: User = Depends(ge
         func.count(TokenLog.id).label("requests_count")
     ).outerjoin(Project, TokenLog.project_id == Project.id)\
      .outerjoin(User, TokenLog.user_id == User.id)\
-     .group_by(func.date_trunc('hour', TokenLog.timestamp), TokenLog.action, Project.name, User.id, User.username)\
+     .group_by(hour_func, TokenLog.action, Project.name, User.id, User.username)\
      .order_by(desc("last_run_time")).all()
      
     breakdown = []
