@@ -2076,9 +2076,9 @@ async def analyze_sources(req: AnalyzeRequest, current_user: User = Depends(get_
     Security & Authentication: {req.security_auth}
     Standout Features: {", ".join(req.standout_features)}
     
-    Your priority is to ensure the resulting MVP is not just technically sound, but features a beautiful, highly usable, and modern User Interface for human users. Start the pipeline with UI exploration and scaffolding.
+    Your priority is to evaluate the viability of this idea.
     Analyze the following brainstorm notes and output a rigorous structured analysis based on the exact JSON schema requested.
-    The target vibe coding platform the user will use is [{req.target_platform}]. 
+    DO NOT generate an expected coding pipeline, build steps, or outline here. This report is strictly for Business & Viability analysis. 
     
     For every idea submitted:
     {rubric_text}
