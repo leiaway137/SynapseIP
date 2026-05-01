@@ -3003,12 +3003,12 @@ async def generate_loop2(req: ArchitectLoopRequest, current_user: User = Depends
     
     prompt = f"""
     You are the Principal Architect. Provide 'The Skeleton' (Loop 2).
-    Target Platform specified by user: {req.target_platform}
+    Target Vibe Coding IDE / AI Agent: {req.target_platform} (NOTE: This is the IDE or AI tool the user will use to generate the code, NOT the deployment server. You must optimize your stack recommendations for AI generation ease inside this tool. AI agents typically prefer modern, well-documented stacks like Next.js/React/Supabase over obscure frameworks).
     Approved Workflow (Loop 1): {state.loop1_draft}
     {prior_draft}
     {feedback_str}
     
-    1. Review the workflow. Identify 2-3 viable Tech Stack options (Framework, Database, Auth, State) that fit the {req.target_platform} environment.
+    1. Review the workflow. Identify 2-3 viable Tech Stack options (Framework, Database, Auth, State). Explain why they are suitable for this project and easy to "vibe-code" using an AI agent in the {req.target_platform} IDE.
     2. For each option, provide a brief analysis of its Strengths and Drawbacks (Trade-offs) specific to this project's scale and features.
     3. Conclude with your primary recommendation, but ask the user to confirm or choose an option via the refinement box.
     4. Provide a preliminary high-level directory structure based on your primary recommendation.
