@@ -436,6 +436,14 @@ async def process_single_card(unprocessed_dict):
     
     smart_title = raw_title
     try:
+        db_cb = SessionLocal()
+        try:
+            proj = db_cb.query(Project).filter(Project.id == target_project_id).first()
+            if proj:
+                await check_circuit_breaker(proj.user_id, db_cb)
+        finally:
+            db_cb.close()
+            
         await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": "Initializing AI synthesis...", "progress": 10}))
         
         if gemini_client:
@@ -715,7 +723,7 @@ async def background_processor():
                         c_item = db_fail.query(GeminiSource).filter(GeminiSource.id == c_id).first()
                         if c_item and c_item.title.startswith("Processing 🔄"):
                             c_item.title = f"⚠️ Processing Failed: Timeout/Crash"
-                            c_item.processed = False
+                            c_item.processed = True
                             db_fail.commit()
                             await manager.broadcast("new_source")
                             await manager.broadcast(json.dumps({"type": "source_progress_complete", "source_id": c_id}))
@@ -881,6 +889,20 @@ class ConnectionManager:
                 pass
 
 manager = ConnectionManager()
+
+class CircuitBreakerException(Exception):
+    pass
+
+async def check_circuit_breaker(user_id: int, db: Session, limit: float = 2.00):
+    from datetime import datetime
+    start_of_day = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    total_cost = db.query(func.sum(TokenLog.cost)).filter(
+        TokenLog.user_id == user_id,
+        TokenLog.timestamp >= start_of_day
+    ).scalar() or 0.0
+    
+    if total_cost >= limit:
+        raise CircuitBreakerException(f"Daily API Budget Exceeded")
 
 async def log_token_usage(db: Session, action: str, model: str, res, project_id: int = None, user_id: int = 1):
     if hasattr(res, 'usage_metadata') and res.usage_metadata:
@@ -2807,6 +2829,11 @@ async def get_architect_state(project_id: int, current_user: User = Depends(get_
 
 @app.post("/api/architect/loop0")
 async def generate_loop0(req: ArchitectLoopRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        await check_circuit_breaker(current_user.id, db)
+    except CircuitBreakerException as e:
+        raise HTTPException(status_code=402, detail=str(e))
+        
     project = db.query(Project).filter(Project.id == req.project_id, Project.user_id == current_user.id).first()
     if not project: raise HTTPException(status_code=404)
     state = db.query(ArchitectDraftState).filter(ArchitectDraftState.project_id == project.id).first()
@@ -2842,6 +2869,11 @@ async def generate_loop0(req: ArchitectLoopRequest, current_user: User = Depends
 
 @app.post("/api/architect/loop1")
 async def generate_loop1(req: ArchitectLoopRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        await check_circuit_breaker(current_user.id, db)
+    except CircuitBreakerException as e:
+        raise HTTPException(status_code=402, detail=str(e))
+        
     state = db.query(ArchitectDraftState).filter(ArchitectDraftState.project_id == req.project_id).first()
     if not state or not state.loop0_draft: raise HTTPException(status_code=400, detail="Loop 0 not completed")
     
@@ -2874,6 +2906,11 @@ async def generate_loop1(req: ArchitectLoopRequest, current_user: User = Depends
 
 @app.post("/api/architect/loop2")
 async def generate_loop2(req: ArchitectLoopRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        await check_circuit_breaker(current_user.id, db)
+    except CircuitBreakerException as e:
+        raise HTTPException(status_code=402, detail=str(e))
+        
     state = db.query(ArchitectDraftState).filter(ArchitectDraftState.project_id == req.project_id).first()
     if not state or not state.loop1_draft: raise HTTPException(status_code=400, detail="Loop 1 not completed")
     
@@ -2905,6 +2942,11 @@ async def generate_loop2(req: ArchitectLoopRequest, current_user: User = Depends
 
 @app.post("/api/architect/loop3_4")
 async def generate_loop3_4(req: ArchitectLoopRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        await check_circuit_breaker(current_user.id, db)
+    except CircuitBreakerException as e:
+        raise HTTPException(status_code=402, detail=str(e))
+        
     state = db.query(ArchitectDraftState).filter(ArchitectDraftState.project_id == req.project_id).first()
     if not state or not state.loop2_draft: raise HTTPException(status_code=400, detail="Loop 2 not completed")
     
@@ -2940,6 +2982,11 @@ async def get_project_themes(project_id: int, current_user: User = Depends(get_c
 
 @app.post("/api/architect/consolidate-themes")
 async def consolidate_themes(req: ThemeConsolidateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        await check_circuit_breaker(current_user.id, db)
+    except CircuitBreakerException as e:
+        raise HTTPException(status_code=402, detail=str(e))
+        
     project = db.query(Project).filter(Project.id == req.project_id, Project.user_id == current_user.id).first()
     if not project: raise HTTPException(status_code=404)
     
