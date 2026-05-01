@@ -2467,7 +2467,11 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             {rules_text}
             
             Generate a Mermaid.js diagram (using flowchart TD) that visualizes the core architecture, high-level user flow, and major component tree of this application.
-            Keep it clean and readable. Use standard mermaid syntax. Avoid special characters in node names.
+            Keep it clean and readable. Use standard mermaid syntax.
+            CRITICAL SYNTAX RULES TO PREVENT CRASHES:
+            1. You MUST enclose all node labels containing spaces, parentheses, or special characters in double quotes. Example: id["Label (Extra Info)"] instead of id[Label (Extra Info)].
+            2. Avoid HTML tags entirely.
+            3. Do not use unescaped characters.
             Output ONLY the raw mermaid code. Do NOT wrap it in markdown ```mermaid fences, just the code itself.
             """
             try:
