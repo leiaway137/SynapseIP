@@ -643,7 +643,7 @@ async def process_single_card(unprocessed_dict):
                 tb = traceback.format_exc()
                 err_item.title = f"⚠️ Processing Failed: {str(e)[:50]}"
                 err_item.content = err_item.content + f"\n\n--- DIAGNOSTICS ---\n{tb}"
-                err_item.processed = False
+                err_item.processed = True
                 db_err.commit()
                 await manager.broadcast("new_source")
                 await manager.broadcast(json.dumps({"type": "source_progress_complete", "source_id": target_id}))
@@ -2892,6 +2892,7 @@ async def generate_loop2(req: ArchitectLoopRequest, current_user: User = Depends
     3. Conclude with your primary recommendation, but ask the user to confirm or choose an option via the refinement box.
     4. Provide a preliminary high-level directory structure based on your primary recommendation.
     If there is USER FEEDBACK selecting an option, lock it in and draft the PROJECT_RULES.md for that stack. Use Markdown.
+    """
     
     try:
         res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=prompt)
@@ -2952,16 +2953,14 @@ async def consolidate_themes(req: ThemeConsolidateRequest, current_user: User = 
             
         fragment_text = "\n---\n".join([f.content for f in fragments])
         
-        prompt = f"""
-        You are a Principal Software Architect. We are writing a master theme document for a new application.
-        Theme Category: {theme.theme_name}
-        
-        Below is a bucket of raw, unorganized brainstorm fragments and notes captured by the user related to this theme:
-        {fragment_text}
-        
-        Write a highly cohesive, professional, and well-structured "High-Fidelity Explanation" of this theme based on the fragments.
-        Organize it logically. Remove redundancies. Format beautifully with Markdown.
-        """
+        prompt = (
+            f"You are a Principal Software Architect. We are writing a master theme document for a new application.\n"
+            f"Theme Category: {theme.theme_name}\n\n"
+            f"Below is a bucket of raw, unorganized brainstorm fragments and notes captured by the user related to this theme:\n"
+            f"{fragment_text}\n\n"
+            f"Write a highly cohesive, professional, and well-structured \"High-Fidelity Explanation\" of this theme based on the fragments.\n"
+            f"Organize it logically. Remove redundancies. Format beautifully with Markdown."
+        )
         
         try:
             res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=prompt)
