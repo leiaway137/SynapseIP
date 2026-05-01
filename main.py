@@ -427,6 +427,23 @@ import traceback
 
 project_locks = defaultdict(asyncio.Lock)
 
+async def call_with_retry(func, *args, retries=3, base_delay=10, **kwargs):
+    import asyncio
+    for attempt in range(retries):
+        try:
+            return await func(*args, **kwargs)
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "503" in err_str or "ResourceExhausted" in err_str:
+                if attempt < retries - 1:
+                    wait_time = base_delay * (2 ** attempt)
+                    print(f"Rate limited. Retrying in {wait_time}s... (Attempt {attempt+1}/{retries})")
+                    await asyncio.sleep(wait_time)
+                else:
+                    raise e
+            else:
+                raise e
+
 async def process_single_card(unprocessed_dict):
     import json
     target_id = unprocessed_dict['id']
@@ -460,9 +477,11 @@ async def process_single_card(unprocessed_dict):
             all_topics = []
             
             title_prompt = f"You are a neat summarization bot. Create a professional, catchy, 3 to 6 word title summarizing this interaction. Do not use quotes, labels, or generic prefixes. Only return the title itself.\n\nText: {raw_content[:1500]}"
-            title_res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=title_prompt)
+            title_res = await call_with_retry(gemini_client.aio.models.generate_content, model='gemini-2.5-flash', contents=title_prompt)
             
             await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": f"Extracting architectural themes (0/{len(content_chunks)} chunks)...", "progress": 30}))
+            
+            failed_chunks = []
             
             for chunk_idx, chunk in enumerate(content_chunks):
                 extract_prompt = f"""
@@ -486,7 +505,8 @@ async def process_single_card(unprocessed_dict):
                 Raw Note (Part {chunk_idx+1}/{len(content_chunks)}): {chunk}
                 """
                 
-                extract_res = await gemini_client.aio.models.generate_content(
+                extract_res = await call_with_retry(
+                    gemini_client.aio.models.generate_content,
                     model='gemini-2.5-flash',
                     contents=extract_prompt,
                     config={'response_mime_type': 'application/json'}
@@ -503,8 +523,8 @@ async def process_single_card(unprocessed_dict):
                     chunk_topics = parsed.get("topics", []) if isinstance(parsed, dict) else parsed
                     if isinstance(chunk_topics, list):
                         all_topics.extend(chunk_topics)
-                except Exception:
-                    pass
+                except Exception as parse_e:
+                    failed_chunks.append(f"Chunk {chunk_idx+1}/{len(content_chunks)}: JSON Parsing Failed ({str(parse_e)[:50]})")
                 
                 await manager.broadcast(json.dumps({"type": "source_progress", "source_id": target_id, "message": f"Extracting architectural themes ({chunk_idx+1}/{len(content_chunks)} chunks)...", "progress": 30 + int(20 * (chunk_idx+1)/len(content_chunks))}))
                 await asyncio.sleep(1) # Prevent rate limits
@@ -540,13 +560,15 @@ async def process_single_card(unprocessed_dict):
                         vector = None
                         if pinecone_index is not None:
                             try:
-                                embed_res = await gemini_client.aio.models.embed_content(
+                                embed_res = await call_with_retry(
+                                    gemini_client.aio.models.embed_content,
                                     model='gemini-embedding-2',
                                     contents=f"Topic: {topic_name}\n\n{topic_content}"
                                 )
                                 vector = embed_res.embeddings[0].values
                             except Exception as e:
                                 print("Embedding failed:", e)
+                                failed_chunks.append(f"Topic Embedding Failed: {topic_name} ({str(e)[:50]})")
                                 
                         theme_record = None
                         if vector and pinecone_index is not None:
@@ -601,7 +623,8 @@ async def process_single_card(unprocessed_dict):
                     Output ONLY a raw JSON array of strings representing the missing theme names. No markdown blocks, no explanation.
                     """
                     
-                    sugg_res = await gemini_client.aio.models.generate_content(
+                    sugg_res = await call_with_retry(
+                        gemini_client.aio.models.generate_content,
                         model='gemini-2.5-flash',
                         contents=sugg_prompt
                     )
@@ -628,6 +651,11 @@ async def process_single_card(unprocessed_dict):
             finished_item = db2.query(GeminiSource).filter(GeminiSource.id == target_id).first()
             if finished_item:
                 finished_item.title = smart_title
+                finished_item.processed = True
+                
+                if failed_chunks:
+                    finished_item.content += "\n\n--- ⚠️ PARTIAL PROCESSING WARNINGS ---\n" + "\n".join(failed_chunks)
+                
                 finished_item.processed = True
                 
                 p = db2.query(Project).filter(Project.id == target_project_id).first()
@@ -1560,6 +1588,48 @@ def reprocess_all_sources(project_id: Optional[int] = None, current_user: User =
         return {"status": "success", "message": f"Successfully marked {len(sources)} sources for reprocessing. The background worker will pick them up shortly."}
     finally:
         db.close()
+
+@app.post("/api/admin/diagnose-card/{card_id}")
+async def diagnose_card(card_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Triggers the Diagnostics Agent to analyze a permanently failed card and suggest a fix."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    card = db.query(GeminiSource).filter(GeminiSource.id == card_id).first()
+    if not card:
+        raise HTTPException(status_code=404, detail="Card not found")
+        
+    if "⚠️ Processing Failed" not in card.title:
+        return {"status": "skipped", "message": "Card is not currently in a failed state."}
+        
+    diag_prompt = f"""
+    You are an expert AI Data Diagnostics Agent.
+    The following input card failed to process in our backend pipeline.
+    
+    CARD CONTENT & TRACEBACK:
+    {card.content[-5000:]}
+    
+    Please analyze the failure. Provide a concise, human-readable post-mortem:
+    1. **Root Cause**: Why did it fail? (e.g. "Rate limit hit", "Text is purely code and couldn't be parsed", "Database timeout").
+    2. **Recoverability**: What parts of the original raw note can be salvaged?
+    3. **Recommended Action**: What should the admin do? (e.g. "Just click Re-queue, it was a temporary timeout", "Delete the card, it is garbage data").
+    
+    Keep it professional, structured, and brief. Use markdown.
+    """
+    
+    try:
+        diag_res = await gemini_client.aio.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=diag_prompt
+        )
+        
+        # Append the diagnostic report to the card content for the user to see
+        card.content += f"\n\n=========================\n🤖 DIAGNOSTICS AGENT REPORT\n=========================\n{diag_res.text.strip()}"
+        db.commit()
+        
+        return {"status": "success", "message": "Diagnostic report generated successfully.", "report": diag_res.text.strip()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Diagnostics Agent failed: {e}")
 
 # ---------------------------------------------------------
 # Extension API Endpoints (lightweight, for Chrome Extension overlay)
