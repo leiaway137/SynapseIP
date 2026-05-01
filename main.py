@@ -2623,9 +2623,6 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             [PREVIOUS ARCHITECTURAL DECISIONS (Maintain Strict Consistency with these)]:
             {rolling_architecture_context}
             
-            [GLOBAL CONTEXT (Project Abstract & Themes)]:
-            {source_texts}
-            
             [DEEP-DIVE CONTEXT (Raw Notes retrieved via Vector Search for '{chapter_title}')]:
             {relevant_sources_text}
             """
@@ -2857,19 +2854,32 @@ async def admin_page(request: Request):
 def get_project_context(project_id: int, db: Session):
     final_context = []
     
-    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project_id).limit(10).all()
+    themes = db.query(ProjectTheme).filter(ProjectTheme.project_id == project_id).all()
     if themes:
-        theme_str = "\n\n---\n\n".join([f"THEME: {t.theme_name}\n{t.content[:1500]}" for t in themes])
-        final_context.append(f"--- HIGH FIDELITY PROJECT THEMES ---\n{theme_str}\n--- END THEMES ---")
-    else:
-        sources = db.query(GeminiSource).filter(GeminiSource.project_id == project_id).limit(10).all()
-        if sources:
-            memories = []
-            for s in sources:
-                if s.short_memory: memories.append(f"Source: {s.title}\nSummary: {s.short_memory}")
-                else: memories.append(f"Source: {s.title}\nContent snippet: {s.content[:500]}...")
-            raw_str = "\n\n---\n\n".join(memories)
-            final_context.append(f"--- RAW BRAINSTORM NOTES ---\n{raw_str}\n--- END RAW NOTES ---")
+        theme_strings = []
+        for t in themes:
+            theme_content = t.content
+            # Dynamically fetch unconsolidated fragments if content is missing
+            if not theme_content:
+                fragments = db.query(ProjectThemeFragment).filter(ProjectThemeFragment.theme_id == t.id).all()
+                if fragments:
+                    theme_content = "\n---\n".join([f.content for f in fragments])
+            
+            if theme_content:
+                theme_strings.append(f"THEME: {t.theme_name}\n{theme_content}")
+                
+        if theme_strings:
+            theme_str = "\n\n========================\n\n".join(theme_strings)
+            final_context.append(f"--- HIGH FIDELITY PROJECT THEMES ---\n{theme_str}\n--- END THEMES ---")
+            
+    # Explicitly fetch ONLY unprocessed raw sources
+    unprocessed_sources = db.query(GeminiSource).filter(GeminiSource.project_id == project_id, GeminiSource.processed == False).all()
+    if unprocessed_sources:
+        memories = []
+        for s in unprocessed_sources:
+            memories.append(f"Source: {s.title}\nContent: {s.content}")
+        raw_str = "\n\n---\n\n".join(memories)
+        final_context.append(f"--- UNPROCESSED RAW BRAINSTORM NOTES ---\n{raw_str}\n--- END RAW NOTES ---")
             
     latest_intel = db.query(GeneratedReport).filter(GeneratedReport.project_id == project_id).order_by(GeneratedReport.timestamp.desc()).first()
     if latest_intel:
