@@ -360,7 +360,7 @@ class FollowupRequest(BaseModel):
 
 class OnboardingResponseSchema(BaseModel):
     message: str = Field(description="Your conversational reply or evaluation.")
-    is_complete: bool = Field(description="True if Designer Name, App Name, Core Purpose, Target Audience, App Type, Budget/Hosting Constraints, Security Strategy, and Standout Features are confidently identified. False otherwise.")
+    is_complete: bool = Field(description="True if Designer Name, App Name, Core Purpose, Target Audience, App Type, Budget/Hosting Constraints, Security Strategy, AI Integration, Build Environment, and Standout Features are confidently identified. False otherwise.")
     designer_name: Optional[str] = Field(description="Extracted designer name.", default=None)
     app_name: Optional[str] = Field(description="Extracted app name.", default=None)
     core_purpose: Optional[str] = Field(description="Extracted core purpose.", default=None)
