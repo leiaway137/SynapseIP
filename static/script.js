@@ -13,8 +13,8 @@ let followupHistory = [];
 
 // Authentication Gateway Network Override
 const originalFetch = window.fetch;
-window.fetch = async function() {
-    let [resource, config] = arguments;
+window.fetch = async function(...args) {
+    let [resource, config] = args;
     if(typeof resource === 'string' && resource.startsWith('/api')) {
         const token = localStorage.getItem('synapseip_token');
         if(token) {
@@ -458,7 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Routing Generation Hooks
-    document.getElementById('generate-btn').addEventListener('click', generateIntelligence);
+    document.getElementById('generate-btn').addEventListener('click', checkAndReviewThemes);
     document.getElementById('regenerate-intel-btn').addEventListener('click', regenerateIntelligence);
     document.getElementById('build-blueprint-btn').addEventListener('click', startArchitectPipeline);
     
@@ -482,6 +482,11 @@ async function sendOnboardingMessage(initial = false) {
     
     const userText = chatInput ? chatInput.value.trim() : "";
     if (!initial && !userText) return;
+    
+    // Check for 128k Limit (roughly 400,000 characters)
+    if (!initial && userText.length > 400000) {
+        alert("⚠️ Large payload detected. This document exceeds the 128k token threshold and will be automatically chunked by the server to prevent premium billing spikes.");
+    }
     
     if (!initial) {
         onboardingHistory.push({ role: "user", content: userText });
@@ -549,7 +554,32 @@ async function sendOnboardingMessage(initial = false) {
     }
 }
 
-// Phase 2: Render Intelligence Report
+// Phase 2a: Pre-Flight Theme Review
+async function checkAndReviewThemes() {
+    try {
+        const themeRes = await fetch(`/api/projects/${currentProjectId}/themes`);
+        const themes = await themeRes.json();
+        
+        let needsConsolidation = themes.some(t => t.has_unconsolidated_fragments);
+        
+        if (needsConsolidation || (themes.length > 0 && !window.themesApproved)) {
+            // Hide onboarding, show workbench
+            document.getElementById('onboarding-screen').style.display = 'none';
+            document.getElementById('intelligence-dashboard').style.display = 'none';
+            document.getElementById('architect-workbench').style.display = 'flex';
+            currentArchitectLoop = -1;
+            renderThemeConsolidationState(themes, needsConsolidation);
+        } else {
+            // No themes to review or already approved
+            generateIntelligence();
+        }
+    } catch (e) {
+        console.error("Failed to check themes:", e);
+        generateIntelligence(); // fallback to intel report
+    }
+}
+
+// Phase 2b: Render Intelligence Report
 const THOUGHTS = ["Correlating raw project memories...", "Conducting live Market SWOT...", "Building Vibe Coding Pipeline..."];
 async function generateIntelligence() {
     const btn = document.getElementById('generate-btn');
@@ -663,74 +693,7 @@ function renderDashboard(data, currentVibeStep = 0, history = []) {
         else if (vText.includes('RED') || vText.includes('ABANDON') || vText.includes('PIVOT')) vColor = '#f87171';
         document.getElementById('rep-verdict').style.color = vColor;
     }
-    const timeline = document.getElementById('rep-timeline');
-    timeline.innerHTML = `
-        <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 0.85rem; color: #fde68a;">
-            <strong>⚠️ Preliminary Outline:</strong> This is a high-level table of contents. The exact, copy-pasteable Vibe Coding prompts are subject to change and will be generated during the Master Architect Blueprint phase.
-        </div>
-    `;
-    if (data.vibe_coding_pipeline) {
-        data.vibe_coding_pipeline.forEach((step, idx) => {
-            const el = document.createElement('div');
-            el.className = 'timeline-step';
-            el.id = `vibe-step-${idx}`;
-            
-            const isCompleted = idx < currentVibeStep;
-            if (isCompleted) el.classList.add('vibe-completed');
-            
-            // Note: older database items may still have prompt_text instead of title
-            const stepTitle = step.title || step.prompt_text || "Implementation Step";
-            
-            el.innerHTML = `
-                <div class="vibe-checkbox-container">
-                    <input type="checkbox" class="vibe-checkbox" id="checkbox-${idx}" data-idx="${idx}" ${isCompleted ? 'checked' : ''}>
-                    <label for="checkbox-${idx}" style="cursor:pointer; margin:0;"><h4 style="margin:0;">Step ${idx + 1}</h4></label>
-                </div>
-                <h4 style="color: #a78bfa; margin-top: 10px; margin-bottom: 8px;">${escapeHTML(stepTitle)}</h4>
-                <div class="step-why"><strong>Why:</strong> ${marked.parse(step.why)}</div>
-                <div class="step-expect"><strong>Expectation:</strong> ${marked.parse(step.expectation)}</div>
-                <div class="step-error"><strong>Watch Out:</strong> ${marked.parse(step.error_warnings)}</div>
-            `;
-            timeline.appendChild(el);
-            
-            // Attach Checkbox Listener
-            const cb = el.querySelector('.vibe-checkbox');
-            cb.addEventListener('change', async (e) => {
-                const checked = e.target.checked;
-                const newStep = checked ? idx + 1 : idx;
-                
-                try {
-                    await fetch(`/api/projects/${currentProjectId}/vibe-step`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ step: newStep })
-                    });
-                    
-                    document.querySelectorAll('.timeline-step').forEach((stepEl, stepIdx) => {
-                        const stepCb = stepEl.querySelector('.vibe-checkbox');
-                        if (stepIdx < newStep) {
-                            stepEl.classList.add('vibe-completed');
-                            stepCb.checked = true;
-                        } else {
-                            stepEl.classList.remove('vibe-completed');
-                            stepCb.checked = false;
-                        }
-                    });
-                } catch(err) { console.error("Failed to save vibe step", err); }
-            });
-        });
-        
-        // Auto-scroll logic to the first uncompleted step (only scroll if they've made progress)
-        if (currentVibeStep > 0 && currentVibeStep < data.vibe_coding_pipeline.length) {
-            setTimeout(() => {
-                const target = document.getElementById(`vibe-step-${currentVibeStep}`);
-                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 500);
-        }
-        
-        // Add Copy Buttons to generated prompts
-        addCopyButtonsToPreTags('rep-timeline');
-    }
+
     
     // Re-init Follow-up agent automatically
     followupHistory = history || [];
@@ -789,51 +752,192 @@ async function sendFollowupMessage(silentSeed = false) {
     histEl.scrollTop = histEl.scrollHeight;
 }
 
-// Phase 4: Architect Generation
+// Phase 4: Architect Generation (Interactive State Machine)
+let currentArchitectLoop = 0;
+
 async function startArchitectPipeline() {
     const btn = document.getElementById('build-blueprint-btn');
     btn.innerHTML = `<span class='loading-dots'>Allocating Resources...</span>`;
     btn.disabled = true;
     
+    document.getElementById('intelligence-dashboard').style.display = 'none';
+    document.getElementById('architect-workbench').style.display = 'flex';
+    
+    mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+    await loadArchitectState();
+}
+
+async function loadArchitectState() {
     try {
-        const ideSelectorValue = document.getElementById('ide-selector') ? document.getElementById('ide-selector').value : "Antigravity";
-        const res = await fetch('/api/architect/start', {
+        // Step 1: Normal Architect State (Theme review happens before Intel Report now)
+        const res = await fetch(`/api/architect/state/${currentProjectId}`);
+        const state = await res.json();
+        currentArchitectLoop = state.current_loop;
+        
+        if (currentArchitectLoop === 0 && !state.loop0_draft) {
+            await triggerArchitectLoop(0);
+        } else if (currentArchitectLoop === 1 && !state.loop1_draft) {
+            await triggerArchitectLoop(1);
+        } else if (currentArchitectLoop === 2 && !state.loop2_draft) {
+            await triggerArchitectLoop(2);
+        } else {
+            renderWorkbenchState(state);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Failed to load architect state.");
+    }
+}
+
+function renderThemeConsolidationState(themes, needsConsolidation) {
+    document.getElementById('workbench-refine-btn').style.display = 'none';
+    document.getElementById('workbench-feedback').style.display = 'none';
+    
+    document.getElementById('workbench-loop-badge').innerText = `Pre-Flight`;
+    document.getElementById('workbench-draft-title').innerText = "High-Fidelity Theme Review";
+    
+    if (needsConsolidation) {
+        document.getElementById('workbench-approve-btn').innerText = "Consolidate Raw Themes";
+        document.getElementById('workbench-draft-content').innerHTML = `
+            <div style="padding: 20px;">
+                <h3 style="color: #fbbf24; margin-top:0;">Raw Fragments Detected</h3>
+                <p style="color:#cbd5e1;">You have captured notes and brainstorm fragments that have not yet been synthesized into a High-Fidelity story.</p>
+                <p style="color:#cbd5e1;">Click <strong>Consolidate Raw Themes</strong> below to instantly process them into clean, cohesive Knowledge Base chapters before the Architect begins.</p>
+            </div>
+        `;
+    } else {
+        document.getElementById('workbench-approve-btn').innerText = "Approve Knowledge Base";
+        let html = `<div style="padding: 10px;">
+            <p style="color:#94a3b8; font-size:0.9rem; margin-top:0;">Please review the High-Fidelity Knowledge Base below. If you need to make changes, use the 🧠 Agentic Memory editor drawer on the right. Once satisfied, click Approve.</p>
+        `;
+        themes.forEach(t => {
+            html += `<details style="margin-bottom: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                <summary style="padding: 12px; cursor: pointer; font-weight: bold; color: #38bdf8;">${t.theme_name}</summary>
+                <div style="padding: 12px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.9rem; color: #f1f5f9;">
+                    ${marked.parse(t.content || "No content")}
+                </div>
+            </details>`;
+        });
+        html += `</div>`;
+        document.getElementById('workbench-draft-content').innerHTML = html;
+    }
+}
+
+async function triggerArchitectLoop(loopIndex, feedback = "") {
+    document.getElementById('workbench-draft-content').innerHTML = `<span class='loading-dots'>Architect is thinking...</span>`;
+    document.getElementById('workbench-refine-btn').disabled = true;
+    document.getElementById('workbench-approve-btn').disabled = true;
+    
+    const ideSelectorValue = document.getElementById('ide-selector') ? document.getElementById('ide-selector').value : "Antigravity";
+    
+    const payload = {
+        target_platform: ideSelectorValue,
+        designer_name: document.getElementById('config-designer').value || "Unknown",
+        app_name: currentProjectName,
+        app_purpose: document.getElementById('config-purpose').value || "N/A",
+        target_audience: document.getElementById('config-audience').value || "N/A",
+        app_type: document.getElementById('config-apptype').value || "Commercial",
+        build_environment: document.getElementById('config-environment') ? document.getElementById('config-environment').value : "Greenfield (New)",
+        budget_constraints: document.getElementById('config-budget').value || "N/A",
+        ai_integration: document.getElementById('config-ai_integration').value || "N/A",
+        security_auth: document.getElementById('config-security').value || "N/A",
+        standout_features: JSON.parse(document.getElementById('config-features').value || "[]"),
+        project_id: currentProjectId,
+        feedback: feedback
+    };
+    
+    try {
+        let endpoint = `/api/architect/loop${loopIndex}`;
+        if (loopIndex >= 3) endpoint = `/api/architect/loop3_4`;
+        
+        const res = await fetch(endpoint, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                target_platform: ideSelectorValue,
-                designer_name: currentUser ? currentUser.username : "Unknown",
-                app_name: currentProjectName,
-                app_purpose: "Automated via Follow-Up",
-                target_audience: "N/A",
-                app_type: "Commercial",
-                build_environment: document.getElementById('config-environment') ? document.getElementById('config-environment').value : "Greenfield (New)",
-                standout_features: [],
-                project_id: currentProjectId
-            })
+            body: JSON.stringify(payload)
         });
-        if (!res.ok) {
-            let errText = "Failed to start logic router.";
-            try {
-                const errData = await res.json();
-                errText += " " + (errData.detail || `Status: ${res.status}`);
-            } catch(e) {
-                errText += ` (Status: ${res.status})`;
-            }
-            throw new Error(errText);
+        
+        if (!res.ok) throw new Error("Failed to generate loop");
+        
+        if (loopIndex >= 3) {
+            document.getElementById('workbench-draft-content').innerHTML = `<div style='text-align:center; padding: 40px;'><h3 style='color:#34d399;'>Compiling Final Architect Blueprint</h3><p style='color:#94a3b8;'>Building remaining chapters (Database, API, UI). This process will take 1-2 minutes.<br>You will be automatically redirected to the PDF Viewer when complete.</p><div class='loading-state'></div></div>`;
+            return;
         }
-    } catch(e) {
-        btn.innerHTML = `Build Architect Blueprint`;
-        btn.disabled = false;
+        
+        const data = await res.json();
+        currentArchitectLoop = data.current_loop;
+        
+        // Fetch full state again to render
+        await loadArchitectState();
+    } catch (e) {
         alert(e.message);
+        document.getElementById('workbench-draft-content').innerHTML = `Error: ${e.message}`;
+        document.getElementById('workbench-refine-btn').disabled = false;
     }
-    // Result hand-handled by WebSocket
 }
+
+function renderWorkbenchState(state) {
+    document.getElementById('workbench-refine-btn').style.display = 'block';
+    document.getElementById('workbench-feedback').style.display = 'block';
+    document.getElementById('workbench-refine-btn').disabled = false;
+    document.getElementById('workbench-approve-btn').disabled = false;
+    document.getElementById('workbench-feedback').value = "";
+    
+    const loopNames = ["Loop 0: Layman's App Overview", "Loop 1: System Workflow Mapping", "Loop 2: Tech Stack Skeleton", "Compiling Final Blueprint"];
+    const btnNames = ["Approve Overview", "Approve Workflow", "Approve Foundation", "Processing..."];
+    
+    document.getElementById('workbench-loop-badge').innerText = `Loop ${state.current_loop}`;
+    document.getElementById('workbench-draft-title').innerText = loopNames[state.current_loop] || "Finalizing...";
+    document.getElementById('workbench-approve-btn').innerText = btnNames[state.current_loop] || "Finish";
+    
+    let draftHtml = "";
+    if (state.current_loop === 0) draftHtml = marked.parse(state.loop0_draft || "");
+    else if (state.current_loop === 1) draftHtml = marked.parse(state.loop1_draft || "");
+    else if (state.current_loop === 2) draftHtml = marked.parse(state.loop2_draft || "");
+    
+    document.getElementById('workbench-draft-content').innerHTML = draftHtml;
+    
+    // Render mermaid if present
+    setTimeout(() => {
+        try { mermaid.init(undefined, document.querySelectorAll('.language-mermaid')); } catch(e) {}
+    }, 100);
+}
+
+document.getElementById('workbench-refine-btn')?.addEventListener('click', () => {
+    if (currentArchitectLoop === -1) return; // Hidden in loop -1
+    const fb = document.getElementById('workbench-feedback').value;
+    triggerArchitectLoop(currentArchitectLoop, fb);
+});
+
+document.getElementById('workbench-approve-btn')?.addEventListener('click', async () => {
+    if (currentArchitectLoop === -1) {
+        const btnText = document.getElementById('workbench-approve-btn').innerText;
+        if (btnText === "Consolidate Raw Themes") {
+            document.getElementById('workbench-draft-content').innerHTML = `<span class='loading-dots'>Synthesizing High-Fidelity Knowledge Base...</span>`;
+            document.getElementById('workbench-approve-btn').disabled = true;
+            await fetch(`/api/architect/consolidate-themes`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({project_id: currentProjectId})
+            });
+            await checkAndReviewThemes();
+        } else {
+            window.themesApproved = true;
+            document.getElementById('architect-workbench').style.display = 'none';
+            document.getElementById('onboarding-screen').style.display = 'flex'; // show onboarding so generateIntelligence can hide it and show progress
+            await generateIntelligence();
+        }
+        return;
+    }
+    
+    const nextLoop = currentArchitectLoop + 1;
+    triggerArchitectLoop(nextLoop, "");
+});
 
 // Blueprint Viewer Route
 function showBlueprint(markdownText) {
     document.getElementById('intelligence-dashboard').style.display = 'none';
     document.getElementById('onboarding-screen').style.display = 'none';
+    document.getElementById('architect-workbench').style.display = 'none';
     document.getElementById('blueprint-viewer').style.display = 'flex';
     
     document.getElementById('blueprint-content').innerHTML = marked.parse(markdownText);
@@ -870,6 +974,28 @@ function showBlueprint(markdownText) {
         });
     });
     
+    // Mount Markdown Exporter
+    const mdBtn = document.getElementById('blueprint-export-md');
+    if (mdBtn) {
+        const newMdBtn = mdBtn.cloneNode(true);
+        mdBtn.parentNode.replaceChild(newMdBtn, mdBtn);
+        newMdBtn.addEventListener('click', () => {
+            if (!window.currentBlueprintMarkdown) {
+                alert("Blueprint markdown not fully loaded yet.");
+                return;
+            }
+            const blob = new Blob([window.currentBlueprintMarkdown], { type: 'text/markdown' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'SynapseIP_Master_Blueprint.md';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        });
+    }
+
     // Mount PDF Exporter
     const btn = document.getElementById('blueprint-export-pdf');
     // Clone trick to remove old event listeners
@@ -1060,6 +1186,11 @@ function initWebSocket() {
                 if (btn) {
                     btn.innerHTML = `Build Architect Blueprint (PDF)`;
                     btn.disabled = false;
+                }
+                
+                // Store raw markdown for the download button
+                if (data.markdown_content) {
+                    window.currentBlueprintMarkdown = data.markdown_content;
                 }
                 
                 // Terminate global tracker
