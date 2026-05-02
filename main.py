@@ -2801,32 +2801,30 @@ def fix_blueprint_markdown(project_id: int, db: Session = Depends(get_db)):
         
     text = blueprint.blueprint_data
     
-    # Fix Step 0 unclosed backticks issue
-    marker1 = "doesn't break your architecture in future steps.\n\n```text\n"
-    marker2 = "doesn't break your architecture in future steps.\n\n````text\n"
-    if marker1 in text:
-        text = text.replace(marker1, marker2)
-        idx = text.find(marker2)
-        if idx != -1:
-            end_idx = text.find("\n```\n\n---\n\n", idx)
-            if end_idx != -1:
-                text = text[:end_idx] + "\n````\n\n---\n\n" + text[end_idx + 12:]
-            else:
-                # If the previous fix removed the backticks entirely, just inject them back
-                end_idx2 = text.find("\n---\n\n", idx)
-                if end_idx2 != -1:
-                    text = text[:end_idx2] + "\n````\n---\n\n" + text[end_idx2 + 6:]
-                    
-    # Fix subsequent chapter backticks (if AI wrapped them)
-    text = re.sub(r'```(?:markdown|text|)\s*\n(\s*\*\*Why)', r'\1', text, flags=re.IGNORECASE)
+    # Split the document into chapters by the separator
+    chapters = re.split(r'\n---\n', text)
     
-    # We only remove trailing backticks if they appear right before --- and NOT if they are legitimately closing an inner prompt block.
-    # Actually, the unclosed Step 0 block was the main reason the entire document was bleeding together.
-    # By fixing Step 0, the rest of the document should correctly isolate the code blocks.
+    fixed_chapters = []
+    for i, chap in enumerate(chapters):
+        # We only care about fixing broken backticks in the chapters, which have "Why" or "Step"
+        # Let's just count the number of triple backticks in this chapter.
+        # But wait, we must be careful not to count quadruple backticks.
+        # Find all occurrences of 3 or more backticks
+        fences = re.findall(r'^```.*$', chap, flags=re.MULTILINE)
+        
+        # If there's an odd number of fences, it means the block wasn't closed!
+        if len(fences) % 2 != 0:
+            # It's missing a closing backtick at the end (because my previous script deleted it)
+            chap = chap.rstrip() + "\n```\n"
+            
+        fixed_chapters.append(chap)
+        
+    # Rejoin the chapters
+    text = "\n---\n".join(fixed_chapters)
     
     blueprint.blueprint_data = text
     db.commit()
-    return {"message": "Blueprint formatted and fixed! Please refresh your Blueprint view.", "success": True}
+    return {"message": "Blueprint repaired! The unclosed markdown blocks have been fixed. Please refresh.", "success": True}
 
 @app.get("/api/stats/tokens")
 def get_token_stats(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
