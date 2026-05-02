@@ -2792,6 +2792,25 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
     finally:
         db.close()
 
+@app.get("/api/admin/fix-blueprint/{project_id}")
+def fix_blueprint_markdown(project_id: int, db: Session = Depends(get_db)):
+    import re
+    blueprint = db.query(ArchitectBlueprint).filter(ArchitectBlueprint.project_id == project_id).order_by(ArchitectBlueprint.timestamp.desc()).first()
+    if not blueprint:
+        return {"error": "No blueprint found"}
+        
+    text = blueprint.blueprint_data
+    
+    # 1. Remove the opening ```markdown that wraps the Why/Expectation block
+    text = re.sub(r'```(?:markdown|text|)\s*\n(\s*\*\*Why)', r'\1', text, flags=re.IGNORECASE)
+    
+    # 2. Remove the trailing ``` right before the --- chapter separator
+    text = re.sub(r'```\s*\n---\n', r'\n---\n', text)
+    
+    blueprint.blueprint_data = text
+    db.commit()
+    return {"message": "Blueprint formatted and fixed! Please refresh your Blueprint view.", "success": True}
+
 @app.get("/api/stats/tokens")
 def get_token_stats(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from sqlalchemy import func
