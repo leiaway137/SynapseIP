@@ -344,6 +344,7 @@ class BlueprintEditRequest(BaseModel):
     project_id: int
     highlighted_text: str
     instructions: str
+    container_preference: str = "auto"
 
 class ArchitectStateResponse(BaseModel):
     current_loop: int
@@ -2844,6 +2845,12 @@ async def edit_blueprint_segment(req: BlueprintEditRequest, db: Session = Depend
         # We will use Flash for this fast patch operation
         system_prompt = "You are a surgical technical editor. You must follow instructions precisely and return ONLY a valid JSON object."
         
+        formatting_rules = ""
+        if req.container_preference == "outside":
+            formatting_rules = "\nFORMATTING INSTRUCTION: The user has requested this text be placed OUTSIDE the copy/paste code block. The 'new_markdown' output MUST NOT be wrapped in ``` or any code fence. Format it as plain text markdown (e.g. paragraphs, bold, lists)."
+        elif req.container_preference == "inside":
+            formatting_rules = "\nFORMATTING INSTRUCTION: The user has requested this text be placed INSIDE the copy/paste code block. The 'new_markdown' output MUST be formatted as a raw code block or placed inside existing ``` fences so it can be easily copied to an IDE."
+        
         user_prompt = f"""
         A developer highlighted a specific section of their architectural blueprint and requested a change.
         
@@ -2852,6 +2859,7 @@ async def edit_blueprint_segment(req: BlueprintEditRequest, db: Session = Depend
         
         USER INSTRUCTION:
         {req.instructions}
+        {formatting_rules}
         
         FULL MARKDOWN DOCUMENT:
         ---
@@ -2885,8 +2893,14 @@ async def edit_blueprint_segment(req: BlueprintEditRequest, db: Session = Depend
                 raise ValueError("AI returned an empty exact_old_markdown string.")
                 
             if old_str not in full_markdown:
-                # Fallback: maybe the AI escaped newlines improperly
-                raise ValueError("The AI failed to return an exact matching substring. The replacement target could not be found in the document.")
+                if old_str.strip() in full_markdown:
+                    old_str = old_str.strip()
+                elif old_str.rstrip() in full_markdown:
+                    old_str = old_str.rstrip()
+                elif old_str.lstrip() in full_markdown:
+                    old_str = old_str.lstrip()
+                else:
+                    raise ValueError("The AI failed to return an exact matching substring. The replacement target could not be found in the document.")
                 
             updated_markdown = full_markdown.replace(old_str, new_str)
             blueprint.blueprint_data = updated_markdown

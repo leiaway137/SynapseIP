@@ -1641,35 +1641,65 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Highlight-to-Ask Tooltip
+    // Highlight-to-Ask & Edit Tooltip
     const tooltip = document.createElement('div');
     tooltip.className = 'selection-tooltip';
-    tooltip.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> Ask AI';
+    tooltip.innerHTML = `
+        <div style="display: flex; gap: 8px;">
+            <button id="tooltip-ask-ai" style="background: transparent; border: none; color: white; display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; font-weight: 500; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> Ask AI
+            </button>
+            <div style="width: 1px; background: rgba(255,255,255,0.2);"></div>
+            <button id="tooltip-edit-draft" style="background: transparent; border: none; color: white; display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; font-weight: 500; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;">
+                ✨ Edit Draft
+            </button>
+        </div>
+    `;
     tooltip.style.opacity = '0';
     tooltip.style.pointerEvents = 'none';
     document.body.appendChild(tooltip);
     
+    // Add hover effects via JS since it's dynamically inserted inline styles
+    const btnAskAi = document.getElementById('tooltip-ask-ai');
+    const btnEditDraft = document.getElementById('tooltip-edit-draft');
+    [btnAskAi, btnEditDraft].forEach(btn => {
+        btn.addEventListener('mouseenter', () => btn.style.background = 'rgba(255,255,255,0.1)');
+        btn.addEventListener('mouseleave', () => btn.style.background = 'transparent');
+    });
+    
     let currentSelection = '';
     
     document.addEventListener('mouseup', (e) => {
-        // Prevent tooltip from showing when clicking inside tooltip or chat panel
-        if (e.target.closest('.selection-tooltip') || e.target.closest('.floating-chat-panel')) return;
+        // Prevent tooltip from showing when clicking inside tooltip or chat panel or modal
+        if (e.target.closest('.selection-tooltip') || e.target.closest('.floating-chat-panel') || e.target.closest('#blueprint-edit-modal')) return;
         
         setTimeout(() => {
             const selection = window.getSelection();
             const text = selection.toString().trim();
             
-            if (text.length > 5) { // Minimum 5 chars to trigger
+            // Only show if we are inside blueprint-viewer (for edit) or generally (for ask ai)
+            // But let's restrict it to the whole document for Ask AI, and just enable Edit Draft if in blueprint.
+            if (text.length > 5) {
                 currentSelection = text;
                 const range = selection.getRangeAt(0);
                 const rect = range.getBoundingClientRect();
                 
                 // Position tooltip above the selection
                 tooltip.style.left = `${rect.left + (rect.width / 2)}px`;
-                tooltip.style.top = `${rect.top + window.scrollY - 35}px`;
+                tooltip.style.top = `${rect.top + window.scrollY - 45}px`;
                 tooltip.style.transform = 'translateX(-50%)';
                 tooltip.style.opacity = '1';
                 tooltip.style.pointerEvents = 'auto';
+                
+                // Show/hide Edit Draft depending on if selection is in blueprint content
+                const blueprintContent = document.getElementById('blueprint-content');
+                if (blueprintContent && blueprintContent.contains(selection.anchorNode)) {
+                    btnEditDraft.style.display = 'flex';
+                    tooltip.querySelector('div > div').style.display = 'block'; // the separator
+                } else {
+                    btnEditDraft.style.display = 'none';
+                    tooltip.querySelector('div > div').style.display = 'none';
+                }
             } else {
                 tooltip.style.opacity = '0';
                 tooltip.style.pointerEvents = 'none';
@@ -1679,14 +1709,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Hide tooltip on mousedown
     document.addEventListener('mousedown', (e) => {
-        if (!e.target.closest('.selection-tooltip') && !e.target.closest('.floating-chat-panel')) {
+        if (!e.target.closest('.selection-tooltip') && !e.target.closest('.floating-chat-panel') && !e.target.closest('#blueprint-edit-modal')) {
             tooltip.style.opacity = '0';
             tooltip.style.pointerEvents = 'none';
         }
     });
     
-    // Tooltip Click Handler
-    tooltip.addEventListener('click', () => {
+    // Ask AI Click Handler
+    btnAskAi.addEventListener('click', () => {
         tooltip.style.opacity = '0';
         tooltip.style.pointerEvents = 'none';
         
@@ -1697,6 +1727,22 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Clear selection
             window.getSelection().removeAllRanges();
+        }
+    });
+    
+    // Edit Draft Click Handler
+    btnEditDraft.addEventListener('click', () => {
+        tooltip.style.opacity = '0';
+        tooltip.style.pointerEvents = 'none';
+        
+        const blueprintEditModal = document.getElementById('blueprint-edit-modal');
+        const blueprintEditPreview = document.getElementById('blueprint-edit-preview');
+        const blueprintEditInstructions = document.getElementById('blueprint-edit-instructions');
+        
+        if (blueprintEditModal) {
+            blueprintEditPreview.textContent = currentSelection;
+            blueprintEditInstructions.value = "";
+            blueprintEditModal.style.display = 'flex';
         }
     });
 
@@ -1867,63 +1913,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Blueprint Interactive Editor Logic ---
     const blueprintViewer = document.getElementById('blueprint-viewer');
     const blueprintContent = document.getElementById('blueprint-content');
-    const blueprintFab = document.getElementById('blueprint-fab');
     const blueprintEditModal = document.getElementById('blueprint-edit-modal');
     const blueprintEditPreview = document.getElementById('blueprint-edit-preview');
     const blueprintEditInstructions = document.getElementById('blueprint-edit-instructions');
     const btnCloseBlueprintModal = document.getElementById('close-blueprint-modal');
     const btnCancelBlueprintModal = document.getElementById('cancel-blueprint-modal');
     const btnSubmitBlueprintEdit = document.getElementById('submit-blueprint-edit');
-    
-    let currentSelectedText = "";
 
-    if (blueprintContent && blueprintFab) {
-        document.addEventListener('selectionchange', () => {
-            if (blueprintViewer.style.display !== 'none') {
-                const selection = window.getSelection();
-                const text = selection.toString().trim();
-                
-                if (text.length > 5 && blueprintContent.contains(selection.anchorNode)) {
-                    // Position the FAB near the end of the selection
-                    const range = selection.getRangeAt(0);
-                    const rect = range.getBoundingClientRect();
-                    
-                    // Add scroll offset
-                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-                    
-                    blueprintFab.style.top = `${rect.bottom + scrollTop + 10}px`;
-                    blueprintFab.style.left = `${rect.left + scrollLeft + (rect.width / 2) - 40}px`;
-                    blueprintFab.style.display = 'block';
-                    currentSelectedText = text;
-                } else {
-                    // Only hide if the click wasn't on the FAB itself
-                    blueprintFab.style.display = 'none';
-                }
-            }
-        });
-        
-        // Hide FAB on mousedown anywhere else
-        document.addEventListener('mousedown', (e) => {
-            if (e.target !== blueprintFab) {
-                // We don't hide immediately because it breaks clicking the FAB
-                setTimeout(() => {
-                    const selection = window.getSelection();
-                    if (!selection || selection.toString().trim() === '') {
-                        blueprintFab.style.display = 'none';
-                    }
-                }, 100);
-            }
-        });
-
-        blueprintFab.addEventListener('click', (e) => {
-            e.stopPropagation();
-            blueprintEditPreview.textContent = currentSelectedText;
-            blueprintEditInstructions.value = "";
-            blueprintEditModal.style.display = 'flex';
-            blueprintFab.style.display = 'none';
-        });
-        
+    if (blueprintContent && blueprintEditModal) {
         const closeEditModal = () => {
             blueprintEditModal.style.display = 'none';
         };
@@ -1939,6 +1936,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 
+                // Get the formatting preference
+                const formatPrefRadio = document.querySelector('input[name="format-pref"]:checked');
+                const containerPref = formatPrefRadio ? formatPrefRadio.value : "auto";
+                
                 btnSubmitBlueprintEdit.innerText = "Applying... ⏳";
                 btnSubmitBlueprintEdit.disabled = true;
                 btnSubmitBlueprintEdit.style.opacity = '0.7';
@@ -1949,8 +1950,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             project_id: currentProjectId,
-                            highlighted_text: currentSelectedText,
-                            instructions: instructions
+                            highlighted_text: blueprintEditPreview.textContent,
+                            instructions: instructions,
+                            container_preference: containerPref
                         })
                     });
                     
