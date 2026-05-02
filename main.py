@@ -2563,6 +2563,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             14. INFRASTRUCTURE PHYSICS: Use standard serverless API routes for simple tasks (like streaming AI chat). You should ONLY mandate a decoupled asynchronous queue pattern (e.g., background workers) for truly heavy, long-running tasks like bulk scraping.
             15. SEPARATION OF AI CONCERNS: NEVER allow an AI to grade its own output. If a task requires content generation and validation, you MUST architect distinct Generate and Evaluate operations (a secondary Evaluator AI). Complex multi-step generations must be split into separate API calls.
             16. STRUCTURED OUTPUTS MANDATE: If this step involves an AI generating structured data (like JSON), you are STRICTLY FORBIDDEN from instructing the coding AI to just use a text prompt like 'return JSON'. You MUST instruct the coding AI to define a strict JSON Schema (e.g., using Zod) and pass it directly into the AI provider's SDK to enforce deterministic structured outputs.
+            17. MARKDOWN FORMATTING MANDATE: You MUST NOT wrap your entire response in a single master code block. ONLY the text meant to be copied and pasted into the IDE must be inside triple backticks (```text). The headers (Why, Expectation, Watch Out) MUST be outside any code blocks. It is a FATAL ERROR to place the "Why", "Expectation", or "Watch Out" sections inside a markdown code block.
             
             STRICT FORMATTING TEMPLATE YOU MUST FOLLOW (Adapt the `text` block section to the target IDE {platform}):
             
@@ -2692,6 +2693,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                         "corrected_markdown": ""
                     }}
                     If invalid, rewrite the chapter content entirely to fix the violations and place it in corrected_markdown.
+                    CRITICAL: Do NOT wrap the corrected_markdown content in a markdown code block. Escape inner quotes properly for JSON.
                     """
                     
                     # If there are no invalid paths on the first pass, we can skip the Inspector to save tokens, 
