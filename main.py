@@ -2848,7 +2848,7 @@ async def edit_blueprint_segment(req: BlueprintEditRequest, db: Session = Depend
         
         formatting_rules = ""
         if req.container_preference == "outside":
-            formatting_rules = "\nFORMATTING INSTRUCTION: The user has requested this text be placed OUTSIDE the copy/paste code block. The 'new_markdown' output MUST NOT be wrapped in ``` or any code fence. Format it as plain text markdown (e.g. paragraphs, bold, lists)."
+            formatting_rules = "\nFORMATTING INSTRUCTION: The user has requested this text be placed OUTSIDE the copy/paste code block. The 'new_markdown' output MUST NOT be wrapped in ``` or any code fence. Format it as plain text markdown (e.g. paragraphs, bold, lists). CRUCIAL: If the original text is currently trapped inside a ``` code block in the FULL MARKDOWN DOCUMENT, you MUST expand your `exact_old_markdown` string to include the surrounding ``` fences so that the fences themselves are deleted during replacement."
         elif req.container_preference == "inside":
             formatting_rules = "\nFORMATTING INSTRUCTION: The user has requested this text be placed INSIDE the copy/paste code block. The 'new_markdown' output MUST be formatted as a raw code block or placed inside existing ``` fences so it can be easily copied to an IDE."
         
