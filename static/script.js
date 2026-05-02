@@ -1861,6 +1861,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnPruneVectors.innerText = 'Prune Drift 🧹';
                 btnPruneVectors.style.opacity = '1';
             }, 3000);
+        });
     }
     
     // --- Blueprint Interactive Editor Logic ---
