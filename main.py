@@ -2901,14 +2901,29 @@ async def edit_blueprint_segment(req: BlueprintEditRequest, db: Session = Depend
             if old_str not in full_markdown:
                 if old_str.strip() in full_markdown:
                     old_str = old_str.strip()
+                    updated_markdown = full_markdown.replace(old_str, new_str)
                 elif old_str.rstrip() in full_markdown:
                     old_str = old_str.rstrip()
+                    updated_markdown = full_markdown.replace(old_str, new_str)
                 elif old_str.lstrip() in full_markdown:
                     old_str = old_str.lstrip()
+                    updated_markdown = full_markdown.replace(old_str, new_str)
                 else:
-                    raise ValueError("The AI failed to return an exact matching substring. The replacement target could not be found in the document.")
+                    # Final Fallback: Whitespace-Agnostic Regex Matching
+                    import re
+                    # Escape the raw old_str to be safe for regex
+                    pattern_str = re.escape(old_str)
+                    # Replace any sequence of whitespace (escaped or literal) with \s+
+                    pattern_str = re.sub(r'(\\\\[\s]|[\s])+', r'\\s+', pattern_str)
+                    
+                    match = re.search(pattern_str, full_markdown)
+                    if match:
+                        updated_markdown = full_markdown[:match.start()] + new_str + full_markdown[match.end():]
+                    else:
+                        raise ValueError("The AI failed to return an exact matching substring, and fuzzy matching failed. The replacement target could not be found in the document.")
+            else:
+                updated_markdown = full_markdown.replace(old_str, new_str)
                 
-            updated_markdown = full_markdown.replace(old_str, new_str)
             blueprint.blueprint_data = updated_markdown
             db.commit()
             
