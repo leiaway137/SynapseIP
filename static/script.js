@@ -1693,7 +1693,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Show/hide Edit Draft depending on if selection is in blueprint content
                 const blueprintContent = document.getElementById('blueprint-content');
-                if (blueprintContent && blueprintContent.contains(selection.anchorNode)) {
+                if (blueprintContent && (blueprintContent.contains(selection.anchorNode) || blueprintContent.contains(selection.focusNode) || selection.containsNode(blueprintContent, true))) {
                     btnEditDraft.style.display = 'flex';
                     tooltip.querySelector('div > div').style.display = 'block'; // the separator
                 } else {
