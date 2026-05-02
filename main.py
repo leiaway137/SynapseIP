@@ -2503,7 +2503,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             markdown_content += "1. Create a file named `PROJECT_RULES.md` in the root folder of your project.\n"
             markdown_content += "2. Copy the *entire* text block below and paste it into that file.\n"
             markdown_content += "3. Your AI coding assistant will automatically read this file to ensure it doesn't break your architecture in future steps.\n\n"
-            markdown_content += f"```text\n{rules_text}\n```\n\n---\n\n"
+            markdown_content += f"````text\n{rules_text}\n````\n\n---\n\n"
         except Exception as e:
             print(f"Failed to generate project rules: {e}")
     
@@ -2801,11 +2801,28 @@ def fix_blueprint_markdown(project_id: int, db: Session = Depends(get_db)):
         
     text = blueprint.blueprint_data
     
-    # 1. Remove the opening ```markdown that wraps the Why/Expectation block
+    # Fix Step 0 unclosed backticks issue
+    marker1 = "doesn't break your architecture in future steps.\n\n```text\n"
+    marker2 = "doesn't break your architecture in future steps.\n\n````text\n"
+    if marker1 in text:
+        text = text.replace(marker1, marker2)
+        idx = text.find(marker2)
+        if idx != -1:
+            end_idx = text.find("\n```\n\n---\n\n", idx)
+            if end_idx != -1:
+                text = text[:end_idx] + "\n````\n\n---\n\n" + text[end_idx + 12:]
+            else:
+                # If the previous fix removed the backticks entirely, just inject them back
+                end_idx2 = text.find("\n---\n\n", idx)
+                if end_idx2 != -1:
+                    text = text[:end_idx2] + "\n````\n---\n\n" + text[end_idx2 + 6:]
+                    
+    # Fix subsequent chapter backticks (if AI wrapped them)
     text = re.sub(r'```(?:markdown|text|)\s*\n(\s*\*\*Why)', r'\1', text, flags=re.IGNORECASE)
     
-    # 2. Remove the trailing ``` right before the --- chapter separator
-    text = re.sub(r'```\s*\n---\n', r'\n---\n', text)
+    # We only remove trailing backticks if they appear right before --- and NOT if they are legitimately closing an inner prompt block.
+    # Actually, the unclosed Step 0 block was the main reason the entire document was bleeding together.
+    # By fixing Step 0, the rest of the document should correctly isolate the code blocks.
     
     blueprint.blueprint_data = text
     db.commit()
