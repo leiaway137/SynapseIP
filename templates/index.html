@@ -478,6 +478,31 @@
         </div>
     </div>
 
+    <!-- Blueprint Interactive Editor Modal -->
+    <div id="blueprint-fab" style="display: none; position: absolute; z-index: 1000; background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: white; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);">
+        ✨ Edit Draft
+    </div>
+
+    <div id="blueprint-edit-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: rgba(15, 17, 21, 0.95); border: 1px solid var(--glass-border); border-radius: 12px; padding: 24px; width: 600px; max-width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            <h3 style="margin-top: 0; color: #f1f5f9; display: flex; align-items: center; justify-content: space-between;">
+                <span>✨ Refine Blueprint Section</span>
+                <button id="close-blueprint-modal" style="background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">&times;</button>
+            </h3>
+            
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px;">Selected Text:</p>
+            <div id="blueprint-edit-preview" style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-size: 0.85rem; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 16px; max-height: 150px; overflow-y: auto; font-family: monospace;"></div>
+            
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px;">Instructions for AI:</p>
+            <textarea id="blueprint-edit-instructions" placeholder="e.g., Rewrite this to use PostgreSQL instead of MongoDB, or translate to Spanish..." rows="4" style="width: 100%; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px; color: #f1f5f9; padding: 12px; font-size: 0.9rem; resize: none; box-sizing: border-box; outline: none; margin-bottom: 16px;"></textarea>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                <button id="cancel-blueprint-modal" style="background: transparent; border: 1px solid var(--glass-border); color: #cbd5e1; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Cancel</button>
+                <button id="submit-blueprint-edit" class="generate-btn" style="padding: 8px 16px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">Apply Changes</button>
+            </div>
+        </div>
+    </div>
+
     <!-- SynapseIP Core Application -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>

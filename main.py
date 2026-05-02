@@ -340,6 +340,11 @@ class ArchitectLoopRequest(BaseModel):
     standout_features: list[str]
     feedback: Optional[str] = None
 
+class BlueprintEditRequest(BaseModel):
+    project_id: int
+    highlighted_text: str
+    instructions: str
+
 class ArchitectStateResponse(BaseModel):
     current_loop: int
     loop0_draft: Optional[str] = None
@@ -2825,6 +2830,78 @@ def fix_blueprint_markdown(project_id: int, db: Session = Depends(get_db)):
     blueprint.blueprint_data = text
     db.commit()
     return {"message": "Blueprint repaired! The unclosed markdown blocks have been fixed. Please refresh.", "success": True}
+
+@app.post("/api/architect/edit-blueprint")
+async def edit_blueprint_segment(req: BlueprintEditRequest, db: Session = Depends(get_db)):
+    try:
+        blueprint = db.query(ArchitectBlueprint).filter(ArchitectBlueprint.project_id == req.project_id).order_by(ArchitectBlueprint.timestamp.desc()).first()
+        if not blueprint:
+            raise HTTPException(status_code=404, detail="No blueprint found to edit")
+            
+        full_markdown = blueprint.blueprint_data
+        
+        # Guardrail against sending gigantic texts if not necessary, but gemini 2.5 flash handles 1M tokens natively.
+        # We will use Flash for this fast patch operation
+        system_prompt = "You are a surgical technical editor. You must follow instructions precisely and return ONLY a valid JSON object."
+        
+        user_prompt = f"""
+        A developer highlighted a specific section of their architectural blueprint and requested a change.
+        
+        HIGHLIGHTED TEXT (This is what the user highlighted in their browser, so it may lack markdown formatting):
+        {req.highlighted_text}
+        
+        USER INSTRUCTION:
+        {req.instructions}
+        
+        FULL MARKDOWN DOCUMENT:
+        ---
+        {full_markdown}
+        ---
+        
+        TASK:
+        1. Locate the EXACT raw markdown snippet in the FULL MARKDOWN DOCUMENT that corresponds to the HIGHLIGHTED TEXT. Expand your match to encompass full markdown blocks (e.g., if they highlighted half a paragraph or code block, grab the whole paragraph or code block) to ensure a clean replacement.
+        2. Rewrite that specific snippet according to the USER INSTRUCTION. Keep the surrounding architecture logic consistent.
+        3. Return a JSON object with exactly two keys:
+           - "exact_old_markdown": The EXACT literal string from the FULL MARKDOWN DOCUMENT that needs to be replaced.
+           - "new_markdown": Your rewritten replacement string.
+           
+        CRITICAL: The "exact_old_markdown" MUST be a perfect substring match of the FULL MARKDOWN DOCUMENT. If it is not a perfect match, the python `string.replace()` function will fail.
+        """
+        
+        response = await gemini_client.aio.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[system_prompt, user_prompt],
+            config={'response_mime_type': 'application/json'}
+        )
+        
+        await log_token_usage(db, "Blueprint In-Place Editor", "gemini-2.5-flash", response, project_id=req.project_id)
+        
+        try:
+            edit_data = json.loads(response.text.strip())
+            old_str = edit_data.get("exact_old_markdown", "")
+            new_str = edit_data.get("new_markdown", "")
+            
+            if not old_str:
+                raise ValueError("AI returned an empty exact_old_markdown string.")
+                
+            if old_str not in full_markdown:
+                # Fallback: maybe the AI escaped newlines improperly
+                raise ValueError("The AI failed to return an exact matching substring. The replacement target could not be found in the document.")
+                
+            updated_markdown = full_markdown.replace(old_str, new_str)
+            blueprint.blueprint_data = updated_markdown
+            db.commit()
+            
+            return {"success": True, "updated_markdown": updated_markdown}
+            
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=500, detail="AI returned invalid JSON.")
+        except Exception as parse_e:
+            raise HTTPException(status_code=400, detail=str(parse_e))
+            
+    except Exception as e:
+        print(f"Edit Blueprint Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/stats/tokens")
 def get_token_stats(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

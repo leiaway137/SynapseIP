@@ -1861,6 +1861,121 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnPruneVectors.innerText = 'Prune Drift 🧹';
                 btnPruneVectors.style.opacity = '1';
             }, 3000);
+    }
+    
+    // --- Blueprint Interactive Editor Logic ---
+    const blueprintViewer = document.getElementById('blueprint-viewer');
+    const blueprintContent = document.getElementById('blueprint-content');
+    const blueprintFab = document.getElementById('blueprint-fab');
+    const blueprintEditModal = document.getElementById('blueprint-edit-modal');
+    const blueprintEditPreview = document.getElementById('blueprint-edit-preview');
+    const blueprintEditInstructions = document.getElementById('blueprint-edit-instructions');
+    const btnCloseBlueprintModal = document.getElementById('close-blueprint-modal');
+    const btnCancelBlueprintModal = document.getElementById('cancel-blueprint-modal');
+    const btnSubmitBlueprintEdit = document.getElementById('submit-blueprint-edit');
+    
+    let currentSelectedText = "";
+
+    if (blueprintContent && blueprintFab) {
+        document.addEventListener('selectionchange', () => {
+            if (blueprintViewer.style.display !== 'none') {
+                const selection = window.getSelection();
+                const text = selection.toString().trim();
+                
+                if (text.length > 5 && blueprintContent.contains(selection.anchorNode)) {
+                    // Position the FAB near the end of the selection
+                    const range = selection.getRangeAt(0);
+                    const rect = range.getBoundingClientRect();
+                    
+                    // Add scroll offset
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                    
+                    blueprintFab.style.top = `${rect.bottom + scrollTop + 10}px`;
+                    blueprintFab.style.left = `${rect.left + scrollLeft + (rect.width / 2) - 40}px`;
+                    blueprintFab.style.display = 'block';
+                    currentSelectedText = text;
+                } else {
+                    // Only hide if the click wasn't on the FAB itself
+                    blueprintFab.style.display = 'none';
+                }
+            }
         });
+        
+        // Hide FAB on mousedown anywhere else
+        document.addEventListener('mousedown', (e) => {
+            if (e.target !== blueprintFab) {
+                // We don't hide immediately because it breaks clicking the FAB
+                setTimeout(() => {
+                    const selection = window.getSelection();
+                    if (!selection || selection.toString().trim() === '') {
+                        blueprintFab.style.display = 'none';
+                    }
+                }, 100);
+            }
+        });
+
+        blueprintFab.addEventListener('click', (e) => {
+            e.stopPropagation();
+            blueprintEditPreview.textContent = currentSelectedText;
+            blueprintEditInstructions.value = "";
+            blueprintEditModal.style.display = 'flex';
+            blueprintFab.style.display = 'none';
+        });
+        
+        const closeEditModal = () => {
+            blueprintEditModal.style.display = 'none';
+        };
+        
+        if (btnCloseBlueprintModal) btnCloseBlueprintModal.addEventListener('click', closeEditModal);
+        if (btnCancelBlueprintModal) btnCancelBlueprintModal.addEventListener('click', closeEditModal);
+        
+        if (btnSubmitBlueprintEdit) {
+            btnSubmitBlueprintEdit.addEventListener('click', async () => {
+                const instructions = blueprintEditInstructions.value.trim();
+                if (!instructions) {
+                    alert("Please provide instructions for the AI.");
+                    return;
+                }
+                
+                btnSubmitBlueprintEdit.innerText = "Applying... ⏳";
+                btnSubmitBlueprintEdit.disabled = true;
+                btnSubmitBlueprintEdit.style.opacity = '0.7';
+                
+                try {
+                    const res = await fetch('/api/architect/edit-blueprint', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            project_id: currentProjectId,
+                            highlighted_text: currentSelectedText,
+                            instructions: instructions
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        alert("Blueprint updated successfully!");
+                        closeEditModal();
+                        
+                        // Re-render blueprint
+                        window.currentBlueprintMarkdown = data.updated_markdown;
+                        document.getElementById('blueprint-content').innerHTML = marked.parse(data.updated_markdown);
+                        addCopyButtonsToPreTags('blueprint-content');
+                        
+                        // We do not refresh checkboxes here to prevent wiping out state, unless needed.
+                    } else {
+                        throw new Error(data.error || "Failed to update blueprint");
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert("Error editing blueprint: " + e.message);
+                } finally {
+                    btnSubmitBlueprintEdit.innerText = "Apply Changes";
+                    btnSubmitBlueprintEdit.disabled = false;
+                    btnSubmitBlueprintEdit.style.opacity = '1';
+                }
+            });
+        }
     }
 });
