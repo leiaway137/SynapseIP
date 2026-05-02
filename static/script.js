@@ -1969,7 +1969,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         // We do not refresh checkboxes here to prevent wiping out state, unless needed.
                     } else {
-                        throw new Error(data.error || "Failed to update blueprint");
+                        throw new Error(data.error || data.detail || "Failed to update blueprint");
                     }
                 } catch (e) {
                     console.error(e);
