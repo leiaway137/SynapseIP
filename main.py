@@ -2856,7 +2856,7 @@ async def edit_blueprint_segment(req: BlueprintEditRequest, db: Session = Depend
         if req.instructions and req.instructions.strip():
             user_instruction_block = f"USER INSTRUCTION:\n{req.instructions}"
         else:
-            user_instruction_block = "USER INSTRUCTION:\nJust reformat the highlighted text according to the FORMATTING INSTRUCTION below. Do not change the actual content or meaning of the text, just fix its formatting."
+            user_instruction_block = "USER INSTRUCTION:\nJust reformat the original exact markdown corresponding to the highlighted text according to the FORMATTING INSTRUCTION below. You must preserve the internal markdown formatting (like bolding, lists, and links) of the original text, merely changing whether it sits inside or outside a code fence."
             
         user_prompt = f"""
         A developer highlighted a specific section of their architectural blueprint and requested a change.
