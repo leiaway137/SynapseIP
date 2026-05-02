@@ -343,7 +343,7 @@ class ArchitectLoopRequest(BaseModel):
 class BlueprintEditRequest(BaseModel):
     project_id: int
     highlighted_text: str
-    instructions: str
+    instructions: Optional[str] = None
     container_preference: str = "auto"
 
 class ArchitectStateResponse(BaseModel):
@@ -2852,14 +2852,19 @@ async def edit_blueprint_segment(req: BlueprintEditRequest, db: Session = Depend
         elif req.container_preference == "inside":
             formatting_rules = "\nFORMATTING INSTRUCTION: The user has requested this text be placed INSIDE the copy/paste code block. The 'new_markdown' output MUST be formatted as a raw code block or placed inside existing ``` fences so it can be easily copied to an IDE."
         
+        user_instruction_block = ""
+        if req.instructions and req.instructions.strip():
+            user_instruction_block = f"USER INSTRUCTION:\n{req.instructions}"
+        else:
+            user_instruction_block = "USER INSTRUCTION:\nJust reformat the highlighted text according to the FORMATTING INSTRUCTION below. Do not change the actual content or meaning of the text, just fix its formatting."
+            
         user_prompt = f"""
         A developer highlighted a specific section of their architectural blueprint and requested a change.
         
         HIGHLIGHTED TEXT (This is what the user highlighted in their browser, so it may lack markdown formatting):
         {req.highlighted_text}
         
-        USER INSTRUCTION:
-        {req.instructions}
+        {user_instruction_block}
         {formatting_rules}
         
         FULL MARKDOWN DOCUMENT:

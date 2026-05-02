@@ -1931,14 +1931,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnSubmitBlueprintEdit) {
             btnSubmitBlueprintEdit.addEventListener('click', async () => {
                 const instructions = blueprintEditInstructions.value.trim();
-                if (!instructions) {
-                    alert("Please provide instructions for the AI.");
-                    return;
-                }
                 
                 // Get the formatting preference
                 const formatPrefRadio = document.querySelector('input[name="format-pref"]:checked');
                 const containerPref = formatPrefRadio ? formatPrefRadio.value : "auto";
+                
+                if (!instructions && containerPref === "auto") {
+                    alert("Please provide instructions for the AI, or select a formatting preference to auto-reformat the text.");
+                    return;
+                }
                 
                 btnSubmitBlueprintEdit.innerText = "Applying... ⏳";
                 btnSubmitBlueprintEdit.disabled = true;
