@@ -940,6 +940,9 @@ function showBlueprint(markdownText) {
     document.getElementById('architect-workbench').style.display = 'none';
     document.getElementById('blueprint-viewer').style.display = 'flex';
     
+    // Store the raw markdown globally for the export button
+    window.currentBlueprintMarkdown = markdownText;
+    
     document.getElementById('blueprint-content').innerHTML = marked.parse(markdownText);
     
     // Add Copy Buttons to Blueprint
