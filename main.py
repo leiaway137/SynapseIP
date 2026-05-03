@@ -71,12 +71,13 @@ class MockModelsAsync:
                 except Exception:
                     pass
         
-        target_client = self.client
-        actual_model = self.chat_model
-        
-        if model == "gemini-2.5-pro" and self.pro_client is not None:
+        # Force ALL requests to the Pro model (RTX) since token costs are $0 locally
+        if self.pro_client is not None:
             target_client = self.pro_client
             actual_model = self.pro_model
+        else:
+            target_client = self.client
+            actual_model = self.chat_model
             
         res = await target_client.chat.completions.create(
             model=actual_model,
@@ -137,12 +138,13 @@ class MockModelsSync:
                 except Exception:
                     pass
         
-        target_client = self.client
-        actual_model = self.chat_model
-        
-        if model == "gemini-2.5-pro" and self.pro_client is not None:
+        # Force ALL requests to the Pro model (RTX) since token costs are $0 locally
+        if self.pro_client is not None:
             target_client = self.pro_client
             actual_model = self.pro_model
+        else:
+            target_client = self.client
+            actual_model = self.chat_model
         
         res = target_client.chat.completions.create(
             model=actual_model,
