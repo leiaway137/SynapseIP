@@ -2500,6 +2500,11 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                 mermaid_code = ""
             # --- END Visual Architecture Subagent ---
             
+            markdown_content += f"# Executive Summary\n\n"
+            markdown_content += f"### The Layman's Vision\n{loop0_draft}\n\n---\n\n"
+            markdown_content += f"### The System Workflow\n{loop1_draft}\n\n---\n\n"
+            markdown_content += f"### The Tech Stack\n{loop2_draft}\n\n---\n\n"
+            
             markdown_content += f"<a id='step-0-initialize-project-rules'></a>\n"
             markdown_content += f"## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='-1'> Step 0: Initialize Project Rules</label>\n\n"
             if mermaid_code:
@@ -2560,19 +2565,17 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             3. Reference EXACT file paths from the project directory structure (defined in PROJECT_RULES.md). Do NOT invent or guess file paths. Use the established structure.
             4. If this step involves database operations, reference the exact table/column names from the schema defined in the earlier "Define Database Schema" step.
             5. If this step involves API calls, reference the exact endpoint paths, payload shapes, AND specific error responses (e.g., 400 Bad Request for validation failure, 404 for not found) from the "Define API Contracts" step. You MUST explicitly define how edge cases are handled.
-            9. ADAPTIVE PROMPT STRUCTURE: You MUST format the copy-paste prompt block based on the Target Platform ({platform}):
-               - If the platform is "Antigravity", provide a SINGLE-PHASE prompt. (Antigravity natively utilizes a 'Planning Mode' artifact system).
-               - If the platform is "Cursor", "Windsurf", or "OpenClaw", you MUST break the prompt into TWO phases ("Phase 1: Planning" and "Phase 2: Execution") to prevent overwhelming the AI's context window.
-            10. DATA VALIDATION MANDATE: Whenever defining a database schema, API payload, or frontend form, you MUST list explicit data constraints (e.g., required fields, maximum character lengths, enum values, and specific regex patterns for fields like email/passwords). Never just say "String".
-            11. TESTING MANDATE: You MUST explicitly define exactly what needs to be tested for this step. This must include explicitly testing the 'Happy Path' (successful execution) and explicitly testing the 'Error Boundaries / Edge Cases' (failure states).
-            12. VERIFICATION CHECKPOINTS: Within the prompt, you MUST insert explicit 'Verification Checkpoints'. Instruct the AI to verify its changes (e.g., run `npx tsc` or run a test script) before completing the task.
-            13. GLOBAL STATE REGISTRY CONSTRAINT: You MUST read the Tech Matrix defined in the PROJECT_RULES.md. You are STRICTLY FORBIDDEN from suggesting packages, cloud providers, or architectures that are not explicitly listed in that matrix. (e.g., If the matrix says Vercel, do not suggest AWS Lambda).
-            14. INFRASTRUCTURE PHYSICS: Use standard serverless API routes for simple tasks (like streaming AI chat). You should ONLY mandate a decoupled asynchronous queue pattern (e.g., background workers) for truly heavy, long-running tasks like bulk scraping.
-            15. SEPARATION OF AI CONCERNS: NEVER allow an AI to grade its own output. If a task requires content generation and validation, you MUST architect distinct Generate and Evaluate operations (a secondary Evaluator AI). Complex multi-step generations must be split into separate API calls.
-            16. STRUCTURED OUTPUTS MANDATE: If this step involves an AI generating structured data (like JSON), you are STRICTLY FORBIDDEN from instructing the coding AI to just use a text prompt like 'return JSON'. You MUST instruct the coding AI to define a strict JSON Schema (e.g., using Zod) and pass it directly into the AI provider's SDK to enforce deterministic structured outputs.
-            17. MARKDOWN FORMATTING MANDATE: You MUST NOT wrap your entire response in a single master code block. ONLY the text meant to be copied and pasted into the IDE must be inside triple backticks (```text). The headers (Why, Expectation, Watch Out) MUST be outside any code blocks. It is a FATAL ERROR to place the "Why", "Expectation", or "Watch Out" sections inside a markdown code block.
+            9. UX & PAGE COHESION: You must explicitly state which specific page or multiple pages this feature connects to within the app. Ensure cohesiveness so features do not feel disconnected.
+            10. DATA VALIDATION MANDATE: Whenever defining a database schema, API payload, or frontend form, you MUST list explicit data constraints (e.g., required fields, maximum character lengths, enum values). 
+            11. TESTING MANDATE: You MUST explicitly define exactly what needs to be tested for this step.
+            12. VERIFICATION REMINDERS: You MUST include explicit reminders for the user to ask their IDE to check the code for errors (e.g. recursive loops, disconnects between JSON schemas and natural prompts, formatting errors) and to run 10 mock dry runs internally to ensure the code is safe.
+            13. GLOBAL STATE REGISTRY CONSTRAINT: You MUST read the Tech Matrix defined in the PROJECT_RULES.md. You are STRICTLY FORBIDDEN from suggesting packages or architectures that are not explicitly listed in that matrix.
+            14. INFRASTRUCTURE PHYSICS: Use standard serverless API routes for simple tasks. ONLY mandate a decoupled asynchronous queue pattern for heavy tasks.
+            15. SEPARATION OF AI CONCERNS: NEVER allow an AI to grade its own output. You MUST architect distinct Generate and Evaluate operations.
+            16. STRUCTURED OUTPUTS MANDATE: If this step involves an AI generating structured data, you MUST instruct the coding AI to define a strict JSON Schema (e.g., using Zod) and pass it directly into the AI provider's SDK.
+            17. MARKDOWN FORMATTING MANDATE: You MUST NOT wrap your entire response in a single master code block. ONLY the suggested layman prompt meant to be copied and pasted must be inside triple backticks (```text).
             
-            STRICT FORMATTING TEMPLATE YOU MUST FOLLOW (Adapt the `text` block section to the target IDE {platform}):
+            STRICT FORMATTING TEMPLATE YOU MUST FOLLOW:
             
             <div class="manual-action-alert">
             <h4>⚠️ Manual Developer Action Required</h4>
@@ -2582,55 +2585,39 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             </div>
             *(NOTE: Only include the above HTML block if manual actions are actually required. If no manual account setup or configuration is required, omit it completely.)*
             
-            **Why:** [Layman explanation of why this step is necessary]
+            **Why:** [Layman explanation of why this feature is needed]
             
-            **Expectation:** [What should happen if this succeeds]
+            **User Experience (UX) Flow:** [A brief description of how the user interacts with this feature on specific pages. Mention exact page names and layout.]
             
-            **Watch Out:** [What could go wrong or common errors]
-            
-            [IF TARGET IDE IS ANTIGRAVITY, use this block:]
-            **Prompt (Copy & Paste this as your request to Antigravity)**
+            **Suggested Layman Prompt (Copy & Paste this to start the conversation with your AI):**
             ```text
-            [Objective]
-            [Write a concise technical objective for {chapter_title}.]
+            We are building the {chapter_title} feature.
             
-            [Target Files & Impact Analysis]
-            [List the exact 2-3 files to review first.]
-            Please review these files and generate an `implementation_plan.md` detailing your approach before writing any code.
+            [UX Description]
+            [Provide a highly descriptive, layman explanation of the UI layout, interactions, and user flow. For example: "The user profile avatar should be in the upper right hand corner, placing the mouse over it should generate a slide menu that has links to other pages, such as student profile, parent console, reading library.. etc"]
             
-            [Execution Constraints]
-            Strictly adhere to the global project constraints defined in `PROJECT_RULES.md`.
-            [List strict technical constraints specifically relevant to THIS step ONLY.]
+            [Page Connectivity]
+            [Explicitly state which pages this connects to, and ensure the AI builds navigation links to those pages.]
             
-            [Verification]
-            After executing the plan, please run the following command to verify your changes: [Command]
+            [Implementation Plan Request]
+            Please review the relevant files and generate an `implementation_plan.md` for this feature.
+            
+            [Verification & Safety Reminders]
+            Before finalizing the code, please:
+            1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
+            2. Run 10 mock dry runs internally to ensure the code is safe.
             ```
             
-            [IF TARGET IDE IS CURSOR/WINDSURF/OPENCLAW, use these two blocks instead:]
-            **Phase 1: Planning (Copy & Paste this into your IDE first)**
-            ```text
-            [Objective]
-            [Write a concise technical objective for {chapter_title}.]
-            
-            [Artifact Locking & Pre-Flight]
-            Before writing ANY code, please perform an Impact Analysis by reviewing these files: [List 2-3 files].
-            Output an `implementation_plan.md` detailing the files modified and commands executed. DO NOT generate code until I explicitly approve the plan.
-            ```
-            
-            **Phase 2: Execution (Copy & Paste this into your IDE after approving the plan)**
-            ```text
-            [Execution Constraints]
-            Strictly adhere to the global project constraints defined in `PROJECT_RULES.md`.
-            [List 1-2 strict technical constraints specifically relevant to THIS step ONLY.]
-            
-            Now, please execute the approved `implementation_plan.md` for this step. After execution, run the following command to verify: [Command]
-            ```
+            **Technical Guardrails (For the AI to consider in its plan):**
+            * **Data Validation:** [Any constraints like min/max lengths, required fields]
+            * **API/Database:** [Endpoints or tables to use]
+            * **Testing Requirements:** [What needs to be tested, both happy path and edge cases]
             
             Strict Formatting Rules:
             1. DO NOT output a `#` or `##` header for the chapter title itself. The system will handle the chapter title. Just output the content.
             2. All data points outside the text blocks MUST be in a bulleted list (`*`) or a Markdown table.
-            3. In the "Copy & Paste" code blocks, REPLACE all bracketed text `[...]` with your generated, highly specific instructions for the target AI. Do not output the brackets themselves.
-            4. DO NOT output massive JSON or markdown file contents inside or outside the copy-paste blocks. Keep the prompts concise.
+            3. In the "Copy & Paste" code blocks, REPLACE all bracketed text `[...]` with your generated instructions.
+            4. DO NOT output massive JSON or markdown file contents. Keep the prompt focused on UI and flow.
         
             [PREVIOUS ARCHITECTURAL DECISIONS (Maintain Strict Consistency with these)]:
             {rolling_architecture_context}
@@ -2681,16 +2668,15 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     
                     Does the Drafted Chapter strictly adhere to the Project Rules and Previous Context? 
                     Does it hallucinate databases, columns, NPM packages, or UI components that contradict established architecture?
-                    Does it explicitly define Data Validation constraints (min/max length, required, enums) for all schemas and forms? If it defines a schema without constraints, it is a violation.
-                    Does it explicitly define standard HTTP error responses and edge-case behaviors for all newly defined API endpoints? If an API contract lacks an error schema or edge-case handling, it is a violation.
-                    Does it explicitly define Testing Requirements covering both successful paths and error boundaries for this step? If it omits specific testing criteria, it is a violation.
-                    Does it explicitly include Verification Checkpoints instructing the coding agent to run automated verification checks (e.g., test API before building UI)? If it lacks verification checkpoints, it is a violation.
-                    If the drafted step involves UI components, does it explicitly map out which state is Global vs Local? If it introduces UI state ambiguously, it is a violation.
-                    Does the draft suggest any technology, package, or cloud service (e.g., AWS, OpenAI, React Native) that contradicts the locked Tech Matrix in the Project Rules? If it violates the Tech Matrix, it is a critical violation.
-                    If the draft involves truly heavy processing (e.g., bulk scraping), does it use a decoupled asynchronous queue pattern? If it places heavy processing in a standard serverless API route, it is a critical violation. (Note: simple AI streaming chat in an API route is permitted).
-                    Does the draft commit the 'Self-Grading Homework Fallacy'? An AI MUST NOT evaluate or score its own output. If a feature generates content and evaluates it, it MUST be split into distinct Generator and Evaluator calls. Complex multi-step generation must also be split into separate calls.
-                    Does the draft instruct an AI to generate JSON by just asking for it in a text prompt? If it fails to mandate SDK-level Structured Outputs (e.g., passing a JSON Schema constraint to the provider API), it is a critical violation.
-                    Does the technical instruction provided in the draft ACTUALLY accomplish the specific goal stated in its Title? You must cross-reference the Title, Rationale, and Execution blocks for semantic alignment. If the draft hallucinates instructions (e.g., instructing the agent to build a UI when the title explicitly says Database Setup), it is a critical violation.
+                    Does the chapter contain the explicitly requested 'Suggested Layman Prompt' focused on UX and interactions?
+                    Does it explicitly state how this feature connects to other pages in the app to ensure cohesiveness?
+                    Does it explicitly list Technical Guardrails (Data Validation, API/Database shapes, Testing Requirements) outside the copy-paste prompt?
+                    Does the suggested prompt include reminders for the IDE to check for errors (recursive loops, formatting) and run 10 mock dry runs? If it omits these safety checks, it is a violation.
+                    Does the draft suggest any technology, package, or cloud service that contradicts the locked Tech Matrix in the Project Rules? If it violates the Tech Matrix, it is a critical violation.
+                    If the draft involves truly heavy processing (e.g., bulk scraping), does it use a decoupled asynchronous queue pattern?
+                    Does the draft commit the 'Self-Grading Homework Fallacy'? An AI MUST NOT evaluate or score its own output.
+                    Does the draft instruct an AI to generate JSON by just asking for it in a text prompt? If it fails to mandate SDK-level Structured Outputs, it is a critical violation.
+                    Does the layman instruction and UX flow ACTUALLY accomplish the specific goal stated in its Title? You must cross-reference the Title and Rationale for semantic alignment.
                     { "Does it fix the hallucinated paths mentioned above?" if invalid_paths else "" }
                     
                     Return a JSON object exactly like this:
@@ -3156,11 +3142,15 @@ async def generate_loop2(req: ArchitectLoopRequest, current_user: User = Depends
     {prior_draft}
     {feedback_str}
     
-    1. Review the workflow. Identify 2-3 viable Tech Stack options (Framework, Database, Auth, State). Explain why they are suitable for this project and easy to "vibe-code" using an AI agent in the {req.target_platform} IDE.
-    2. For each option, provide a brief analysis of its Strengths and Drawbacks (Trade-offs) specific to this project's scale and features.
-    3. Conclude with your primary recommendation, but ask the user to confirm or choose an option via the refinement box.
-    4. Provide a preliminary high-level directory structure based on your primary recommendation.
-    If there is USER FEEDBACK selecting an option, lock it in and draft the PROJECT_RULES.md for that stack. Use Markdown.
+    1. Review the workflow. Identify 2-3 viable Tech Stack options (Framework, Database, Auth, State). 
+       * CRITICAL: You must prioritize and recommend Local-First Prototyping (e.g. local databases, local LLMs via vLLM/LM Studio) to ensure safety and zero-cost iterations.
+       * CRITICAL: You must mandate an 'Adapter/Interface Pattern' for all external dependencies so local services can be seamlessly swapped for public cloud APIs later via environment variables.
+       * Ask the user if they have specific local tools (like LM Studio or vLLM) they want to use.
+    2. Explain why they are suitable for this project and easy to "vibe-code" using an AI agent in the {req.target_platform} IDE.
+    3. For each option, provide a brief analysis of its Strengths and Drawbacks (Trade-offs) specific to this project's scale and features.
+    4. Conclude with your primary recommendation, but ask the user to confirm or choose an option via the refinement box.
+    5. Provide a preliminary high-level directory structure based on your primary recommendation showing where the Adapters will live.
+    If there is USER FEEDBACK selecting an option, lock it in and draft the PROJECT_RULES.md for that stack, explicitly including the Adapter Pattern rules. Use Markdown.
     """
     
     try:
