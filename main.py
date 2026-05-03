@@ -2500,6 +2500,38 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                 mermaid_code = ""
             # --- END Visual Architecture Subagent ---
             
+            # --- Database Schema Subagent ---
+            await manager.broadcast(json.dumps({"type": "progress", "message": "Drafting global database schema and UI data mapping...", "progress": 19}))
+            db_schema_prompt = f"""
+            Based on the following PROJECT_RULES.md and earlier architecture drafts:
+            {rules_text}
+            
+            Generate a comprehensive "Global Database Schema & UI Mapping" using Markdown tables.
+            For each database table required by the system, create a Markdown table with the following columns:
+            1. **Column Name**
+            2. **Data Type / Format** (e.g., UUID, VARCHAR(255), TIMESTAMP, JSONB)
+            3. **Key / Constraint** (e.g., Primary Key, Foreign Key -> users.id, Unique, Nullable)
+            4. **Description & UI Mapping** (Explain what this column stores and explicitly list the UI Pages/Components that will read/write this data).
+            
+            Structure the output clearly with headers for each table (e.g., `#### Table: users`).
+            Keep the formatting exceptionally clean. Output ONLY the raw markdown. Do not wrap in ```markdown fences.
+            """
+            try:
+                db_schema_res = await gemini_client.aio.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=db_schema_prompt
+                )
+                await log_token_usage(db, "Global Database Schema Generation", "gemini-2.5-flash", db_schema_res, project_id=project_id)
+                db_schema_code = db_schema_res.text.strip()
+                if db_schema_code.startswith("```markdown"): db_schema_code = db_schema_code[11:]
+                if db_schema_code.startswith("```"): db_schema_code = db_schema_code[3:]
+                if db_schema_code.endswith("```"): db_schema_code = db_schema_code[:-3]
+                db_schema_code = db_schema_code.strip()
+            except Exception as e:
+                print("Failed to generate global database schema:", e)
+                db_schema_code = ""
+            # --- END Database Schema Subagent ---
+            
             markdown_content += f"# Executive Summary\n\n"
             markdown_content += f"### The Layman's Vision\n{loop0_draft}\n\n---\n\n"
             markdown_content += f"### The System Workflow\n{loop1_draft}\n\n---\n\n"
@@ -2516,6 +2548,14 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             markdown_content += "2. Copy the *entire* text block below and paste it into that file.\n"
             markdown_content += "3. Your AI coding assistant will automatically read this file to ensure it doesn't break your architecture in future steps.\n\n"
             markdown_content += f"````text\n{rules_text}\n````\n\n---\n\n"
+            
+            if db_schema_code:
+                markdown_content += f"<a id='step-05-global-database-schema'></a>\n"
+                markdown_content += f"## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='-1'> Step 0.5: Global Database Schema</label>\n\n"
+                markdown_content += f"**Why:** Before building isolated UI features, the AI needs a unified data model to ensure all API payloads and database migrations align perfectly across the entire application.\n\n"
+                markdown_content += f"**Expectation:** Your IDE will read this schema as context and use it to accurately structure your database models (e.g. Prisma, Drizzle, or Supabase).\n\n"
+                markdown_content += f"{db_schema_code}\n\n---\n\n"
+                
         except Exception as e:
             print(f"Failed to generate project rules: {e}")
     
