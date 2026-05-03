@@ -811,7 +811,7 @@ function renderThemeConsolidationState(themes, needsConsolidation) {
             <p style="color:#94a3b8; font-size:0.9rem; margin-top:0;">Please review the High-Fidelity Knowledge Base below. If you need to make changes, use the 🧠 Agentic Memory editor drawer on the right. Once satisfied, click Approve.</p>
         `;
         themes.forEach(t => {
-            html += `<details style="margin-bottom: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+            html += `<details data-theme-id="${t.id}" style="margin-bottom: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
                 <summary style="padding: 12px; cursor: pointer; font-weight: bold; color: #38bdf8;">${t.theme_name}</summary>
                 <div style="padding: 12px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.9rem; color: #f1f5f9;">
                     ${marked.parse(t.content || "No content")}
@@ -1668,6 +1668,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     let currentSelection = '';
+    let currentEditContext = "blueprint";
+    let currentEditEntityId = null;
     
     document.addEventListener('mouseup', (e) => {
         // Prevent tooltip from showing when clicking inside tooltip or chat panel or modal
@@ -1695,8 +1697,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 const blueprintContent = document.getElementById('blueprint-content');
                 const workbenchContent = document.getElementById('workbench-draft-content');
                 
-                const inBlueprint = blueprintContent && (blueprintContent.contains(selection.anchorNode) || blueprintContent.contains(selection.focusNode) || selection.containsNode(blueprintContent, true));
-                const inWorkbench = workbenchContent && (workbenchContent.contains(selection.anchorNode) || workbenchContent.contains(selection.focusNode) || selection.containsNode(workbenchContent, true));
+                let inBlueprint = false;
+                let inWorkbench = false;
+                
+                if (blueprintContent && (blueprintContent.contains(selection.anchorNode) || blueprintContent.contains(selection.focusNode) || selection.containsNode(blueprintContent, true))) {
+                    inBlueprint = true;
+                    currentEditContext = "blueprint";
+                    currentEditEntityId = null;
+                } else if (workbenchContent && (workbenchContent.contains(selection.anchorNode) || workbenchContent.contains(selection.focusNode) || selection.containsNode(workbenchContent, true))) {
+                    inWorkbench = true;
+                    
+                    let themeNode = selection.anchorNode.nodeType === 3 ? selection.anchorNode.parentElement : selection.anchorNode;
+                    let closestTheme = themeNode.closest('[data-theme-id]');
+                    if (closestTheme) {
+                        currentEditContext = "theme";
+                        currentEditEntityId = parseInt(closestTheme.getAttribute('data-theme-id'));
+                    } else {
+                        currentEditContext = "draft";
+                        currentEditEntityId = null;
+                    }
+                }
                 
                 if (inBlueprint || inWorkbench) {
                     btnEditDraft.style.display = 'flex';
@@ -1951,28 +1971,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnSubmitBlueprintEdit.style.opacity = '0.7';
                 
                 try {
-                    const res = await fetch('/api/architect/edit-blueprint', {
+                    const res = await fetch('/api/architect/smart-edit', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             project_id: currentProjectId,
                             highlighted_text: blueprintEditPreview.textContent,
                             instructions: instructions,
-                            container_preference: containerPref
+                            container_preference: containerPref,
+                            context_type: currentEditContext,
+                            entity_id: currentEditEntityId,
+                            draft_loop: currentLoop
                         })
                     });
                     
                     const data = await res.json();
                     if (data.success) {
-                        alert("Blueprint updated successfully!");
+                        alert("Text updated successfully!");
                         closeEditModal();
                         
-                        // Re-render blueprint
-                        window.currentBlueprintMarkdown = data.updated_markdown;
-                        document.getElementById('blueprint-content').innerHTML = marked.parse(data.updated_markdown);
-                        addCopyButtonsToPreTags('blueprint-content');
-                        
-                        // We do not refresh checkboxes here to prevent wiping out state, unless needed.
+                        if (currentEditContext === "blueprint") {
+                            window.currentBlueprintMarkdown = data.updated_markdown;
+                            document.getElementById('blueprint-content').innerHTML = marked.parse(data.updated_markdown);
+                            addCopyButtonsToPreTags('blueprint-content');
+                        } else {
+                            fetchArchitectState();
+                        }
                     } else {
                         throw new Error(data.error || data.detail || "Failed to update blueprint");
                     }

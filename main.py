@@ -40,10 +40,12 @@ class MockResponse:
         self.usage_metadata = Usage()
 
 class MockModelsAsync:
-    def __init__(self, client, chat_model, embed_model):
+    def __init__(self, client, chat_model, embed_model, pro_client=None, pro_model=None):
         self.client = client
         self.chat_model = chat_model
         self.embed_model = embed_model
+        self.pro_client = pro_client
+        self.pro_model = pro_model
         
     async def generate_content(self, model, contents, config=None, **kwargs):
         is_json = False
@@ -55,13 +57,14 @@ class MockModelsAsync:
         sys_prompt = "You are a helpful AI assistant. Always output clean text."
         if is_json: sys_prompt += " You MUST output strictly valid JSON."
         
-        # Determine actual model based on requested
+        target_client = self.client
         actual_model = self.chat_model
-        if model == "gemini-2.5-pro":
-            # If they asked for pro, we might want to use a different env var if available, but for now just use chat_model
-            pass
+        
+        if model == "gemini-2.5-pro" and self.pro_client is not None:
+            target_client = self.pro_client
+            actual_model = self.pro_model
             
-        res = await self.client.chat.completions.create(
+        res = await target_client.chat.completions.create(
             model=actual_model,
             messages=[
                 {"role": "system", "content": sys_prompt},
@@ -79,10 +82,12 @@ class MockModelsAsync:
         return MockEmbedResponse(res.data[0].embedding)
 
 class MockModelsSync:
-    def __init__(self, client, chat_model, embed_model):
+    def __init__(self, client, chat_model, embed_model, pro_client=None, pro_model=None):
         self.client = client
         self.chat_model = chat_model
         self.embed_model = embed_model
+        self.pro_client = pro_client
+        self.pro_model = pro_model
         
     def generate_content(self, model, contents, config=None, **kwargs):
         is_json = False
@@ -94,9 +99,14 @@ class MockModelsSync:
         sys_prompt = "You are a helpful AI assistant. Always output clean text."
         if is_json: sys_prompt += " You MUST output strictly valid JSON."
         
+        target_client = self.client
         actual_model = self.chat_model
         
-        res = self.client.chat.completions.create(
+        if model == "gemini-2.5-pro" and self.pro_client is not None:
+            target_client = self.pro_client
+            actual_model = self.pro_model
+        
+        res = target_client.chat.completions.create(
             model=actual_model,
             messages=[
                 {"role": "system", "content": sys_prompt},
@@ -114,34 +124,33 @@ class MockModelsSync:
         return MockEmbedResponse(res.data[0].embedding)
 
 class MockAIO:
-    def __init__(self, async_client, chat_model, embed_model):
-        self.models = MockModelsAsync(async_client, chat_model, embed_model)
+    def __init__(self, async_client, chat_model, embed_model, pro_client=None, pro_model=None):
+        self.models = MockModelsAsync(async_client, chat_model, embed_model, pro_client, pro_model)
 
 class OpenAIGeminiAdapter:
     def __init__(self):
-        AI_PROVIDER = os.getenv("AI_PROVIDER", "lmstudio").lower()
-
-        if AI_PROVIDER == "vllm":
-            ai_base_url = os.getenv("VLLM_API_BASE", "http://192.168.1.151:8000/v1")
-            ai_api_key = os.getenv("VLLM_API_KEY", "dummy_key")
-            chat_model = os.getenv("VLLM_MODEL", "qwen3.5-122b")
-            embed_model = os.getenv("VLLM_EMBED_MODEL", "nomic-embed-text")
-        elif AI_PROVIDER == "gemini":
-            ai_base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
-            ai_api_key = os.getenv("GEMINI_API_KEY")
-            chat_model = "gemini-2.5-flash"
-            embed_model = "text-embedding-004"
-        else: # Default to LM Studio
-            ai_base_url = os.getenv("LMSTUDIO_API_BASE", "http://127.0.0.1:1234/v1")
-            ai_api_key = os.getenv("LMSTUDIO_API_KEY", "dummy_key")
-            chat_model = os.getenv("LMSTUDIO_MODEL", "qwen3.6-35b-a3b-mlx")
-            embed_model = os.getenv("LMSTUDIO_EMBED_MODEL", "nomic-embed-text")
-            
-        self.sync_client = OpenAI(base_url=ai_base_url, api_key=ai_api_key)
-        self.async_client = AsyncOpenAI(base_url=ai_base_url, api_key=ai_api_key)
+        # Base Model Config (LM Studio / Flash equivalent)
+        lm_base = os.getenv("LMSTUDIO_API_BASE", "http://127.0.0.1:1234/v1")
+        lm_key = os.getenv("LMSTUDIO_API_KEY", "dummy_key")
+        flash_model = os.getenv("LMSTUDIO_MODEL", "qwen3.6-35b-a3b-mlx")
+        embed_model = os.getenv("LMSTUDIO_EMBED_MODEL", "nomic-embed-text")
         
-        self.models = MockModelsSync(self.sync_client, chat_model, embed_model)
-        self.aio = MockAIO(self.async_client, chat_model, embed_model)
+        # Pro Model Config (vLLM / Pro equivalent)
+        vllm_base = os.getenv("VLLM_API_BASE", "http://192.168.1.151:8000/v1")
+        vllm_key = os.getenv("VLLM_API_KEY", "dummy_key")
+        pro_model = os.getenv("VLLM_MODEL", "qwen3.5-122b")
+        
+        # Flash Clients
+        self.sync_client = OpenAI(base_url=lm_base, api_key=lm_key)
+        self.async_client = AsyncOpenAI(base_url=lm_base, api_key=lm_key)
+        
+        # Pro Clients
+        self.pro_sync_client = OpenAI(base_url=vllm_base, api_key=vllm_key)
+        self.pro_async_client = AsyncOpenAI(base_url=vllm_base, api_key=vllm_key)
+        
+        # Pass both clients down
+        self.models = MockModelsSync(self.sync_client, flash_model, embed_model, self.pro_sync_client, pro_model)
+        self.aio = MockAIO(self.async_client, flash_model, embed_model, self.pro_async_client, pro_model)
 
 # --- Adapter Pattern: ChromaDB to Pinecone Mock ---
 class ChromaPineconeAdapter:
@@ -509,11 +518,14 @@ class ArchitectLoopRequest(BaseModel):
     standout_features: list[str]
     feedback: Optional[str] = None
 
-class BlueprintEditRequest(BaseModel):
+class SmartEditRequest(BaseModel):
     project_id: int
     highlighted_text: str
     instructions: Optional[str] = None
     container_preference: str = "auto"
+    context_type: str = "blueprint"
+    entity_id: Optional[int] = None
+    draft_loop: Optional[int] = None
 
 class ArchitectStateResponse(BaseModel):
     current_loop: int
@@ -3034,14 +3046,34 @@ def fix_blueprint_markdown(project_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Blueprint repaired! The unclosed markdown blocks have been fixed. Please refresh.", "success": True}
 
-@app.post("/api/architect/edit-blueprint")
-async def edit_blueprint_segment(req: BlueprintEditRequest, db: Session = Depends(get_db)):
+@app.post("/api/architect/smart-edit")
+async def edit_smart_segment(req: SmartEditRequest, db: Session = Depends(get_db)):
     try:
-        blueprint = db.query(ArchitectBlueprint).filter(ArchitectBlueprint.project_id == req.project_id).order_by(ArchitectBlueprint.timestamp.desc()).first()
-        if not blueprint:
-            raise HTTPException(status_code=404, detail="No blueprint found to edit")
+        full_markdown = ""
+        target_entity = None
+        
+        if req.context_type == "theme":
+            if not req.entity_id: raise HTTPException(400, "Theme ID required")
+            theme = db.query(ProjectTheme).filter(ProjectTheme.id == req.entity_id).first()
+            if not theme: raise HTTPException(404, "Theme not found")
+            full_markdown = theme.content
+            target_entity = theme
             
-        full_markdown = blueprint.blueprint_data
+        elif req.context_type == "draft":
+            draft = db.query(ArchitectDraftState).filter(ArchitectDraftState.project_id == req.project_id).first()
+            if not draft: raise HTTPException(404, "Draft not found")
+            
+            if req.draft_loop == 0: full_markdown = draft.loop0_draft or ""
+            elif req.draft_loop == 1: full_markdown = draft.loop1_draft or ""
+            elif req.draft_loop == 2: full_markdown = draft.loop2_draft or ""
+            else: raise HTTPException(400, "Invalid draft loop")
+            target_entity = draft
+            
+        else: # blueprint
+            blueprint = db.query(ArchitectBlueprint).filter(ArchitectBlueprint.project_id == req.project_id).order_by(ArchitectBlueprint.timestamp.desc()).first()
+            if not blueprint: raise HTTPException(status_code=404, detail="No blueprint found to edit")
+            full_markdown = blueprint.blueprint_data
+            target_entity = blueprint
         
         # Guardrail against sending gigantic texts if not necessary, but gemini 2.5 flash handles 1M tokens natively.
         # We will use Flash for this fast patch operation
@@ -3125,8 +3157,17 @@ async def edit_blueprint_segment(req: BlueprintEditRequest, db: Session = Depend
             else:
                 updated_markdown = full_markdown.replace(old_str, new_str)
                 
-            blueprint.blueprint_data = updated_markdown
+            if req.context_type == "theme":
+                target_entity.content = updated_markdown
+            elif req.context_type == "draft":
+                if req.draft_loop == 0: target_entity.loop0_draft = updated_markdown
+                elif req.draft_loop == 1: target_entity.loop1_draft = updated_markdown
+                elif req.draft_loop == 2: target_entity.loop2_draft = updated_markdown
+            else:
+                target_entity.blueprint_data = updated_markdown
+                
             db.commit()
+            return {"message": "Blueprint updated successfully!", "success": True, "updated_markdown": updated_markdown}
             
             return {"success": True, "updated_markdown": updated_markdown}
             
