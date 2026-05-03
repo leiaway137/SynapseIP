@@ -1406,11 +1406,18 @@ def get_project_documents(response: Response, project: Project = Depends(get_cur
     reports = db.query(GeneratedReport).filter(GeneratedReport.project_id == project.id).order_by(GeneratedReport.timestamp.desc()).all()
     blueprints = db.query(ArchitectBlueprint).filter(ArchitectBlueprint.project_id == project.id).order_by(ArchitectBlueprint.timestamp.desc()).all()
     
+    def safe_json_load(data):
+        if not data: return {}
+        try:
+            return json.loads(data)
+        except Exception:
+            return {"error": "Invalid JSON in database"}
+
     return {
-        "intelligence": [{"id": r.id, "timestamp": r.timestamp, "data": json.loads(r.report_data)} for r in reports],
+        "intelligence": [{"id": r.id, "timestamp": r.timestamp, "data": safe_json_load(r.report_data)} for r in reports],
         "blueprints": [{"id": b.id, "timestamp": b.timestamp, "data": b.blueprint_data} for b in blueprints],
         "current_vibe_step": project.current_vibe_step if project else 0,
-        "followup_history": json.loads(project.followup_history) if project and project.followup_history else []
+        "followup_history": safe_json_load(project.followup_history) if project else []
     }
 
 @app.post("/api/projects/{project_id}/vibe-step")
@@ -3380,7 +3387,7 @@ async def generate_loop0(req: ArchitectLoopRequest, current_user: User = Depends
     """
     
     try:
-        res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+        res = await gemini_client.aio.models.generate_content(model='gemini-2.5-pro', contents=prompt)
         state.loop0_draft = res.text.strip()
         state.current_loop = 0
         db.commit()
@@ -3417,7 +3424,7 @@ async def generate_loop1(req: ArchitectLoopRequest, current_user: User = Depends
     """
     
     try:
-        res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+        res = await gemini_client.aio.models.generate_content(model='gemini-2.5-pro', contents=prompt)
         state.loop1_draft = res.text.strip()
         state.current_loop = 1
         db.commit()
@@ -3457,7 +3464,7 @@ async def generate_loop2(req: ArchitectLoopRequest, current_user: User = Depends
     """
     
     try:
-        res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+        res = await gemini_client.aio.models.generate_content(model='gemini-2.5-pro', contents=prompt)
         state.loop2_draft = res.text.strip()
         state.current_loop = 2
         db.commit()
@@ -3535,7 +3542,7 @@ async def consolidate_themes(req: ThemeConsolidateRequest, current_user: User = 
         )
         
         try:
-            res = await gemini_client.aio.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+            res = await gemini_client.aio.models.generate_content(model='gemini-2.5-pro', contents=prompt)
             theme.content = res.text.strip()
             
             # Delete fragments since they are now consolidated
