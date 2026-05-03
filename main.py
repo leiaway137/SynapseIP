@@ -2625,33 +2625,34 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             </div>
             *(NOTE: Only include the above HTML block if manual actions are actually required. If no manual account setup or configuration is required, omit it completely.)*
             
-            **Why:** [Layman explanation of why this feature is needed]
+            **Purpose (Why we are building this):**
+            [A brief layman's explanation of what this step achieves and why it's necessary for the product.]
             
-            **User Experience (UX) Flow:** [A brief description of how the user interacts with this feature on specific pages. Mention exact page names and layout.]
+            **User Experience (UX) Flow:**
+            [A description of how the user interacts with this feature, including specific page names, layout, and visual expectations.]
             
-            **Suggested Layman Prompt (Copy & Paste this to start the conversation with your AI):**
+            ### AI Instructions (Copy & Paste the block below to your AI)
             ```text
-            We are building the {chapter_title} feature.
+            We are building the **{chapter_title}** feature.
             
-            [UX Description]
-            [Provide a highly descriptive, layman explanation of the UI layout, interactions, and user flow. For example: "The user profile avatar should be in the upper right hand corner, placing the mouse over it should generate a slide menu that has links to other pages, such as student profile, parent console, reading library.. etc"]
+            #### 1. UX & Logic Description
+            [Provide a highly descriptive, layman explanation of the UI layout, interactions, and user flow. Explicitly state which pages this connects to.]
             
-            [Page Connectivity]
-            [Explicitly state which pages this connects to, and ensure the AI builds navigation links to those pages.]
+            #### 2. Technical Guardrails & Constraints
+            [Explicitly list specific constraints the AI MUST follow when generating the implementation plan:]
+            * **Data Validation:** [min/max lengths, required fields, enum values]
+            * **API/Database:** [Endpoints or tables to use, precise schema expectations]
+            * **Testing Requirements:** [What needs to be tested, happy path & edge cases]
             
-            [Implementation Plan Request]
-            Please review the relevant files and generate an `implementation_plan.md` for this feature.
+            #### 3. Action Requested
+            Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
             
-            [Verification & Safety Reminders]
-            Before finalizing the code, please:
+            #### 4. Safety & Verification Reminders
+            Before finalizing the code:
             1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-            2. Run 10 mock dry runs internally to ensure the code is safe.
+            2. Ensure you have respected the global `PROJECT_RULES.md`.
+            3. Run 10 mock dry runs internally to ensure the code is safe and functional.
             ```
-            
-            **Technical Guardrails (For the AI to consider in its plan):**
-            * **Data Validation:** [Any constraints like min/max lengths, required fields]
-            * **API/Database:** [Endpoints or tables to use]
-            * **Testing Requirements:** [What needs to be tested, both happy path and edge cases]
             
             Strict Formatting Rules:
             1. DO NOT output a `#` or `##` header for the chapter title itself. The system will handle the chapter title. Just output the content.
@@ -2708,9 +2709,9 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     
                     Does the Drafted Chapter strictly adhere to the Project Rules and Previous Context? 
                     Does it hallucinate databases, columns, NPM packages, or UI components that contradict established architecture?
-                    Does the chapter contain the explicitly requested 'Suggested Layman Prompt' focused on UX and interactions?
+                    Does the chapter contain the explicitly requested 'AI Instructions' focused on UX and interactions?
                     Does it explicitly state how this feature connects to other pages in the app to ensure cohesiveness?
-                    Does it explicitly list Technical Guardrails (Data Validation, API/Database shapes, Testing Requirements) outside the copy-paste prompt?
+                    Does it explicitly list Technical Guardrails (Data Validation, API/Database shapes, Testing Requirements) INSIDE the copy-paste prompt so the AI can read them? If the technical guardrails are placed outside the ```text code block, it is a critical violation.
                     Does the suggested prompt include reminders for the IDE to check for errors (recursive loops, formatting) and run 10 mock dry runs? If it omits these safety checks, it is a violation.
                     Does the draft suggest any technology, package, or cloud service that contradicts the locked Tech Matrix in the Project Rules? If it violates the Tech Matrix, it is a critical violation.
                     If the draft involves truly heavy processing (e.g., bulk scraping), does it use a decoupled asynchronous queue pattern?
