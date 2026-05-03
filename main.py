@@ -3476,4 +3476,8 @@ async def consolidate_themes(req: ThemeConsolidateRequest, current_user: User = 
             
     return {"status": "success", "consolidated_themes": consolidated_count}
 
-# To run: uvicorn main:app --reload
+# To run: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
