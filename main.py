@@ -2631,7 +2631,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             **User Experience (UX) Flow:**
             [A description of how the user interacts with this feature, including specific page names, layout, and visual expectations.]
             
-            ### AI Instructions (Copy & Paste the block below to your AI)
+            ### Phase 1: Planning (Copy & Paste to your AI first)
             ```text
             We are building the **{chapter_title}** feature.
             
@@ -2646,9 +2646,14 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             
             #### 3. Action Requested
             Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
+            ```
             
-            #### 4. Safety & Verification Reminders
-            Before finalizing the code:
+            ### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
+            ```text
+            I have approved the implementation plan. 
+            
+            Please execute the plan and write the code. 
+            Before finalizing your work:
             1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
             2. Ensure you have respected the global `PROJECT_RULES.md`.
             3. Run 10 mock dry runs internally to ensure the code is safe and functional.
@@ -2709,10 +2714,10 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
                     
                     Does the Drafted Chapter strictly adhere to the Project Rules and Previous Context? 
                     Does it hallucinate databases, columns, NPM packages, or UI components that contradict established architecture?
-                    Does the chapter contain the explicitly requested 'AI Instructions' focused on UX and interactions?
+                    Does the chapter contain the explicitly requested 'Phase 1: Planning' prompt focused on UX and interactions?
                     Does it explicitly state how this feature connects to other pages in the app to ensure cohesiveness?
-                    Does it explicitly list Technical Guardrails (Data Validation, API/Database shapes, Testing Requirements) INSIDE the copy-paste prompt so the AI can read them? If the technical guardrails are placed outside the ```text code block, it is a critical violation.
-                    Does the suggested prompt include reminders for the IDE to check for errors (recursive loops, formatting) and run 10 mock dry runs? If it omits these safety checks, it is a violation.
+                    Does it explicitly list Technical Guardrails (Data Validation, API/Database shapes, Testing Requirements) INSIDE the Phase 1 copy-paste prompt so the AI can read them? If the technical guardrails are placed outside the ```text code block, it is a critical violation.
+                    Does the chapter contain the explicitly requested 'Phase 2: Execution & Verification' prompt with reminders for safety checks (recursive loops, mock dry runs)? If it omits this second phase block, it is a violation.
                     Does the draft suggest any technology, package, or cloud service that contradicts the locked Tech Matrix in the Project Rules? If it violates the Tech Matrix, it is a critical violation.
                     If the draft involves truly heavy processing (e.g., bulk scraping), does it use a decoupled asynchronous queue pattern?
                     Does the draft commit the 'Self-Grading Homework Fallacy'? An AI MUST NOT evaluate or score its own output.
