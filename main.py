@@ -57,6 +57,20 @@ class MockModelsAsync:
         sys_prompt = "You are a helpful AI assistant. Always output clean text."
         if is_json: sys_prompt += " You MUST output strictly valid JSON."
         
+        if config:
+            schema = None
+            if isinstance(config, dict):
+                schema = config.get('response_schema')
+            elif hasattr(config, 'response_schema'):
+                schema = config.response_schema
+            if schema:
+                try:
+                    import json
+                    schema_dict = schema.model_json_schema() if hasattr(schema, 'model_json_schema') else schema.schema()
+                    sys_prompt += f"\nYour JSON output MUST be a valid JSON object matching this exact schema:\n{json.dumps(schema_dict, indent=2)}"
+                except Exception:
+                    pass
+        
         target_client = self.client
         actual_model = self.chat_model
         
@@ -108,6 +122,20 @@ class MockModelsSync:
             
         sys_prompt = "You are a helpful AI assistant. Always output clean text."
         if is_json: sys_prompt += " You MUST output strictly valid JSON."
+        
+        if config:
+            schema = None
+            if isinstance(config, dict):
+                schema = config.get('response_schema')
+            elif hasattr(config, 'response_schema'):
+                schema = config.response_schema
+            if schema:
+                try:
+                    import json
+                    schema_dict = schema.model_json_schema() if hasattr(schema, 'model_json_schema') else schema.schema()
+                    sys_prompt += f"\nYour JSON output MUST be a valid JSON object matching this exact schema:\n{json.dumps(schema_dict, indent=2)}"
+                except Exception:
+                    pass
         
         target_client = self.client
         actual_model = self.chat_model
