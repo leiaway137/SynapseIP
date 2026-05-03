@@ -69,10 +69,20 @@ class MockModelsAsync:
             messages=[
                 {"role": "system", "content": sys_prompt},
                 {"role": "user", "content": str(contents)}
-            ],
-            response_format={"type": "json_object"} if is_json else None
+            ]
         )
-        return MockResponse(res.choices[0].message.content)
+        content = res.choices[0].message.content.strip()
+        if is_json:
+            import re
+            match = re.search(r'```(?:json)?\s*(.*?)\s*```', content, re.DOTALL)
+            if match:
+                content = match.group(1).strip()
+            else:
+                if content.startswith('```'):
+                    content = re.sub(r'^```[a-zA-Z]*\n?', '', content)
+                if content.endswith('```'):
+                    content = re.sub(r'\n?```$', '', content)
+        return MockResponse(content)
         
     async def embed_content(self, model, contents, **kwargs):
         res = await self.client.embeddings.create(
@@ -111,10 +121,20 @@ class MockModelsSync:
             messages=[
                 {"role": "system", "content": sys_prompt},
                 {"role": "user", "content": str(contents)}
-            ],
-            response_format={"type": "json_object"} if is_json else None
+            ]
         )
-        return MockResponse(res.choices[0].message.content)
+        content = res.choices[0].message.content.strip()
+        if is_json:
+            import re
+            match = re.search(r'```(?:json)?\s*(.*?)\s*```', content, re.DOTALL)
+            if match:
+                content = match.group(1).strip()
+            else:
+                if content.startswith('```'):
+                    content = re.sub(r'^```[a-zA-Z]*\n?', '', content)
+                if content.endswith('```'):
+                    content = re.sub(r'\n?```$', '', content)
+        return MockResponse(content)
         
     def embed_content(self, model, contents, **kwargs):
         res = self.client.embeddings.create(
@@ -255,11 +275,10 @@ Return ONLY valid JSON.
 Note:
 {source.content}"""
         
-        from google.genai import types
         response = gemini_client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json")
+            config={'response_mime_type': 'application/json'}
         )
         
         import json
