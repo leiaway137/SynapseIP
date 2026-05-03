@@ -1691,9 +1691,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 tooltip.style.opacity = '1';
                 tooltip.style.pointerEvents = 'auto';
                 
-                // Show/hide Edit Draft depending on if selection is in blueprint content
+                // Show/hide Edit Draft depending on if selection is in blueprint content or workbench content
                 const blueprintContent = document.getElementById('blueprint-content');
-                if (blueprintContent && (blueprintContent.contains(selection.anchorNode) || blueprintContent.contains(selection.focusNode) || selection.containsNode(blueprintContent, true))) {
+                const workbenchContent = document.getElementById('workbench-draft-content');
+                
+                const inBlueprint = blueprintContent && (blueprintContent.contains(selection.anchorNode) || blueprintContent.contains(selection.focusNode) || selection.containsNode(blueprintContent, true));
+                const inWorkbench = workbenchContent && (workbenchContent.contains(selection.anchorNode) || workbenchContent.contains(selection.focusNode) || selection.containsNode(workbenchContent, true));
+                
+                if (inBlueprint || inWorkbench) {
                     btnEditDraft.style.display = 'flex';
                     tooltip.querySelector('div > div').style.display = 'block'; // the separator
                 } else {
