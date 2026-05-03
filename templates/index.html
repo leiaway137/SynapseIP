@@ -182,9 +182,9 @@
                                 <button id="chat-send" class="icon-btn" style="background: var(--accent-color); color: white; padding: 12px; border-radius: 8px;">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                                 </button>
-                            </div>
-                            <div style="font-size: 0.75rem; color: #94a3b8; text-align: center; margin-top: 8px;">
-                                Press <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Enter</kbd> to submit, <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Shift + Enter</kbd> for a new line.
+                                <div style="font-size: 0.75rem; color: #94a3b8; text-align: center; margin-top: 12px; width: 100%;">
+                                    Press <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Enter</kbd> to submit, <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Shift + Enter</kbd> for a new line.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -332,7 +332,7 @@
                     
                     <!-- Right Side: Interaction / Approval -->
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
-                        <div class="card" style="display: flex; flex-direction: column;">
+                        <div class="card" id="refine-draft-card" style="display: flex; flex-direction: column;">
                             <h3 style="margin-top: 0; color: #f1f5f9;">Refine Draft</h3>
                             <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px;">Notice something wrong? Tell the Architect to fix it before approving.</p>
                             <textarea id="workbench-feedback" placeholder="e.g. Actually, drop the payment feature for now..." rows="4" style="width: 100%; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px; color: #f1f5f9; padding: 12px; font-size: 0.85rem; resize: none; margin-bottom: 12px; box-sizing: border-box; outline: none;"></textarea>

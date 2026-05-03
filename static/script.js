@@ -422,6 +422,7 @@ function restoreOnboardingConfig(configData) {
     setDisplay('chat-input-area', 'none');
     setDisplay('command-bar', 'flex');
     setDisplay('restart-onboarding-btn', 'inline-block');
+    setDisplay('global-chat-fab', 'flex');
     
     return true;
 }
@@ -790,8 +791,7 @@ async function loadArchitectState() {
 }
 
 function renderThemeConsolidationState(themes, needsConsolidation) {
-    document.getElementById('workbench-refine-btn').style.display = 'none';
-    document.getElementById('workbench-feedback').style.display = 'none';
+    document.getElementById('refine-draft-card').style.display = 'none';
     
     document.getElementById('workbench-loop-badge').innerText = `Pre-Flight`;
     document.getElementById('workbench-draft-title').innerText = "High-Fidelity Theme Review";
@@ -876,8 +876,7 @@ async function triggerArchitectLoop(loopIndex, feedback = "") {
 }
 
 function renderWorkbenchState(state) {
-    document.getElementById('workbench-refine-btn').style.display = 'block';
-    document.getElementById('workbench-feedback').style.display = 'block';
+    document.getElementById('refine-draft-card').style.display = 'flex';
     document.getElementById('workbench-refine-btn').disabled = false;
     document.getElementById('workbench-approve-btn').disabled = false;
     document.getElementById('workbench-feedback').value = "";
