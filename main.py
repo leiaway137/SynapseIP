@@ -3183,7 +3183,7 @@ async def generate_loop2(req: ArchitectLoopRequest, current_user: User = Depends
     
     prompt = f"""
     You are the Principal Architect. Provide 'The Skeleton' (Loop 2).
-    Target Vibe Coding IDE / AI Agent: {req.target_platform} (NOTE: This is the IDE or AI tool the user will use to generate the code, NOT the deployment server. You must optimize your stack recommendations for AI generation ease inside this tool. AI agents typically prefer modern, well-documented stacks like Next.js/React/Supabase over obscure frameworks).
+    Target Vibe Coding Agent: {req.target_platform} (NOTE: The user will use a generic AI coding agent to generate the code. You must optimize your stack recommendations for AI generation ease. AI agents typically prefer modern, well-documented stacks like Next.js/React/Supabase over obscure frameworks).
     Approved Workflow (Loop 1): {state.loop1_draft}
     {prior_draft}
     {feedback_str}

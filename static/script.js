@@ -828,7 +828,7 @@ async function triggerArchitectLoop(loopIndex, feedback = "") {
     document.getElementById('workbench-refine-btn').disabled = true;
     document.getElementById('workbench-approve-btn').disabled = true;
     
-    const ideSelectorValue = document.getElementById('ide-selector') ? document.getElementById('ide-selector').value : "Antigravity";
+    const ideSelectorValue = "Generic AI Agent";
     
     const payload = {
         target_platform: ideSelectorValue,
