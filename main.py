@@ -4,8 +4,6 @@ import os
 import json
 import asyncio
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 from typing import List, Optional
 import httpx
 import base64
@@ -21,25 +19,196 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import bcrypt
 from jose import JWTError, jwt
 
-# Initialize environment & LLM Client
-load_dotenv()
-try:
-    gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-except Exception:
-    gemini_client = None
-from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
+import chromadb
+from openai import OpenAI, AsyncOpenAI
+
+# --- Adapter Pattern: OpenAI to Gemini GenAI SDK Mock ---
+class MockEmbeddings:
+    def __init__(self, values):
+        self.values = values
+
+class MockEmbedResponse:
+    def __init__(self, values):
+        self.embeddings = [MockEmbeddings(values)]
+
+class MockResponse:
+    def __init__(self, text):
+        self.text = text
+        class Usage:
+            prompt_token_count = 0
+            candidates_token_count = 0
+        self.usage_metadata = Usage()
+
+class MockModelsAsync:
+    def __init__(self, client, chat_model, embed_model):
+        self.client = client
+        self.chat_model = chat_model
+        self.embed_model = embed_model
+        
+    async def generate_content(self, model, contents, config=None, **kwargs):
+        is_json = False
+        if config and isinstance(config, dict) and config.get('response_mime_type') == 'application/json':
+            is_json = True
+        elif config and hasattr(config, 'response_mime_type') and config.response_mime_type == 'application/json':
+            is_json = True
+            
+        sys_prompt = "You are a helpful AI assistant. Always output clean text."
+        if is_json: sys_prompt += " You MUST output strictly valid JSON."
+        
+        # Determine actual model based on requested
+        actual_model = self.chat_model
+        if model == "gemini-2.5-pro":
+            # If they asked for pro, we might want to use a different env var if available, but for now just use chat_model
+            pass
+            
+        res = await self.client.chat.completions.create(
+            model=actual_model,
+            messages=[
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": str(contents)}
+            ],
+            response_format={"type": "json_object"} if is_json else None
+        )
+        return MockResponse(res.choices[0].message.content)
+        
+    async def embed_content(self, model, contents, **kwargs):
+        res = await self.client.embeddings.create(
+            input=[str(contents)],
+            model=self.embed_model
+        )
+        return MockEmbedResponse(res.data[0].embedding)
+
+class MockModelsSync:
+    def __init__(self, client, chat_model, embed_model):
+        self.client = client
+        self.chat_model = chat_model
+        self.embed_model = embed_model
+        
+    def generate_content(self, model, contents, config=None, **kwargs):
+        is_json = False
+        if config and isinstance(config, dict) and config.get('response_mime_type') == 'application/json':
+            is_json = True
+        elif config and hasattr(config, 'response_mime_type') and config.response_mime_type == 'application/json':
+            is_json = True
+            
+        sys_prompt = "You are a helpful AI assistant. Always output clean text."
+        if is_json: sys_prompt += " You MUST output strictly valid JSON."
+        
+        actual_model = self.chat_model
+        
+        res = self.client.chat.completions.create(
+            model=actual_model,
+            messages=[
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": str(contents)}
+            ],
+            response_format={"type": "json_object"} if is_json else None
+        )
+        return MockResponse(res.choices[0].message.content)
+        
+    def embed_content(self, model, contents, **kwargs):
+        res = self.client.embeddings.create(
+            input=[str(contents)],
+            model=self.embed_model
+        )
+        return MockEmbedResponse(res.data[0].embedding)
+
+class MockAIO:
+    def __init__(self, async_client, chat_model, embed_model):
+        self.models = MockModelsAsync(async_client, chat_model, embed_model)
+
+class OpenAIGeminiAdapter:
+    def __init__(self):
+        AI_PROVIDER = os.getenv("AI_PROVIDER", "lmstudio").lower()
+
+        if AI_PROVIDER == "vllm":
+            ai_base_url = os.getenv("VLLM_API_BASE", "http://192.168.1.151:8000/v1")
+            ai_api_key = os.getenv("VLLM_API_KEY", "dummy_key")
+            chat_model = os.getenv("VLLM_MODEL", "qwen3.5-122b")
+            embed_model = os.getenv("VLLM_EMBED_MODEL", "nomic-embed-text")
+        elif AI_PROVIDER == "gemini":
+            ai_base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+            ai_api_key = os.getenv("GEMINI_API_KEY")
+            chat_model = "gemini-2.5-flash"
+            embed_model = "text-embedding-004"
+        else: # Default to LM Studio
+            ai_base_url = os.getenv("LMSTUDIO_API_BASE", "http://127.0.0.1:1234/v1")
+            ai_api_key = os.getenv("LMSTUDIO_API_KEY", "dummy_key")
+            chat_model = os.getenv("LMSTUDIO_MODEL", "qwen3.6-35b-a3b-mlx")
+            embed_model = os.getenv("LMSTUDIO_EMBED_MODEL", "nomic-embed-text")
+            
+        self.sync_client = OpenAI(base_url=ai_base_url, api_key=ai_api_key)
+        self.async_client = AsyncOpenAI(base_url=ai_base_url, api_key=ai_api_key)
+        
+        self.models = MockModelsSync(self.sync_client, chat_model, embed_model)
+        self.aio = MockAIO(self.async_client, chat_model, embed_model)
+
+# --- Adapter Pattern: ChromaDB to Pinecone Mock ---
+class ChromaPineconeAdapter:
+    def __init__(self):
+        self.client = chromadb.PersistentClient(path="./chroma_db")
+        
+    def _get_col(self, namespace):
+        return self.client.get_or_create_collection(name=namespace)
+
+    def upsert(self, vectors, namespace="default"):
+        col = self._get_col(namespace)
+        ids = [v[0] for v in vectors]
+        embeddings = [v[1] for v in vectors]
+        metadatas = [v[2] for v in vectors] if len(vectors[0]) > 2 else None
+        col.upsert(ids=ids, embeddings=embeddings, metadatas=metadatas)
+
+    def query(self, vector, top_k=10, namespace="default"):
+        col = self._get_col(namespace)
+        if col.count() == 0:
+            return {"matches": []}
+        res = col.query(query_embeddings=[vector], n_results=top_k)
+        matches = []
+        if res and res['ids'] and len(res['ids']) > 0:
+            for i in range(len(res['ids'][0])):
+                matches.append({
+                    "id": res['ids'][0][i],
+                    "score": 1.0 # Mocked score since chroma gives distance
+                })
+        return {"matches": matches}
+
+    def fetch(self, ids, namespace="default"):
+        col = self._get_col(namespace)
+        res = col.get(ids=ids)
+        vectors = {}
+        if res and res['ids']:
+            for id in res['ids']:
+                vectors[id] = {} # Mock
+        return {"vectors": vectors}
+
+    def list(self, namespace="default"):
+        col = self._get_col(namespace)
+        res = col.get()
+        if res and res['ids']:
+            return [res['ids']]
+        return []
+
+    def delete(self, ids, namespace="default"):
+        col = self._get_col(namespace)
+        col.delete(ids=ids)
 
 # ---------------------------------------------------------
-# Pinecone Cloud Vector DB Setup
+# Local DB & Client Initialization
 # ---------------------------------------------------------
+load_dotenv()
 try:
-    from pinecone import Pinecone
-    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-    # The host URL comes straight from the .env to bypass index lookups
-    pinecone_index = pc.Index(host=os.getenv("PINECONE_HOST"))
-    print("🧠 Pinecone Cloud DB Initialized & Ready")
+    gemini_client = OpenAIGeminiAdapter()
 except Exception as e:
-    print(f"⚠️ Warning: Pinecone initialization failed: {e}")
+    print(f"Error initializing AI client: {e}")
+    gemini_client = None
+
+from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
+
+try:
+    pinecone_index = ChromaPineconeAdapter()
+    print("🧠 Chroma Local Vector DB Initialized & Ready")
+except Exception as e:
+    print(f"⚠️ Warning: ChromaDB initialization failed: {e}")
     pinecone_index = None
 
 def index_in_pinecone(document_id: str, title: str, text: str):
