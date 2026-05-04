@@ -32,8 +32,9 @@ class MockEmbedResponse:
         self.embeddings = [MockEmbeddings(values)]
 
 class MockResponse:
-    def __init__(self, text):
+    def __init__(self, text, reasoning_text=None):
         self.text = text
+        self.reasoning_text = reasoning_text
         class Usage:
             prompt_token_count = 0
             candidates_token_count = 0
@@ -88,18 +89,28 @@ class MockModelsAsync:
             max_tokens=8192,
             temperature=0.7
         )
-        content = res.choices[0].message.content.strip()
+        original_content = res.choices[0].message.content.strip()
+        content = original_content
+        reasoning_text = None
         if is_json:
             import re
             match = re.search(r'```(?:json)?\s*(.*?)\s*```', content, re.DOTALL)
             if match:
                 content = match.group(1).strip()
+                reasoning_text = original_content.replace(match.group(0), "").strip()
             else:
-                if content.startswith('```'):
-                    content = re.sub(r'^```[a-zA-Z]*\n?', '', content)
-                if content.endswith('```'):
-                    content = re.sub(r'\n?```$', '', content)
-        return MockResponse(content)
+                # Fallback: Extract everything from the first '{' to the last '}'
+                start_idx = content.find('{')
+                end_idx = content.rfind('}')
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    content = content[start_idx:end_idx+1]
+                    reasoning_text = original_content[:start_idx].strip()
+                else:
+                    if content.startswith('```'):
+                        content = re.sub(r'^```[a-zA-Z]*\n?', '', content)
+                    if content.endswith('```'):
+                        content = re.sub(r'\n?```$', '', content)
+        return MockResponse(content, reasoning_text=reasoning_text)
         
     async def embed_content(self, model, contents, **kwargs):
         res = await self.client.embeddings.create(
@@ -157,18 +168,28 @@ class MockModelsSync:
             max_tokens=8192,
             temperature=0.7
         )
-        content = res.choices[0].message.content.strip()
+        original_content = res.choices[0].message.content.strip()
+        content = original_content
+        reasoning_text = None
         if is_json:
             import re
             match = re.search(r'```(?:json)?\s*(.*?)\s*```', content, re.DOTALL)
             if match:
                 content = match.group(1).strip()
+                reasoning_text = original_content.replace(match.group(0), "").strip()
             else:
-                if content.startswith('```'):
-                    content = re.sub(r'^```[a-zA-Z]*\n?', '', content)
-                if content.endswith('```'):
-                    content = re.sub(r'\n?```$', '', content)
-        return MockResponse(content)
+                # Fallback: Extract everything from the first '{' to the last '}'
+                start_idx = content.find('{')
+                end_idx = content.rfind('}')
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    content = content[start_idx:end_idx+1]
+                    reasoning_text = original_content[:start_idx].strip()
+                else:
+                    if content.startswith('```'):
+                        content = re.sub(r'^```[a-zA-Z]*\n?', '', content)
+                    if content.endswith('```'):
+                        content = re.sub(r'\n?```$', '', content)
+        return MockResponse(content, reasoning_text=reasoning_text)
         
     def embed_content(self, model, contents, **kwargs):
         res = self.client.embeddings.create(
@@ -2359,6 +2380,7 @@ async def analyze_sources(req: AnalyzeRequest, current_user: User = Depends(get_
         )
         await log_token_usage(db, "Intelligence Report", "gemini-2.5-flash", response, project_id=req.project_id)
         generated_json = response.text
+        reasoning_data = getattr(response, 'reasoning_text', None)
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -2366,7 +2388,12 @@ async def analyze_sources(req: AnalyzeRequest, current_user: User = Depends(get_
         raise HTTPException(status_code=500, detail=str(e))
     
     # Save generic generated report
-    new_report = GeneratedReport(project_id=req.project_id, report_data=generated_json, timestamp=datetime.utcnow())
+    new_report = GeneratedReport(
+        project_id=req.project_id, 
+        report_data=generated_json, 
+        reasoning_data=reasoning_data,
+        timestamp=datetime.utcnow()
+    )
     db.add(new_report)
     db.commit()
     
