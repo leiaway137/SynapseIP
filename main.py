@@ -67,7 +67,7 @@ class MockModelsAsync:
                 try:
                     import json
                     schema_dict = schema.model_json_schema() if hasattr(schema, 'model_json_schema') else schema.schema()
-                    sys_prompt += f"\nYour JSON output MUST be a valid JSON object matching this exact schema:\n{json.dumps(schema_dict, indent=2)}"
+                    sys_prompt += f"\nYour JSON output MUST be a valid JSON object matching this exact schema:\n{json.dumps(schema_dict, indent=2)}\nDO NOT use placeholders like '...'. Output the COMPLETE and FULL JSON object."
                 except Exception:
                     pass
         
@@ -84,7 +84,9 @@ class MockModelsAsync:
             messages=[
                 {"role": "system", "content": sys_prompt},
                 {"role": "user", "content": str(contents)}
-            ]
+            ],
+            max_tokens=8192,
+            temperature=0.7
         )
         content = res.choices[0].message.content.strip()
         if is_json:
@@ -134,7 +136,7 @@ class MockModelsSync:
                 try:
                     import json
                     schema_dict = schema.model_json_schema() if hasattr(schema, 'model_json_schema') else schema.schema()
-                    sys_prompt += f"\nYour JSON output MUST be a valid JSON object matching this exact schema:\n{json.dumps(schema_dict, indent=2)}"
+                    sys_prompt += f"\nYour JSON output MUST be a valid JSON object matching this exact schema:\n{json.dumps(schema_dict, indent=2)}\nDO NOT use placeholders like '...'. Output the COMPLETE and FULL JSON object."
                 except Exception:
                     pass
         
@@ -151,7 +153,9 @@ class MockModelsSync:
             messages=[
                 {"role": "system", "content": sys_prompt},
                 {"role": "user", "content": str(contents)}
-            ]
+            ],
+            max_tokens=8192,
+            temperature=0.7
         )
         content = res.choices[0].message.content.strip()
         if is_json:
@@ -254,7 +258,7 @@ class ChromaPineconeAdapter:
 # ---------------------------------------------------------
 # Local DB & Client Initialization
 # ---------------------------------------------------------
-load_dotenv()
+load_dotenv(override=True)
 try:
     gemini_client = OpenAIGeminiAdapter()
 except Exception as e:
