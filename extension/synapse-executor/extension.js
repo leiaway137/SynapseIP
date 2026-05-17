@@ -119,9 +119,11 @@ function parseBlueprintSteps(content) {
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         
-        // Detect step headers (## Step X: Title)
+        // Detect step headers (## Step X: Title or ## <label...> Step X: Title)
         const stepMatch = line.match(/^##\s*\[?\s*\[?\s*Step\s*(\d+)[\.\:]?\s*:?\s*(.+)?/i);
-        if (stepMatch) {
+        const htmlStepMatch = line.match(/data-idx=['"]?(\d+)['"]?\s*>\s*Step\s*(\d+)[\.\:]?\s*:?\s*([^<]+)/i);
+        
+        if (stepMatch || htmlStepMatch) {
             // Save previous step
             if (currentStep && currentContent.length > 0) {
                 steps.push({
@@ -132,10 +134,18 @@ function parseBlueprintSteps(content) {
                 });
             }
             
-            currentStep = {
-                number: parseInt(stepMatch[1]),
-                title: stepMatch[2] || 'Untitled'
-            };
+            // Handle both plain text and HTML checkbox formats
+            if (htmlStepMatch) {
+                currentStep = {
+                    number: parseInt(htmlStepMatch[2]),
+                    title: htmlStepMatch[3].trim() || 'Untitled'
+                };
+            } else {
+                currentStep = {
+                    number: parseInt(stepMatch[1]),
+                    title: stepMatch[2] || 'Untitled'
+                };
+            }
             currentFile = null;
             currentContent = [];
             inCodeBlock = false;
