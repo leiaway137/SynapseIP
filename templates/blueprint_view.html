@@ -7,10 +7,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css?v=12">
     <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            overflow-y: auto;
+            min-height: 100vh;
+        }
         .blueprint-container {
             max-width: 1000px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 40px 20px 60px;
         }
         .blueprint-header {
             text-align: center;
@@ -42,6 +51,7 @@
             border-radius: 12px;
             padding: 30px;
             min-height: 500px;
+            overflow-y: auto;
         }
         .back-btn {
             background: rgba(255,255,255,0.1);
@@ -55,6 +65,73 @@
         }
         .back-btn:hover {
             background: rgba(255,255,255,0.15);
+        }
+        
+        /* Markdown styling */
+        .markdown-content {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #e2e8f0;
+        }
+        .markdown-content h1, .markdown-content h2, .markdown-content h3, .markdown-content h4 {
+            color: #ffffff;
+            margin-top: 2em;
+            margin-bottom: 0.5em;
+        }
+        .markdown-content h1 { font-size: 2em; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.3em; }
+        .markdown-content h2 { font-size: 1.5em; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.3em; }
+        .markdown-content h3 { font-size: 1.2em; }
+        .markdown-content p { margin-bottom: 1em; }
+        .markdown-content ul, .markdown-content ol { margin-bottom: 1em; padding-left: 2em; }
+        .markdown-content li { margin-bottom: 0.5em; }
+        .markdown-content code {
+            background: rgba(255,255,255,0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .markdown-content pre {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 1em;
+        }
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+        }
+        .markdown-content blockquote {
+            border-left: 4px solid #3b82f6;
+            padding-left: 1em;
+            margin-left: 0;
+            color: #94a3b8;
+        }
+        .markdown-content a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+        .markdown-content a:hover {
+            text-decoration: underline;
+        }
+        .markdown-content hr {
+            border: none;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin: 2em 0;
+        }
+        .markdown-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 1em;
+        }
+        .markdown-content th, .markdown-content td {
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px;
+            text-align: left;
+        }
+        .markdown-content th {
+            background: rgba(255,255,255,0.05);
         }
     </style>
 </head>
@@ -73,8 +150,10 @@
             <button onclick="downloadBlueprint()" class="generate-btn">⬇️ Download Markdown</button>
         </div>
         
-        <div class="blueprint-content" id="blueprint-content">
-            {{ blueprint_data | safe }}
+        <div class="blueprint-content">
+            <div class="markdown-content" id="blueprint-content">
+                {{ blueprint_data | safe }}
+            </div>
         </div>
     </div>
     
@@ -95,9 +174,54 @@
             window.URL.revokeObjectURL(url);
         }
         
-        // Add checkbox functionality for steps
+        // Render markdown with marked.js
         document.addEventListener('DOMContentLoaded', () => {
-            const checkboxes = document.querySelectorAll('.blueprint-checkbox');
+            const contentEl = document.getElementById('blueprint-content');
+            if (contentEl && contentEl.innerHTML.trim().startsWith('#')) {
+                // If it's raw markdown, parse it
+                contentEl.innerHTML = marked.parse(contentEl.innerHTML);
+            }
+            
+            // Add copy buttons to code blocks
+            const preTags = contentEl.querySelectorAll('pre');
+            preTags.forEach(pre => {
+                if (pre.parentNode.classList.contains('code-wrapper')) return;
+                
+                const wrapper = document.createElement('div');
+                wrapper.className = 'code-wrapper';
+                wrapper.style.position = 'relative';
+                
+                pre.parentNode.insertBefore(wrapper, pre);
+                wrapper.appendChild(pre);
+                
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-code-btn';
+                copyBtn.innerText = 'Copy';
+                copyBtn.title = 'Copy to clipboard';
+                copyBtn.style.cssText = 'position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #cbd5e1; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; z-index: 10; display: flex; align-items: center; gap: 4px; font-family: inherit;';
+                copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy`;
+                
+                copyBtn.addEventListener('click', () => {
+                    const textToCopy = pre.innerText;
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!`;
+                        copyBtn.style.background = '#10b981';
+                        copyBtn.style.color = '#ffffff';
+                        copyBtn.style.borderColor = '#10b981';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy`;
+                            copyBtn.style.background = 'rgba(255,255,255,0.1)';
+                            copyBtn.style.color = '#cbd5e1';
+                            copyBtn.style.borderColor = 'rgba(255,255,255,0.2)';
+                        }, 2000);
+                    });
+                });
+                
+                wrapper.appendChild(copyBtn);
+            });
+            
+            // Add checkbox functionality for steps
+            const checkboxes = contentEl.querySelectorAll('.blueprint-checkbox');
             checkboxes.forEach(cb => {
                 cb.addEventListener('change', async (e) => {
                     const stepIdx = parseInt(cb.getAttribute('data-idx'));
@@ -111,7 +235,7 @@
                             body: JSON.stringify({ step: newStep })
                         });
                         if (res.ok) {
-                            document.querySelectorAll('.blueprint-checkbox').forEach(box => {
+                            contentEl.querySelectorAll('.blueprint-checkbox').forEach(box => {
                                 const idx = parseInt(box.getAttribute('data-idx'));
                                 box.checked = (idx < newStep);
                                 if (box.closest('h2')) {
