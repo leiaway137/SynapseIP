@@ -214,12 +214,31 @@ async function fetchAndOpenBlueprint(url) {
     statusBarItem.text = 'SynapseIP Loading...';
     
     try {
-        // In a real extension, you'd use fetch or axios
-        // For now, we'll simulate with a file read
-        const response = await fetch(url);
-        const content = await response.text();
+        // VS Code extensions can't use fetch() directly for external URLs
+        // Use http/https module instead
+        const http = require('http');
+        const https = require('https');
+        const { URL } = require('url');
         
+        const parsedUrl = new URL(url);
+        const lib = parsedUrl.protocol === 'https:' ? https : http;
+        
+        const content = await new Promise((resolve, reject) => {
+            lib.get(url, (res) => {
+                if (res.statusCode !== 200) {
+                    reject(new Error(`Request failed. Status code: ${res.statusCode}`));
+                    return;
+                }
+                
+                let data = '';
+                res.on('data', (chunk) => { data += chunk; });
+                res.on('end', () => resolve(data));
+            }).on('error', reject);
+        });
+        
+        outputChannel.appendLine('Successfully fetched blueprint from: ' + url);
         const steps = parseBlueprintSteps(content);
+        outputChannel.appendLine('Found ' + steps.length + ' steps in blueprint');
         await showBlueprintSteps(steps);
         
         statusBarItem.text = 'SynapseIP Ready';
