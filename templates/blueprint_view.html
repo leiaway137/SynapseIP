@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture Blueprint - SynapseIP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=12">
+    <style>
+        .blueprint-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .blueprint-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .blueprint-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(180deg, #ffffff 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .blueprint-meta {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+        .blueprint-actions {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+        .blueprint-content {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 30px;
+            min-height: 500px;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #cbd5e1;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .back-btn:hover {
+            background: rgba(255,255,255,0.15);
+        }
+    </style>
+</head>
+<body>
+    <div class="blueprint-container">
+        <div class="blueprint-header">
+            <h1>Architecture Blueprint</h1>
+            <div class="blueprint-meta">
+                <p>Generated on {{ blueprint.timestamp.strftime('%Y-%m-%d') }}</p>
+                <p>Blueprint ID: #{{ blueprint.id }}</p>
+            </div>
+        </div>
+        
+        <div class="blueprint-actions">
+            <button onclick="window.location.href='/'" class="back-btn">← Back to Dashboard</button>
+            <button onclick="downloadBlueprint()" class="generate-btn">⬇️ Download Markdown</button>
+        </div>
+        
+        <div class="blueprint-content" id="blueprint-content">
+            {{ blueprint_data | safe }}
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        // Store the raw markdown for download
+        const blueprintMarkdown = `{{ blueprint_data | safe }}`;
+        
+        function downloadBlueprint() {
+            const blob = new Blob([blueprintMarkdown], { type: 'text/markdown' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'SynapseIP_Master_Blueprint.md';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+        
+        // Add checkbox functionality for steps
+        document.addEventListener('DOMContentLoaded', () => {
+            const checkboxes = document.querySelectorAll('.blueprint-checkbox');
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', async (e) => {
+                    const stepIdx = parseInt(cb.getAttribute('data-idx'));
+                    const checked = e.target.checked;
+                    const newStep = checked ? stepIdx + 1 : stepIdx;
+                    
+                    try {
+                        const res = await fetch(`/api/projects/{{ blueprint.project_id }}/vibe-step`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ step: newStep })
+                        });
+                        if (res.ok) {
+                            document.querySelectorAll('.blueprint-checkbox').forEach(box => {
+                                const idx = parseInt(box.getAttribute('data-idx'));
+                                box.checked = (idx < newStep);
+                                if (box.closest('h2')) {
+                                    box.closest('h2').style.opacity = box.checked ? '0.6' : '1';
+                                }
+                            });
+                        }
+                    } catch(err) { console.error("Failed to save blueprint step", err); }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

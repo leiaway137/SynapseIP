@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "synapse-executor": {
+      "command": "python",
+      "args": ["server.py"],
+      "cwd": "${workspaceFolder}/synapse-executor-mcp",
+      "env": {
+        "SYNAPSE_WORKSPACE": "${workspaceFolder}"
+      }
+    }
+  }
+}

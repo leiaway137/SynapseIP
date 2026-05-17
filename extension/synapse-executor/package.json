@@ -1,0 +1,76 @@
+{
+  "name": "synapse-executor",
+  "displayName": "SynapseIP Blueprint Executor",
+  "description": "Execute SynapseIP blueprint steps directly in VS Code with approval",
+  "version": "1.0.0",
+  "publisher": "SynapseIP",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:synapseExecutor.openBlueprint",
+    "onCommand:synapseExecutor.parseCurrentDocument"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "synapseExecutor.openBlueprint",
+        "title": "SynapseIP: Open Blueprint from URL"
+      },
+      {
+        "command": "synapseExecutor.parseCurrentDocument",
+        "title": "SynapseIP: Parse Current Document as Blueprint"
+      },
+      {
+        "command": "synapseExecutor.executeNextStep",
+        "title": "SynapseIP: Execute Next Step"
+      },
+      {
+        "command": "synapseExecutor.executeAllSteps",
+        "title": "SynapseIP: Execute All Steps"
+      },
+      {
+        "command": "synapseExecutor.showStatus",
+        "title": "SynapseIP: Show Status"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "synapseExecutor.parseCurrentDocument",
+          "when": "editorFocus",
+          "group": "SynapseIP"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "SynapseIP Executor",
+      "properties": {
+        "synapseExecutor.workspace": {
+          "type": "string",
+          "default": "",
+          "description": "Workspace path for file operations"
+        },
+        "synapseExecutor.autoApprove": {
+          "type": "boolean",
+          "default": false,
+          "description": "Auto-approve file creation (not recommended)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "^18.0.0",
+    "eslint": "^8.0.0"
+  }
+}

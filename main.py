@@ -3,12 +3,15 @@ from datetime import datetime, timedelta
 import os
 import json
 import asyncio
-from dotenv import load_dotenv
 from typing import List, Optional
 import httpx
 import base64
+from collections import defaultdict
+import time
+from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException, Depends, Request, WebSocket, WebSocketDisconnect, BackgroundTasks, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -22,6 +25,8 @@ from jose import JWTError, jwt
 import chromadb
 from openai import OpenAI, AsyncOpenAI
 
+# Import configuration and logging
+from config import settings, logger
 # --- Adapter Pattern: OpenAI to Gemini GenAI SDK Mock ---
 class MockEmbeddings:
     def __init__(self, values):
@@ -359,7 +364,8 @@ Note:
 # ---------------------------------------------------------
 # Security Setup
 # ---------------------------------------------------------
-SECRET_KEY = "synapse_super_secret_matrix"
+load_dotenv(override=True)
+SECRET_KEY = os.getenv("SECRET_KEY", "synapseip_local_dev_secret_key_fixed_123")
 ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -447,6 +453,7 @@ class ArchitectBlueprint(Base):
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     blueprint_data = Column(Text)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    blueprint_slug = Column(String, unique=True, index=True, nullable=True)
 
 class ArchitectDraftState(Base):
     __tablename__ = "architect_draft_states"
@@ -515,25 +522,36 @@ class FrameworkTemplate(Base):
 # ---------------------------------------------------------
 # Pydantic Models for Validation
 # ---------------------------------------------------------
+
+# Input size limits for security
+MAX_TITLE_LENGTH = 200
+MAX_CONTENT_LENGTH = 1000000  # 1MB for content
+MAX_URL_LENGTH = 500
+MAX_NAME_LENGTH = 100
+MAX_FEEDBACK_LENGTH = 5000
+MAX_CHAT_CONTENT_LENGTH = 50000
+MAX_PASSWORD_LENGTH = 128
+MAX_HOSTNAME_LENGTH = 255
+
 class SourceCreate(BaseModel):
-    title: str
-    content: str
-    source_url: str
-    project_id: Optional[int] = None
+    title: str = Field(..., min_length=1, max_length=MAX_TITLE_LENGTH, description="Source title")
+    content: str = Field(..., min_length=1, max_length=MAX_CONTENT_LENGTH, description="Source content")
+    source_url: str = Field(..., min_length=1, max_length=MAX_URL_LENGTH, pattern=r'^https?://.*|^file://.*|^data:.*|^chrome-extension://.*$', description="Source URL")
+    project_id: Optional[int] = Field(None, ge=1, description="Project ID")
 
 class VisionSourceCreate(BaseModel):
-    project_id: int
-    source_url: str
-    image_base64: str
+    project_id: int = Field(..., ge=1, description="Project ID")
+    source_url: str = Field(..., min_length=1, max_length=MAX_URL_LENGTH, description="Source URL")
+    image_base64: str = Field(..., min_length=1, max_length=5000000, description="Base64 encoded image data")
 
 class ProjectCreate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=MAX_NAME_LENGTH, description="Project name")
 
 class ProjectUpdate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=MAX_NAME_LENGTH, description="Project name")
 
 class VibeStepUpdate(BaseModel):
-    step: int
+    step: int = Field(..., ge=0, description="Vibe step number")
 
 class ProjectResponse(BaseModel):
     id: int
@@ -543,63 +561,61 @@ class ProjectResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
-
 class AnalysisSchema(BaseModel):
-    summary: str = Field(description="Brief product overview.")
-    swot: str = Field(description="Strengths, Weaknesses, Opportunities, Threats.")
-    market_analysis: str = Field(description="Top competitors, service differences, and Blue Ocean viability.")
-    cost_benefit: str = Field(description="Financial and operational tradeoff of building it.")
-    blindspots: str = Field(description="Other areas the user should consider brainstorming about to make the product better or more complete.")
-    viability_score: int = Field(description="Integer from 0-100 indicating sure-fire success vs flop.")
-    the_harsh_truth: str = Field(description="The single biggest 'Flop Risk' for this idea.")
-    the_pivot_path: str = Field(description="One structural change to the idea that would increase its health score by at least 20 points.")
-    verdict: str = Field(description="Either 'Green Light (Build)', 'Yellow Light (Refine)', or 'Red Light (Pivot/Abandon)'.")
+    summary: str = Field(..., max_length=50000, description="Brief product overview.")
+    swot: str = Field(..., max_length=100000, description="Strengths, Weaknesses, Opportunities, Threats.")
+    market_analysis: str = Field(..., max_length=200000, description="Top competitors, service differences, and Blue Ocean viability.")
+    cost_benefit: str = Field(..., max_length=100000, description="Financial and operational tradeoff of building it.")
+    blindspots: str = Field(..., max_length=100000, description="Other areas the user should consider brainstorming about to make the product better or more complete.")
+    viability_score: int = Field(..., ge=0, le=100, description="Integer from 0-100 indicating sure-fire success vs flop.")
+    the_harsh_truth: str = Field(..., max_length=50000, description="The single biggest 'Flop Risk' for this idea.")
+    the_pivot_path: str = Field(..., max_length=50000, description="One structural change to the idea that would increase its health score by at least 20 points.")
+    verdict: str = Field(..., pattern=r"^(Green Light \(Build\)|Yellow Light \(Refine\)|Red Light \(Pivot/Abandon\))$", description="Either 'Green Light (Build)', 'Yellow Light (Refine)', or 'Red Light (Pivot/Abandon)'.")
 
 class AnalyzeRequest(BaseModel):
-    target_platform: str = "Antigravity"
-    designer_name: str = ""
-    app_name: str = ""
-    app_purpose: str = ""
-    target_audience: str = ""
-    app_type: str = "Commercial"
-    budget_constraints: str = "Free Tier Only"
-    ai_integration: str = "None"
-    security_auth: str = ""
-    build_environment: str = "Greenfield (New)"
-    standout_features: list[str] = []
-    project_id: int
+    target_platform: str = Field(default="Antigravity", max_length=200, description="Target platform")
+    designer_name: str = Field(default="", max_length=MAX_NAME_LENGTH, description="Designer name")
+    app_name: str = Field(default="", max_length=MAX_NAME_LENGTH, description="App name")
+    app_purpose: str = Field(default="", max_length=5000, description="App purpose")
+    target_audience: str = Field(default="", max_length=500, description="Target audience")
+    app_type: str = Field(default="Commercial", pattern=r"^(Personal|Commercial)$", description="App type: Personal or Commercial")
+    budget_constraints: str = Field(default="Free Tier Only", max_length=500, description="Budget constraints")
+    ai_integration: str = Field(default="None", max_length=1000, description="AI integration")
+    security_auth: str = Field(default="", max_length=1000, description="Security and authentication strategy")
+    build_environment: str = Field(default="Greenfield (New)", pattern=r"^(Greenfield \(New\)|Brownfield \(Existing\))$", description="Build environment")
+    standout_features: list[str] = Field(default_factory=list, max_length=50, description="List of standout features")
+    project_id: int = Field(..., ge=1, description="Project ID")
 
 class MockupPromptRequest(BaseModel):
-    project_id: int
+    project_id: int = Field(..., ge=1, description="Project ID")
 
 class BulkDeleteRequest(BaseModel):
-    source_ids: list[int]
+    source_ids: list[int] = Field(..., max_length=1000, description="List of source IDs to delete")
 
 class OutlineSchema(BaseModel):
-    chapters: list[str]
+    chapters: list[str] = Field(..., max_length=200, description="List of chapter titles")
 
 class ArchitectLoopRequest(BaseModel):
-    project_id: int
-    target_platform: str
-    designer_name: str
-    app_name: str
-    app_purpose: str
-    budget_constraints: str
-    ai_integration: str
-    security_auth: str
-    build_environment: str
-    standout_features: list[str]
-    feedback: Optional[str] = None
+    project_id: int = Field(..., ge=1, description="Project ID")
+    target_platform: str = Field(..., max_length=200, description="Target platform")
+    designer_name: str = Field(..., max_length=MAX_NAME_LENGTH, description="Designer name")
+    app_name: str = Field(..., max_length=MAX_NAME_LENGTH, description="App name")
+    app_purpose: str = Field(..., max_length=5000, description="App purpose")
+    budget_constraints: str = Field(..., max_length=500, description="Budget constraints")
+    ai_integration: str = Field(..., max_length=1000, description="AI integration")
+    security_auth: str = Field(..., max_length=1000, description="Security and authentication strategy")
+    build_environment: str = Field(..., pattern=r"^(Greenfield \(New\)|Brownfield \(Existing\))$", description="Build environment")
+    standout_features: list[str] = Field(default_factory=list, max_length=50, description="List of standout features")
+    feedback: Optional[str] = Field(None, max_length=MAX_FEEDBACK_LENGTH, description="User feedback")
 
 class SmartEditRequest(BaseModel):
-    project_id: int
-    highlighted_text: str
-    instructions: Optional[str] = None
-    container_preference: str = "auto"
-    context_type: str = "blueprint"
-    entity_id: Optional[int] = None
-    draft_loop: Optional[int] = None
+    project_id: int = Field(..., ge=1, description="Project ID")
+    highlighted_text: str = Field(..., max_length=MAX_CONTENT_LENGTH, description="Highlighted text to edit")
+    instructions: Optional[str] = Field(None, max_length=MAX_FEEDBACK_LENGTH, description="Edit instructions")
+    container_preference: str = Field(default="auto", pattern=r"^(auto|inside|outside)$", description="Container preference")
+    context_type: str = Field(default="blueprint", pattern=r"^(blueprint|theme|draft)$", description="Context type")
+    entity_id: Optional[int] = Field(None, ge=1, description="Entity ID")
+    draft_loop: Optional[int] = Field(None, ge=0, le=2, description="Draft loop number")
 
 class ArchitectStateResponse(BaseModel):
     current_loop: int
@@ -608,33 +624,33 @@ class ArchitectStateResponse(BaseModel):
     loop2_draft: Optional[str] = None
 
 class ChatMessage(BaseModel):
-    role: str
-    content: str
+    role: str = Field(..., pattern=r"^(user|model)$", description="Message role")
+    content: str = Field(..., min_length=1, max_length=MAX_CHAT_CONTENT_LENGTH, description="Message content")
 
 class OnboardingRequest(BaseModel):
-    project_id: int
-    history: list[ChatMessage]
+    project_id: int = Field(..., ge=1, description="Project ID")
+    history: list[ChatMessage] = Field(..., max_length=100, description="Chat history")
 
 class FollowupRequest(BaseModel):
-    project_id: int
-    history: list[ChatMessage]
+    project_id: int = Field(..., ge=1, description="Project ID")
+    history: list[ChatMessage] = Field(..., max_length=100, description="Chat history")
 
 class OnboardingResponseSchema(BaseModel):
-    message: str = Field(description="Your conversational reply or evaluation.")
-    is_complete: bool = Field(description="True if Designer Name, App Name, Core Purpose, Target Audience, App Type, Budget/Hosting Constraints, Security Strategy, AI Integration, Build Environment, and Standout Features are confidently identified. False otherwise.")
-    designer_name: Optional[str] = Field(description="Extracted designer name.", default=None)
-    app_name: Optional[str] = Field(description="Extracted app name.", default=None)
-    core_purpose: Optional[str] = Field(description="Extracted core purpose.", default=None)
-    target_audience: Optional[str] = Field(description="Extracted target audience and target region/location.", default=None)
-    app_type: Optional[str] = Field(description="Must be exactly either 'Personal' or 'Commercial'.", default=None)
-    budget_constraints: Optional[str] = Field(description="Extracted budget and hosting constraints (e.g. 'Free Tier Only', 'Paid Enterprise', 'Undecided').", default=None)
-    ai_integration: Optional[str] = Field(description="Extracted AI integration role, functionality, and thinking processes (or 'None' if standard deterministic app).", default=None)
-    security_auth: Optional[str] = Field(description="Extracted Security and Authentication strategy (e.g. 'Clerk OAuth', 'JWT Custom', 'None required').", default=None)
-    build_environment: Optional[str] = Field(description="Must be exactly either 'Greenfield (New)' or 'Brownfield (Existing)'.", default=None)
-    standout_features: list[str] = Field(description="List of specific features that make this app stand out.", default_factory=list)
+    message: str = Field(..., max_length=MAX_CHAT_CONTENT_LENGTH, description="Your conversational reply or evaluation.")
+    is_complete: bool = Field(..., description="True if all parameters are identified")
+    designer_name: Optional[str] = Field(None, max_length=MAX_NAME_LENGTH, description="Extracted designer name.")
+    app_name: Optional[str] = Field(None, max_length=MAX_NAME_LENGTH, description="Extracted app name.")
+    core_purpose: Optional[str] = Field(None, max_length=2000, description="Extracted core purpose.")
+    target_audience: Optional[str] = Field(None, max_length=500, description="Extracted target audience and target region/location.")
+    app_type: Optional[str] = Field(None, pattern=r"^(Personal|Commercial)$", description="App type: Personal or Commercial.")
+    budget_constraints: Optional[str] = Field(None, max_length=500, description="Extracted budget and hosting constraints.")
+    ai_integration: Optional[str] = Field(None, max_length=1000, description="Extracted AI integration role.")
+    security_auth: Optional[str] = Field(None, max_length=1000, description="Extracted Security and Authentication strategy.")
+    build_environment: Optional[str] = Field(None, pattern=r"^(Greenfield \(New\)|Brownfield \(Existing\))$", description="Build environment.")
+    standout_features: list[str] = Field(default_factory=list, max_length=50, description="List of standout features.")
 
 class PasswordChangeRequest(BaseModel):
-    new_password: str
+    new_password: str = Field(..., min_length=8, max_length=MAX_PASSWORD_LENGTH, description="New password (min 8 characters)")
 
 class SourceResponse(BaseModel):
     id: int
@@ -649,19 +665,19 @@ class SourceResponse(BaseModel):
         from_attributes = True
 
 class UserCreate(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=1, max_length=MAX_NAME_LENGTH, description="Username")
+    password: str = Field(..., min_length=8, max_length=MAX_PASSWORD_LENGTH, description="Password (min 8 characters)")
 
 class Token(BaseModel):
     access_token: str
     token_type: str
 
 class ReportChangeRequest(BaseModel):
-    hostname: str
-    html_payload: str
+    hostname: str = Field(..., min_length=1, max_length=MAX_HOSTNAME_LENGTH, description="Hostname")
+    html_payload: str = Field(..., min_length=1, max_length=500000, description="HTML payload")
 
 class ThemeUpdateRequest(BaseModel):
-    content: str
+    content: str = Field(..., min_length=1, max_length=MAX_CONTENT_LENGTH, description="Theme content")
 
 # ---------------------------------------------------------
 # Security Helpers
@@ -1139,15 +1155,142 @@ async def lifespan(app: FastAPI):
     yield
     # Any cleanup could go here
 
-app = FastAPI(title="Gemini Sources API", lifespan=lifespan)
+# Rate Limiting Implementation
+class RateLimiter:
+    """Simple in-memory rate limiter using token bucket algorithm."""
+    
+    def __init__(self):
+        # Request counts per client (IP or user ID)
+        self.request_counts = defaultdict(list)
+        # Lock for thread safety
+        self.lock = asyncio.Lock()
+    
+    # Rate limit configurations
+    LIMITS = {
+        "auth": {"requests": 5, "window": 60},      # 5 requests per minute for auth
+        "default": {"requests": 100, "window": 60}, # 100 requests per minute default
+        "ai_generation": {"requests": 10, "window": 3600},  # 10 AI generations per hour
+        "admin": {"requests": 50, "window": 60},    # 50 requests per minute for admin
+    }
+    
+    async def check_rate_limit(self, client_id: str, endpoint_type: str = "default") -> bool:
+        """Check if client has exceeded rate limit. Returns True if allowed, False if blocked."""
+        async with self.lock:
+            config = self.LIMITS.get(endpoint_type, self.LIMITS["default"])
+            max_requests = config["requests"]
+            window = config["window"]
+            
+            current_time = time.time()
+            
+            # Clean old requests outside the window
+            self.request_counts[client_id] = [
+                ts for ts in self.request_counts[client_id]
+                if current_time - ts < window
+            ]
+            
+            # Check if limit exceeded
+            if len(self.request_counts[client_id]) >= max_requests:
+                return False
+            
+            # Record this request
+            self.request_counts[client_id].append(current_time)
+            return True
+    
+    def get_retry_after(self, client_id: str, window: int) -> int:
+        """Calculate seconds until client can retry."""
+        if not self.request_counts[client_id]:
+            return 0
+        oldest = min(self.request_counts[client_id])
+        retry_after = int(window - (time.time() - oldest)) + 1
+        return max(1, retry_after)
+
+# Global rate limiter instance
+rate_limiter = RateLimiter()
+
+async def get_client_id(request: Request) -> str:
+    """Extract client identifier from request (IP or user token)."""
+    # Check for authenticated user first
+    token = request.headers.get("Authorization", "")
+    if token.startswith("Bearer "):
+        return f"user_{token}"
+    # Fall back to IP address
+    return request.client.host if request.client else "unknown"
+
+def rate_limit_middleware(endpoint_type: str = "default"):
+    """Decorator for rate limiting endpoints."""
+    async def decorator(request: Request, call_next):
+        client_id = await get_client_id(request)
+        
+        if not await rate_limiter.check_rate_limit(client_id, endpoint_type):
+            window = rate_limiter.LIMITS.get(endpoint_type, rate_limiter.LIMITS["default"])["window"]
+            retry_after = rate_limiter.get_retry_after(client_id, window)
+            
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "detail": f"Rate limit exceeded. Please retry after {retry_after} seconds.",
+                    "retry_after": retry_after
+                },
+                headers={"Retry-After": str(retry_after)}
+            )
+        
+        response = await call_next(request)
+        return response
+    return decorator
+
+app = FastAPI(
+    title="SynapseIP API",
+    description="""
+    **SynapseIP** - AI-Powered Vibe Coding Architect Platform
+    
+    ## Features
+    - **Authentication**: JWT-based user authentication with bcrypt password hashing
+    - **Projects**: Create and manage architecture projects with isolated state
+    - **Blueprints**: Generate detailed MVP blueprints with multi-agent AI
+    - **Themes**: Synthesize architectural themes from brainstorm notes
+    - **Admin Tools**: Diagnostics, vector pruning, and system management
+    
+    ## Security
+    - JWT-based authentication with OAuth2
+    - Rate limiting on all endpoints
+    - CORS protection with configurable origins
+    - Input validation with Pydantic schemas
+    
+    ## AI Integration
+    - Adapter pattern for seamless model switching (Local LLMs, Cloud APIs)
+    - Multi-agent orchestration for blueprint generation
+    - Devil's Advocate QA review subagents
+    - NPM package validation to prevent hallucinations
+    """,
+    version="2.0.0",
+    contact={
+        "name": "SynapseIP Team",
+        "url": "https://github.com/leiaway137/SynapseIP"
+    },
+    license_info={
+        "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT"
+    },
+    lifespan=lifespan
+)
 
 # Enable CORS for extensions
+# Use CORS settings from config.py
+cors_origins = settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS else []
+cors_origins = [origin.strip() for origin in cors_origins if origin.strip()]
+
+# Add wildcard for development if explicitly configured
+if os.getenv("DEV_ALLOW_ALL_ORIGINS") == "true":
+    cors_origins = ["*"]
+    print("⚠️ WARNING: CORS allows all origins (DEV_ALLOW_ALL_ORIGINS=true). Not for production!")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust this in production to specific origins (e.g., your extension's ID)
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Mount static files and set up templates
@@ -1182,16 +1325,43 @@ manager = ConnectionManager()
 class CircuitBreakerException(Exception):
     pass
 
-async def check_circuit_breaker(user_id: int, db: Session, limit: float = 2.00):
+async def check_circuit_breaker(user_id: int, db: Session, ops_limit: int = None, token_limit: int = None):
+    """
+    Circuit breaker for local LLM usage.
+    Prevents runaway loops and excessive resource consumption.
+    
+    Args:
+        user_id: The user ID to check
+        db: Database session
+        ops_limit: Maximum operations per day (default from env var, fallback 50)
+        token_limit: Maximum tokens per day (default from env var, fallback 1M)
+    """
     from datetime import datetime
     start_of_day = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    total_cost = db.query(func.sum(TokenLog.cost)).filter(
+    
+    # Get limits from environment or use defaults
+    if ops_limit is None:
+        ops_limit = int(os.getenv("CIRCUIT_BREAKER_OPS_LIMIT", 50))
+    if token_limit is None:
+        token_limit = int(os.getenv("CIRCUIT_BREAKER_TOKEN_LIMIT", 1000000))
+    
+    # Check operation count
+    total_ops = db.query(func.count(TokenLog.id)).filter(
         TokenLog.user_id == user_id,
         TokenLog.timestamp >= start_of_day
-    ).scalar() or 0.0
+    ).scalar() or 0
     
-    if total_cost >= limit:
-        raise CircuitBreakerException(f"Daily API Budget Exceeded")
+    if total_ops >= ops_limit:
+        raise CircuitBreakerException(f"Daily operation limit exceeded ({ops_limit} ops). Please try again tomorrow.")
+    
+    # Check token budget
+    total_tokens = db.query(func.sum(TokenLog.prompt_tokens) + func.sum(TokenLog.completion_tokens)).filter(
+        TokenLog.user_id == user_id,
+        TokenLog.timestamp >= start_of_day
+    ).scalar() or 0
+    
+    if total_tokens >= token_limit:
+        raise CircuitBreakerException(f"Daily token limit exceeded ({token_limit:,} tokens). Please try again tomorrow.")
 
 async def log_token_usage(db: Session, action: str, model: str, res, project_id: int = None, user_id: int = 1):
     if hasattr(res, 'usage_metadata') and res.usage_metadata:
@@ -1442,7 +1612,15 @@ def get_project_documents(response: Response, project: Project = Depends(get_cur
 
     return {
         "intelligence": [{"id": r.id, "timestamp": r.timestamp, "data": safe_json_load(r.report_data)} for r in reports],
-        "blueprints": [{"id": b.id, "timestamp": b.timestamp, "data": b.blueprint_data} for b in blueprints],
+        "blueprints": [
+            {
+                "id": b.id, 
+                "timestamp": b.timestamp, 
+                "data": b.blueprint_data,
+                "url": f"http://localhost:8002/blueprint/{project.id}/{b.id}",
+                "api_url": f"http://localhost:8002/api/blueprint/{project.id}/{b.id}"
+            } for b in blueprints
+        ],
         "current_vibe_step": project.current_vibe_step if project else 0,
         "followup_history": safe_json_load(project.followup_history) if project else []
     }
@@ -2215,7 +2393,7 @@ async def onboarding_chat(req: OnboardingRequest, current_user: User = Depends(g
             }
         )
         await log_token_usage(db, "Onboarding Chat", "gemini-2.5-flash", res, project_id=req.project_id)
-        parsed_res = json.loads(res.text)
+        parsed_res = json.loads(res.text, strict=False)
         if parsed_res.get("is_complete") and project:
             project.onboarding_config = res.text
             db.commit()
@@ -2390,8 +2568,7 @@ async def analyze_sources(req: AnalyzeRequest, current_user: User = Depends(get_
     # Save generic generated report
     new_report = GeneratedReport(
         project_id=req.project_id, 
-        report_data=generated_json, 
-        reasoning_data=reasoning_data,
+        report_data=generated_json,
         timestamp=datetime.utcnow()
     )
     db.add(new_report)
@@ -2400,7 +2577,7 @@ async def analyze_sources(req: AnalyzeRequest, current_user: User = Depends(get_
     # Notify UI
     await manager.broadcast("new_report")
     
-    return json.loads(generated_json)
+    return json.loads(generated_json, strict=False)
     
 @app.get("/api/reports/latest")
 def get_latest_report(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -2464,11 +2641,46 @@ async def verify_npm_packages(packages: List[str]) -> List[str]:
                 # Assume valid if registry times out
     return invalid_packages
 
-async def generate_architect_report(project_id: int, source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str, budget_constraints: str, ai_integration: str, security_auth: str, build_environment: str, loop0_draft: str = "", loop1_draft: str = "", loop2_draft: str = ""):
+async def generate_architect_report(project_id: int, source_texts: str, platform: str, designer: str, app_name: str, app_purpose: str, budget_constraints: str, ai_integration: str, security_auth: str, build_environment: str, loop0_draft: str = "", loop1_draft: str = "", loop2_draft: str = "", force_regenerate: bool = False):
     db = SessionLocal()
     try:
         await manager.broadcast(json.dumps({"type": "progress", "message": "Initializing Architect Framework...", "progress": 10}))
-    
+        
+        # Check if we should use cached drafts or regenerate
+        # Calculate hash of source texts to detect changes
+        import hashlib
+        source_hash = hashlib.md5(source_texts.encode()).hexdigest()
+        
+        # Get existing state to check for cached hash
+        state = db.query(ArchitectDraftState).filter(ArchitectDraftState.project_id == project_id).first()
+        cached_source_hash = None
+        if state and hasattr(state, 'onboarding_config'):  # Reuse the onboarding_config field for hash storage
+            try:
+                cached_data = json.loads(state.onboarding_config or "{}")
+                cached_source_hash = cached_data.get("source_hash")
+            except:
+                pass
+        
+        # Only use cached drafts if sources haven't changed and not forcing regeneration
+        use_cached_drafts = False
+        if not force_regenerate and cached_source_hash and cached_source_hash == source_hash:
+            # Check if we have valid cached drafts
+            if loop0_draft and loop1_draft and loop2_draft:
+                use_cached_drafts = True
+                await manager.broadcast(json.dumps({"type": "progress", "message": "Using cached drafts (sources unchanged)...", "progress": 10}))
+        
+        # If sources changed or no valid cache, we need to regenerate the drafts first
+        if not use_cached_drafts:
+            # Update the hash for next time
+            if state:
+                try:
+                    cached_data = json.loads(state.onboarding_config or "{}")
+                    cached_data["source_hash"] = source_hash
+                    state.onboarding_config = json.dumps(cached_data)
+                    db.commit()
+                except:
+                    pass
+        
         outline_prompt = f"""
         You are an expert technical and business architect defining an MVP build process for a new app.
         App Name: {app_name}
@@ -2495,7 +2707,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         CRITICAL RULES FOR QUALITY OVER QUANTITY:
         - Build Environment Rule: You must tailor your steps to the "{build_environment}" classification. If it is "Greenfield (New)", provide foundational setup instructions (e.g., 'Initialize Next.js project', 'Setup base database schemas'). If it is "Brownfield (Existing)", you MUST assume the core project already exists. Focus your outline exclusively on safely integrating new features into the existing architecture, requiring adapter patterns, non-breaking schema migrations, and heavy regression-testing rules.
         - Do NOT ignore Agentic Memory. The very first step MUST be establishing `.cursorrules` or `AGENTS.md` context files with strict guardrails ("Never edit >3 files without confirmed plan. Always run tsc").
-        - Build Efficiently & Thoroughly. Break down the architecture into logical, cohesive steps. Do not enforce a strict quota or cap on the number of steps, but ensure the outline is concise enough to avoid excessive verbosity, while remaining thorough enough to securely build the MVP. Ensure high quality.
+        - Build Efficiently & Thoroughly (8000 Token Limit Rule). Break down the architecture into highly granular, logical steps. Since our output token budget is 8000 tokens per generation, you MUST break complex features into multiple smaller steps (chapters) so complete information can be provided without hitting the limit. Do not enforce a cap on the number of steps; more concise, bite-sized steps are better.
         - Artifact Locking: Dictate explicitly where the user should execute a "Pre-Flight Impact Analysis" to force the agent to write an `implementation_plan.md` detailing "Dependency Risks" and "Verification Strategy" before risking regression on core components.
         - Chapter titles MUST be written in extremely simple, concise layman's terms (e.g., "User Login Screen", "Database Setup", "Save Button Logic"). Do not use overly technical jargon or long run-on sentences for the title.
         - Separation of AI Concerns (Crucial): You MUST structurally isolate AI Generator tasks from AI Evaluator tasks into entirely separate, distinct chapters. If a feature requires the AI to generate content (e.g. an article, a quiz, code) AND evaluate that content (e.g. grading, scoring, validation), these CANNOT be in the same chapter. Separate them into "Chapter X: Generate Content" and "Chapter Y: Evaluate Content" to prevent the Self-Grading Homework fallacy.
@@ -2829,6 +3041,30 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
     
         total_chapters = len(chapters)
         await manager.broadcast(json.dumps({"type": "progress", "message": f"Outline verified. Writing {total_chapters} MVP feature iterations...", "progress": 20}))
+        
+        # Multi-Agent Parallelization Strategy
+        await manager.broadcast(json.dumps({"type": "progress", "message": "Analyzing multi-agent parallel execution paths...", "progress": 25}))
+        parallel_prompt = f"""
+        You are the Head of Engineering.
+        We have generated the following architectural steps for a new app called '{app_name}':
+        {", ".join(chapters)}
+        
+        Our goal is to build this app as quickly as possible using multiple autonomous AI agents. 
+        However, if two agents modify the exact same files simultaneously, they will create merge conflicts and overwrite each other's work.
+        
+        Analyze the steps and categorize them into a 'Multi-Agent Parallel Execution Strategy' Matrix. 
+        Group the steps into 'Phases'. Steps within the same Phase CANNOT be executed in parallel if they touch the same files.
+        Steps that touch completely isolated components (e.g., Frontend UI layout vs Database Schema) CAN be executed in parallel lanes.
+        
+        Output a clean Markdown section starting with '## Multi-Agent Parallel Execution Strategy'.
+        Use a table or bullet points to clearly show which steps should be done Sequentially, and which can be assigned to Agent 1, Agent 2, etc. simultaneously.
+        Keep it concise. Do NOT write code.
+        """
+        try:
+            parallel_res = await gemini_client.aio.models.generate_content(model='gemini-2.5-pro', contents=parallel_prompt)
+            markdown_content += f"{parallel_res.text.strip()}\n\n---\n\n"
+        except Exception as e:
+            print("Failed to generate parallel matrix:", e)
     
         rolling_architecture_context = "No previous architectural decisions have been made yet."
     
@@ -2868,7 +3104,7 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             Based ONLY on the following context, write a highly concise, systematic, ordered step-by-step logic guide to build this specific feature.
         
             REQUIREMENTS:
-            1. Be extremely concise. Explain why this feature is needed in 1-2 sentences. Avoid all redundant boilerplate.
+            1. Be extremely concise (8000 Token Limit Rule). Keep instructions extremely brief, use bullet points, and limit explanations to 2 sentences to ensure the complete information fits within our token budget. Explain why this feature is needed in 1-2 sentences. Avoid all redundant boilerplate.
             2. Provide exactly what to expect if it works or fails in 1-2 sentences.
             3. Reference EXACT file paths from the project directory structure (defined in PROJECT_RULES.md). Do NOT invent or guess file paths. Use the established structure.
             4. If this step involves database operations, reference the exact table/column names from the schema defined in the earlier "Define Database Schema" step.
@@ -2941,12 +3177,25 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             """
         
             try:
-                chap_res = await gemini_client.aio.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=chapter_prompt
-                )
-                await log_token_usage(db, "Architect Generation", "gemini-2.5-flash", chap_res, project_id=project_id)
-                drafted_text = chap_res.text.strip()
+                import asyncio
+                chap_res = None
+                drafted_text = ""
+                for attempt in range(3):
+                    try:
+                        chap_res = await gemini_client.aio.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=chapter_prompt
+                        )
+                        if chap_res and hasattr(chap_res, 'text') and chap_res.text:
+                            await log_token_usage(db, "Architect Generation", "gemini-2.5-flash", chap_res, project_id=project_id)
+                            drafted_text = chap_res.text.strip()
+                            break
+                    except Exception as e:
+                        print(f"Attempt {attempt+1} failed for chapter {chapter_title}: {e}")
+                        await asyncio.sleep(2)
+                
+                if not drafted_text:
+                    raise ValueError(f"Failed to generate chapter {chapter_title} after 3 attempts. Local model stuttered.")
                 
                 # Self-Healing Inspector Loop
                 is_valid = False
@@ -3062,6 +3311,29 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
             # THROTTLE FOR 429
             await asyncio.sleep(4)
 
+        # Final Review Pass
+        print(f"[DEBUG] Broadcasting progress 95%")
+        await manager.broadcast(json.dumps({"type": "progress", "message": "Conducting final holistic review of Blueprint...", "progress": 95}))
+        final_review_prompt = f"""
+        You are a Principal Software Architect doing a final review of the generated Master Blueprint for '{app_name}'.
+        
+        FULL DOCUMENT:
+        {markdown_content}
+        
+        TASK:
+        Write a brief "Architect's Final Audit" section (markdown format). 
+        1. Summarize any potential risks or overlapping logic you see in the holistic document.
+        2. Point out if it appears any steps were skipped or logic seems incomplete.
+        3. Provide 2-3 bullet points of strict advice for the developers who are about to execute this plan.
+        
+        Output only the markdown for this section, starting with `## Architect's Final Audit`.
+        """
+        try:
+            review_res = await gemini_client.aio.models.generate_content(model='gemini-2.5-pro', contents=final_review_prompt)
+            markdown_content += f"\n\n---\n\n{review_res.text.strip()}"
+        except Exception as e:
+            print("Failed final review pass:", e)
+
         # Save locally in a structured project folder
         safe_app_name = app_name.replace(' ', '_').replace('/', '')
         reports_dir = os.path.join(os.getcwd(), 'Reports', safe_app_name)
@@ -3082,11 +3354,19 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
         db.add(new_bp)
         db.commit()
     
+        # Get the blueprint ID that was just saved
+        saved_blueprint = db.query(ArchitectBlueprint).filter(
+            ArchitectBlueprint.project_id == project_id
+        ).order_by(ArchitectBlueprint.timestamp.desc()).first()
+        blueprint_id = saved_blueprint.id if saved_blueprint else None
+        
         await manager.broadcast(json.dumps({
             "type": "architect_complete",
             "message": "Architect Framework fully mapped and saved to your project.",
             "progress": 100,
-            "markdown_content": markdown_content
+            "markdown_content": markdown_content,
+            "blueprint_id": blueprint_id,
+            "project_id": project_id
         }))
     
     except Exception as e:
@@ -3098,6 +3378,72 @@ async def generate_architect_report(project_id: int, source_texts: str, platform
 
     finally:
         db.close()
+
+@app.get("/blueprint/view/{project_id}/{blueprint_id}")
+def get_blueprint_view(project_id: int, blueprint_id: int, request: Request, db: Session = Depends(get_db)):
+    """Dedicated blueprint view page that auto-opens when blueprint is complete."""
+    blueprint = db.query(ArchitectBlueprint).filter(
+        ArchitectBlueprint.id == blueprint_id,
+        ArchitectBlueprint.project_id == project_id
+    ).first()
+    if not blueprint:
+        raise HTTPException(status_code=404, detail="Blueprint not found")
+    
+    # Return a dedicated blueprint view page
+    return templates.TemplateResponse(
+        request=request,
+        name="blueprint_view.html",
+        context={
+            "blueprint": blueprint,
+            "blueprint_data": blueprint.blueprint_data
+        }
+    )
+
+@app.get("/blueprint/{project_id}/{blueprint_id}")
+def get_blueprint_public(project_id: int, blueprint_id: int, db: Session = Depends(get_db)):
+    """Public endpoint to serve a blueprint by its unique ID."""
+    blueprint = db.query(ArchitectBlueprint).filter(
+        ArchitectBlueprint.id == blueprint_id,
+        ArchitectBlueprint.project_id == project_id
+    ).first()
+    if not blueprint:
+        raise HTTPException(status_code=404, detail="Blueprint not found")
+    
+    # Return the blueprint content as HTML for easy viewing
+    return HTMLResponse(
+        content=f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Blueprint - SynapseIP</title>
+            <style>
+                body {{ font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; line-height: 1.6; }}
+                pre {{ white-space: pre-wrap; word-wrap: break-word; }}
+            </style>
+        </head>
+        <body>
+            <h1>Architecture Blueprint</h1>
+            <pre>{blueprint.blueprint_data}</pre>
+        </body>
+        </html>
+        """
+    )
+
+@app.get("/api/blueprint/{project_id}/{blueprint_id}")
+def get_blueprint_json(project_id: int, blueprint_id: int, db: Session = Depends(get_db)):
+    """API endpoint to serve a blueprint as JSON for the VS Code extension."""
+    blueprint = db.query(ArchitectBlueprint).filter(
+        ArchitectBlueprint.id == blueprint_id,
+        ArchitectBlueprint.project_id == project_id
+    ).first()
+    if not blueprint:
+        raise HTTPException(status_code=404, detail="Blueprint not found")
+    return {
+        "id": blueprint.id,
+        "project_id": blueprint.project_id,
+        "blueprint_data": blueprint.blueprint_data,
+        "timestamp": blueprint.timestamp.isoformat() if blueprint.timestamp else None
+    }
 
 @app.get("/api/admin/fix-blueprint/{project_id}")
 def fix_blueprint_markdown(project_id: int, db: Session = Depends(get_db)):
@@ -3193,7 +3539,7 @@ async def edit_smart_segment(req: SmartEditRequest, db: Session = Depends(get_db
         ---
         
         TASK:
-        1. Locate the EXACT raw markdown snippet in the FULL MARKDOWN DOCUMENT that corresponds to the HIGHLIGHTED TEXT. Expand your match to encompass full markdown blocks (e.g., if they highlighted half a paragraph or code block, grab the whole paragraph or code block) to ensure a clean replacement.
+        1. Locate the EXACT raw markdown snippet in the FULL MARKDOWN DOCUMENT that corresponds to the HIGHLIGHTED TEXT. Return the EXACT original text as it appears in the document. Do not arbitrarily expand the match unless explicitly instructed by the FORMATTING INSTRUCTION above.
         2. Rewrite that specific snippet according to the USER INSTRUCTION. Keep the surrounding architecture logic consistent.
         3. Return a JSON object with exactly two keys:
            - "exact_old_markdown": The EXACT literal string from the FULL MARKDOWN DOCUMENT that needs to be replaced.
@@ -3328,6 +3674,16 @@ def admin_metrics(db: Session = Depends(get_db), current_user: User = Depends(ge
         "breakdown": breakdown
     }
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring and load balancer probes."""
+    return {
+        "status": "healthy",
+        "service": "synapseip",
+        "version": "2.0.0",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
     return templates.TemplateResponse(request=request, name="admin.html")
@@ -3406,6 +3762,22 @@ async def generate_loop0(req: ArchitectLoopRequest, current_user: User = Depends
     feedback_str = f"\n\nUSER FEEDBACK / REFINEMENT:\n{req.feedback}" if req.feedback else ""
     prior_draft = f"\n\nPRIOR DRAFT TO REFINE:\n{state.loop0_draft}" if state.loop0_draft and req.feedback else ""
     
+    import hashlib
+    hash_input = f"{context}|{req.app_name}|{req.app_purpose}|{getattr(req, 'target_audience', '')}|{'|'.join(req.standout_features)}"
+    current_hash = hashlib.md5(hash_input.encode()).hexdigest()
+    
+    cache_store = {}
+    if state.loop3_outline:
+        try:
+            cache_store = json.loads(state.loop3_outline)
+        except:
+            pass
+            
+    if not req.feedback and state.loop0_draft and cache_store.get("loop0_hash") == current_hash:
+        state.current_loop = 0
+        db.commit()
+        return {"draft": state.loop0_draft, "current_loop": state.current_loop}
+    
     prompt = f"""
     You are the Principal Architect. Provide a 'Layman's App Overview' (Loop 0).
     App Name: {req.app_name}
@@ -3423,6 +3795,10 @@ async def generate_loop0(req: ArchitectLoopRequest, current_user: User = Depends
         res = await gemini_client.aio.models.generate_content(model='gemini-2.5-pro', contents=prompt)
         state.loop0_draft = res.text.strip()
         state.current_loop = 0
+        
+        cache_store["loop0_hash"] = current_hash
+        state.loop3_outline = json.dumps(cache_store)
+        
         db.commit()
         return {"draft": state.loop0_draft, "current_loop": state.current_loop}
     except Exception as e:
@@ -3608,4 +3984,4 @@ async def consolidate_themes(req: ThemeConsolidateRequest, current_user: User = 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8002)

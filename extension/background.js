@@ -3,7 +3,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "save_auth_token") {
       chrome.storage.local.set({ 
           synapseip_auth_token: request.token,
-          synapseip_server_url: request.server || "https://synapseip-1ncu.onrender.com"
+          synapseip_server_url: request.server || "http://127.0.0.1:8002"
       }, () => {
           console.log("SynapseIP Messenger: Auth token securely saved to extension storage.");
       });
@@ -15,7 +15,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "fetch_projects") {
     chrome.storage.local.get(['synapseip_auth_token', 'synapseip_server_url'], async (result) => {
         const token = result.synapseip_auth_token;
-        const serverUrl = result.synapseip_server_url || "https://synapseip-1ncu.onrender.com";
+        let serverUrl = result.synapseip_server_url || "http://127.0.0.1:8002";
+        if (serverUrl.includes(":8000")) {
+            serverUrl = serverUrl.replace(":8000", ":8002");
+        }
         if (!token) {
             sendResponse({ status: "error", error: "Not authenticated" });
             return;
@@ -38,7 +41,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "create_project") {
     chrome.storage.local.get(['synapseip_auth_token', 'synapseip_server_url'], async (result) => {
         const token = result.synapseip_auth_token;
-        const serverUrl = result.synapseip_server_url || "https://synapseip-1ncu.onrender.com";
+        let serverUrl = result.synapseip_server_url || "http://127.0.0.1:8002";
+        if (serverUrl.includes(":8000")) {
+            serverUrl = serverUrl.replace(":8000", ":8002");
+        }
         if (!token) {
             sendResponse({ status: "error", error: "Not authenticated" });
             return;
@@ -87,7 +93,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     chrome.storage.local.get(['synapseip_auth_token', 'synapseip_server_url', 'synapseip_active_project'], (result) => {
         const token = result.synapseip_auth_token;
-        const serverUrl = result.synapseip_server_url || "https://synapseip-1ncu.onrender.com";
+        let serverUrl = result.synapseip_server_url || "http://127.0.0.1:8002";
+        if (serverUrl.includes(":8000")) {
+            serverUrl = serverUrl.replace(":8000", ":8002");
+        }
         const activeProject = result.synapseip_active_project;
         
         console.log("SynapseIP Messenger: Using server URL:", serverUrl, 

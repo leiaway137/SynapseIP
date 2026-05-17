@@ -239,7 +239,7 @@ document.addEventListener('click', (e) => {
 
 // --- SYNAPSEIP TOKEN HANDOFF ---
 // Listen for authentication tokens broadcasted by the SynapseIP web dashboard
-const isSynapseDashboard = window.location.hostname.includes("synapseip-1ncu.onrender.com") || window.location.hostname.includes("localhost") || window.location.hostname.includes("127.0.0.1");
+const isSynapseDashboard = window.location.hostname.includes("synapseip-1ncu.onrender.com") || window.location.hostname.includes("localhost") || window.location.hostname.includes("127.0.0.1") || window.location.hostname.includes("192.168.");
 
 if (isSynapseDashboard) {
     window.addEventListener("message", function(event) {

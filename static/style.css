@@ -1033,6 +1033,7 @@ body {
 
 .chat-input-area {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 16px;
   background: rgba(0, 0, 0, 0.2);
@@ -1051,6 +1052,9 @@ body {
   transition: border-color 0.2s;
   resize: none;
   height: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 .chat-input-area input:focus, .chat-input-area textarea:focus { border-color: var(--accent-color); }
 

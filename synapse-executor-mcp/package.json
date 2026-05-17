@@ -1,0 +1,13 @@
+{
+  "name": "synapse-executor-mcp",
+  "version": "1.0.0",
+  "description": "SynapseIP Blueprint Executor MCP Server",
+  "main": "server.py",
+  "scripts": {
+    "test": "python server.py list-dir",
+    "start": "python server.py"
+  },
+  "keywords": ["mcp", "synapse", "blueprint", "executor"],
+  "author": "SynapseIP Team",
+  "license": "MIT"
+}

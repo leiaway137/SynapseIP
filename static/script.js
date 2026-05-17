@@ -281,10 +281,12 @@ async function loadProjectDocuments(projectId) {
                 el.innerText = `AD - ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false})}`;
                 el.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    if (currentProjectId !== projectId) {
-                        await selectProject(projectId, window.cachedProjects.find(p=>p.id===projectId)?.name || "Project");
-                    }
-                    showBlueprint(bp.data);
+                    // Always switch to the correct project when clicking a blueprint
+                    await selectProject(projectId, window.cachedProjects.find(p=>p.id===projectId)?.name || "Project");
+                    // Small delay to ensure currentProjectId is set before showing blueprint
+                    setTimeout(() => {
+                        showBlueprint(bp.data, bp.id);
+                    }, 100);
                 });
                 archContent.appendChild(el);
             });
@@ -352,7 +354,7 @@ async function selectProject(projectId, projectName) {
             // Automatically surface the most recent blueprint if it exists
             if (data.blueprints && data.blueprints.length > 0) {
                 window.currentVibeStep = data.current_vibe_step || 0;
-                showBlueprint(data.blueprints[0].data);
+                showBlueprint(data.blueprints[0].data, data.blueprints[0].id);
                 return;
             }
             // Automatically surface the most recent intelligence report if it exists
@@ -933,7 +935,7 @@ document.getElementById('workbench-approve-btn')?.addEventListener('click', asyn
 });
 
 // Blueprint Viewer Route
-function showBlueprint(markdownText) {
+function showBlueprint(markdownText, blueprintId = null) {
     document.getElementById('intelligence-dashboard').style.display = 'none';
     document.getElementById('onboarding-screen').style.display = 'none';
     document.getElementById('architect-workbench').style.display = 'none';
@@ -941,6 +943,10 @@ function showBlueprint(markdownText) {
     
     // Store the raw markdown globally for the export button
     window.currentBlueprintMarkdown = markdownText;
+    // Store blueprint ID for URL construction
+    if (blueprintId) {
+        window.currentBlueprintId = blueprintId;
+    }
     
     document.getElementById('blueprint-content').innerHTML = marked.parse(markdownText);
     
@@ -995,6 +1001,55 @@ function showBlueprint(markdownText) {
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
+        });
+    }
+    
+    // Mount Blueprint URL Copy Button
+    const urlBtn = document.getElementById('blueprint-copy-url');
+    if (urlBtn) {
+        const newUrlBtn = urlBtn.cloneNode(true);
+        urlBtn.parentNode.replaceChild(newUrlBtn, urlBtn);
+        newUrlBtn.addEventListener('click', async () => {
+            // Debug: Log current state
+            console.log('currentProjectId:', currentProjectId);
+            console.log('window.currentBlueprintId:', window.currentBlueprintId);
+            
+            // Fallback: If no blueprint ID is set, show an error
+            if (!window.currentBlueprintId || !currentProjectId) {
+                alert('Blueprint URL is not available. This may be a newly generated blueprint. Please refresh the page and select the blueprint from the dropdown menu to get its URL.');
+                return;
+            }
+            
+            const blueprintUrl = `http://localhost:8002/blueprint/${currentProjectId}/${window.currentBlueprintId}`;
+            console.log('Copying URL:', blueprintUrl);
+            
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                try {
+                    await navigator.clipboard.writeText(blueprintUrl);
+                    newUrlBtn.innerText = 'Copied!';
+                    setTimeout(() => { newUrlBtn.innerText = '📋 Copy Blueprint URL'; }, 2000);
+                    return;
+                } catch (err) {
+                    console.error('Clipboard API failed:', err);
+                }
+            }
+            
+            // Fallback for non-HTTPS contexts: Use textarea method
+            try {
+                const textarea = document.createElement('textarea');
+                textarea.value = blueprintUrl;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                newUrlBtn.innerText = 'Copied!';
+                setTimeout(() => { newUrlBtn.innerText = '📋 Copy Blueprint URL'; }, 2000);
+            } catch (err) {
+                alert('Failed to copy URL. Please manually copy: ' + blueprintUrl);
+            }
         });
     }
 
@@ -1205,8 +1260,12 @@ function initWebSocket() {
                     loadProjectDocuments(currentProjectId);
                 }
                 
-                // Automatically open the PDF Architect Document View in UI
-                if (data.markdown_content) {
+                // Automatically redirect to the dedicated blueprint page
+                if (data.blueprint_id && data.project_id) {
+                    // Redirect to the new blueprint page
+                    window.location.href = `/blueprint/view/${data.project_id}/${data.blueprint_id}`;
+                } else if (data.markdown_content) {
+                    // Fallback: show in the current UI if no ID available
                     showBlueprint(data.markdown_content);
                 }
             } else if (data.type === "progress" || data.type === "source_progress") {
@@ -1980,7 +2039,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             container_preference: containerPref,
                             context_type: currentEditContext,
                             entity_id: currentEditEntityId,
-                            draft_loop: currentLoop
+                            draft_loop: currentArchitectLoop
                         })
                     });
                     
@@ -1994,7 +2053,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             document.getElementById('blueprint-content').innerHTML = marked.parse(data.updated_markdown);
                             addCopyButtonsToPreTags('blueprint-content');
                         } else {
-                            fetchArchitectState();
+                            loadArchitectState();
                         }
                     } else {
                         throw new Error(data.error || data.detail || "Failed to update blueprint");
