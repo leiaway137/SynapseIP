@@ -37,14 +37,14 @@ class Settings:
     RATE_LIMIT_ADMIN_WINDOW = 60
     
     # Circuit Breaker Configuration
-    CIRCUIT_BREAKER_OPS_LIMIT = int(os.getenv("CIRCUIT_BREAKER_OPS_LIMIT", 50))
+    CIRCUIT_BREAKER_OPS_LIMIT = int(os.getenv("CIRCUIT_BREAKER_OPS_LIMIT", 500))
     CIRCUIT_BREAKER_TOKEN_LIMIT = int(os.getenv("CIRCUIT_BREAKER_TOKEN_LIMIT", 1000000))
     
     # AI Model Configuration
     LMSTUDIO_API_BASE = os.getenv("LMSTUDIO_API_BASE", "http://127.0.0.1:1234/v1")
     LMSTUDIO_API_KEY = os.getenv("LMSTUDIO_API_KEY", "dummy_key")
     LMSTUDIO_MODEL = os.getenv("LMSTUDIO_MODEL", "qwen3.6-35b-a3b-mlx")
-    LMSTUDIO_EMBED_MODEL = os.getenv("LMSTUDIO_EMBED_MODEL", "nomic-embed-text")
+    LMSTUDIO_EMBED_MODEL = os.getenv("LMSTUDIO_EMBED_MODEL", "text-embedding-nomic-embed-text-v1.5")
     
     VLLM_API_BASE = os.getenv("VLLM_API_BASE", "http://192.168.1.151:8000/v1")
     VLLM_API_KEY = os.getenv("VLLM_API_KEY", "dummy_key")

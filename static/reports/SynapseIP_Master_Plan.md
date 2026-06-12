@@ -6,7 +6,7 @@
 
 **Version:** 1.0.0
 
-**Date:** 2026-05-14
+**Date:** 2026-05-17
 
 ---
 
@@ -33,232 +33,702 @@ Every step in this document contains **Copy & Paste blocks** for your IDE's AI (
 ## Table of Contents
 
 - [ ] [Step 0: Initialize Project Rules](#step-0-initialize-project-rules)
-- [ ] [Step 1: Chapter 1: Create Agent Memory Rules File](#step-1-chapter-1-create-agent-memory-rules-file)
-- [ ] [Step 2: Chapter 2: Set Up Project Folder Structure](#step-2-chapter-2-set-up-project-folder-structure)
-- [ ] [Step 3: Chapter 3: Define Environment Variables List](#step-3-chapter-3-define-environment-variables-list)
-- [ ] [Step 4: Chapter 4: Choose Free Tier Hosting Platform](#step-4-chapter-4-choose-free-tier-hosting-platform)
-- [ ] [Step 5: Chapter 5: Initialize Next.js Project](#step-5-chapter-5-initialize-nextjs-project)
-- [ ] [Step 6: Chapter 6: Define Database Tables and Columns](#step-6-chapter-6-define-database-tables-and-columns)
-- [ ] [Step 7: Chapter 7: Create User Account Table Schema](#step-7-chapter-7-create-user-account-table-schema)
-- [ ] [Step 8: Chapter 8: Create Interview Session Table Schema](#step-8-chapter-8-create-interview-session-table-schema)
-- [ ] [Step 9: Chapter 9: Create Blockchain Record Table Schema](#step-9-chapter-9-create-blockchain-record-table-schema)
-- [ ] [Step 10: Chapter 10: Define API Endpoint List](#step-10-chapter-10-define-api-endpoint-list)
-- [ ] [Step 11: Chapter 11: Document Login Request Format](#step-11-chapter-11-document-login-request-format)
-- [ ] [Step 12: Chapter 12: Document Interview Start Request Format](#step-12-chapter-12-document-interview-start-request-format)
-- [ ] [Step 13: Chapter 13: Document Transcript Upload Request Format](#step-13-chapter-13-document-transcript-upload-request-format)
-- [ ] [Step 14: Chapter 14: Document Verification Response Format](#step-14-chapter-14-document-verification-response-format)
-- [ ] [Step 15: Chapter 15: Set Up Local Database Connection](#step-15-chapter-15-set-up-local-database-connection)
-- [ ] [Step 16: Chapter 16: Build User Registration Screen](#step-16-chapter-16-build-user-registration-screen)
-- [ ] [Step 17: Chapter 17: Build User Login Screen](#step-17-chapter-17-build-user-login-screen)
-- [ ] [Step 18: Chapter 18: Build Biometric Verification Screen](#step-18-chapter-18-build-biometric-verification-screen)
-- [ ] [Step 19: Chapter 19: Build Interview Start Screen](#step-19-chapter-19-build-interview-start-screen)
-- [ ] [Step 20: Chapter 20: Build QR Code Generator Screen](#step-20-chapter-20-build-qr-code-generator-screen)
-- [ ] [Step 21: Chapter 21: Build Dual Phone Sync Screen](#step-21-chapter-21-build-dual-phone-sync-screen)
-- [ ] [Step 22: Chapter 22: Build Audio Recording Screen](#step-22-chapter-22-build-audio-recording-screen)
-- [ ] [Step 23: Chapter 23: Implement Speech-to-Text Generation](#step-23-chapter-23-implement-speech-to-text-generation)
-- [ ] [Step 24: Chapter 24: Implement Speech-to-Text Quality Check](#step-24-chapter-24-implement-speech-to-text-quality-check)
-- [ ] [Step 25: Chapter 25: Build Transcript Display Screen](#step-25-chapter-25-build-transcript-display-screen)
-- [ ] [Step 26: Chapter 26: Build Blockchain Hash Signing Screen](#step-26-chapter-26-build-blockchain-hash-signing-screen)
-- [ ] [Step 27: Chapter 27: Build Transaction Broadcast Screen](#step-27-chapter-27-build-transaction-broadcast-screen)
-- [ ] [Step 28: Chapter 28: Build Record Verification Screen](#step-28-chapter-28-build-record-verification-screen)
-- [ ] [Step 29: Chapter 29: Build Admin Dashboard Screen](#step-29-chapter-29-build-admin-dashboard-screen)
-- [ ] [Step 30: Chapter 30: Create Implementation Plan Document](#step-30-chapter-30-create-implementation-plan-document)
-- [ ] [Step 31: Chapter 31: Run Pre-Flight Impact Analysis](#step-31-chapter-31-run-pre-flight-impact-analysis)
-- [ ] [Step 32: Chapter 32: Test Database Schema Migrations](#step-32-chapter-32-test-database-schema-migrations)
-- [ ] [Step 33: Chapter 33: Test API Contract Compliance](#step-33-chapter-33-test-api-contract-compliance)
-- [ ] [Step 34: Chapter 34: Test Biometric Authentication Flow](#step-34-chapter-34-test-biometric-authentication-flow)
-- [ ] [Step 35: Chapter 35: Test Dual Phone Sync Connection](#step-35-chapter-35-test-dual-phone-sync-connection)
-- [ ] [Step 36: Chapter 36: Test Blockchain Transaction Signing](#step-36-chapter-36-test-blockchain-transaction-signing)
-- [ ] [Step 37: Chapter 37: Test Transcript Hash Verification](#step-37-chapter-37-test-transcript-hash-verification)
-- [ ] [Step 38: Chapter 38: Test End-to-End Interview Flow](#step-38-chapter-38-test-end-to-end-interview-flow)
-- [ ] [Step 39: Chapter 39: Document Deployment Instructions](#step-39-chapter-39-document-deployment-instructions)
-- [ ] [Step 40: Chapter 40: Create User Onboarding Guide](#step-40-chapter-40-create-user-onboarding-guide)
+- [ ] [Step 1: Setup AI Agent Guardrails & Context Files](#step-1-setup-ai-agent-guardrails-&-context-files)
+- [ ] [Step 2: Initialize Monorepo & Project Structure](#step-2-initialize-monorepo-&-project-structure)
+- [ ] [Step 3: Define Complete Directory Structure](#step-3-define-complete-directory-structure)
+- [ ] [Step 4: Configure Environment Variables & Secrets](#step-4-configure-environment-variables-&-secrets)
+- [ ] [Step 5: Design Database Schema & Relationships](#step-5-design-database-schema-&-relationships)
+- [ ] [Step 6: Document API Contract Specifications](#step-6-document-api-contract-specifications)
+- [ ] [Step 7: Create Shared Type Definitions Package](#step-7-create-shared-type-definitions-package)
+- [ ] [Step 8: Build Adapter Interface Contracts](#step-8-build-adapter-interface-contracts)
+- [ ] [Step 9: Implement Biometric Authentication Adapter](#step-9-implement-biometric-authentication-adapter)
+- [ ] [Step 10: Setup Local SQLite Storage Adapter](#step-10-setup-local-sqlite-storage-adapter)
+- [ ] [Step 11: Configure Speech-to-Text Adapter](#step-11-configure-speech-to-text-adapter)
+- [ ] [Step 12: Implement Blockchain Adapter for Monad](#step-12-implement-blockchain-adapter-for-monad)
+- [ ] [Step 13: Build Session State Machine Logic](#step-13-build-session-state-machine-logic)
+- [ ] [Step 14: Create User Authentication Flow](#step-14-create-user-authentication-flow)
+- [ ] [Step 15: Design Interview Session Screen](#step-15-design-interview-session-screen)
+- [ ] [Step 16: Build Dual Phone Connection Handshake](#step-16-build-dual-phone-connection-handshake)
+- [ ] [Step 17: Implement Audio Recording Component](#step-17-implement-audio-recording-component)
+- [ ] [Step 18: Create Transcript Display Interface](#step-18-create-transcript-display-interface)
+- [ ] [Step 19: Generate AI Transcription Service](#step-19-generate-ai-transcription-service)
+- [ ] [Step 20: Evaluate Transcription Quality & Accuracy](#step-20-evaluate-transcription-quality-&-accuracy)
+- [ ] [Step 21: Implement Blockchain Hash Submission](#step-21-implement-blockchain-hash-submission)
+- [ ] [Step 22: Deploy Smart Contract for Verification](#step-22-deploy-smart-contract-for-verification)
+- [ ] [Step 23: Build Session Verification Flow](#step-23-build-session-verification-flow)
+- [ ] [Step 24: Pre-Flight Impact Analysis & Risk Assessment](#step-24-pre-flight-impact-analysis-&-risk-assessment)
+- [ ] [Step 25: Security Audit & Penetration Testing](#step-25-security-audit-&-penetration-testing)
+- [ ] [Step 26: Documentation & Developer Handoff](#step-26-documentation-&-developer-handoff)
+
+---
+
+# Executive Summary
+
+### The Layman's Vision
+# Layman's App Overview (Loop 0)
+
+## App Name
+**BlockChainInterview**
+
+## Core Purpose
+We are building a mobile application that creates an unbreakable chain of trust for recorded conversations. In an era where AI can fake voices and video, this app ensures that an interview actually happened, exactly as recorded, with the specific people who claim to have spoken.
+
+Instead of just saving a file, we are creating a "Digital Certificate of Truth." We use two phones to record simultaneously and link the conversation to a public blockchain ledger. This means the record cannot be edited, deleted, or faked after the fact. It is designed to solve the problem of "deepfakes" by making the original source verifiable and permanent.
+
+## Target Audience
+While the app is available to the **General Public**, it is specifically designed for users who need high-assurance proof that a conversation occurred.
+*   **Journalists:** To prove the authenticity of source interviews and combat misinformation.
+*   **Legal Professionals:** To create deposition and witness testimony records that are resistant to tampering.
+*   **Corporate HR & Compliance:** To document sensitive meetings where accountability is critical.
+*   **Academic Researchers:** To preserve the integrity of qualitative data and interview transcripts.
+
+## Exact Features We Are Building
+To deliver this level of security, we are building the following specific capabilities:
+
+*   **Dual-Phone Synchronization:** Both the interviewer and the interviewee use their own phones to record the same session simultaneously. This prevents a single person from altering the audio, as we have two independent records that must match.
+*   **Biometric Multi-Signature Authentication:** Before the interview starts, both users verify their identity using their phone's biometrics (Face ID or Fingerprint). This links the recording directly to their unique digital identity, ensuring they cannot deny they were present.
+*   **Blockchain Transcript Authentication:** As the conversation is transcribed, the text is hashed and written to the **Monad Blockchain**. This creates a permanent, timestamped receipt that proves when the words were spoken.
+*   **Smart Contract Verification:** We use automated "Smart Contracts" to check that both parties signed in correctly. If the conditions aren't met (e.g., one person doesn't sign), the record is flagged as incomplete.
+*   **Cryptographic Immutability:** Once the interview is finished and signed, the transcript is locked. Even if someone tries to edit the text later, the digital "fingerprint" will change, alerting everyone that the document has been tampered with.
+*   **Non-Repudiation Guarantee:** The combination of biometrics, dual-recording, and blockchain ensures "Non-repudiation." This means a user cannot legally deny that they participated in the conversation or that the transcript is accurate, because the cryptographic evidence proves otherwise.
+
+## Why We Are Building It This Way
+We are choosing this complex architecture because standard recording apps are vulnerable to editing and do not verify the identity of the speakers. By requiring two phones and a blockchain ledger, we are trading some convenience for **absolute verification**. This ensures that for high-stakes situations, the record is not just a file, but a verified piece of evidence that stands up to scrutiny.
+
+---
+
+### The System Workflow
+# System Workflow Mapping (Loop 1)
+
+## 1. Data & Variables
+To support the security model and state management, the system requires the following core data structures. These are designed to be agnostic of specific database technologies (SQL/NoSQL) but strict on schema integrity.
+
+### 1.1 User Entity
+*   **`user_id`**: UUID (Primary Key).
+*   **`wallet_address`**: Public key associated with the user's identity on the Monad Blockchain.
+*   **`biometric_public_key`**: Public key derived from the device's secure enclave (used to verify local biometric signatures).
+*   **`email`**: Encrypted string (for notification and account recovery).
+*   **`kyc_status`**: Enum (`None`, `Verified`, `Rejected`).
+*   **`preferences`**: JSON object (e.g., `auto_transcribe`, `notification_settings`).
+
+### 1.2 Session Entity
+*   **`session_id`**: UUID (Primary Key).
+*   **`status`**: Enum (`Pending`, `Active`, `Processing`, `Completed`, `Flagged`).
+*   **`initiator_id`**: UUID (Reference to User Entity).
+*   **`participant_id`**: UUID (Reference to User Entity).
+*   **`start_timestamp`**: ISO 8601 (UTC).
+*   **`end_timestamp`**: ISO 8601 (UTC) or Null.
+*   **`encryption_key`**: AES-256 Key (Encrypted with both users' public keys for retrieval).
+*   **`audio_hash_a`**: SHA-256 Hash of Audio File A.
+*   **`audio_hash_b`**: SHA-256 Hash of Audio File B.
+*   **`transcript_hash`**: SHA-256 Hash of the final text transcript.
+*   **`blockchain_tx_id`**: String (Transaction Hash on Monad).
+*   **`smart_contract_address`**: String (Address of the verification contract).
+
+### 1.3 State Management
+*   **`SessionState`**: Finite State Machine (FSM).
+    *   `INIT`: Session created, waiting for participant.
+    *   `AUTH`: Both parties verifying biometrics.
+    *   `SYNC`: Audio streams aligning timestamps.
+    *   `RECORDING`: Active capture.
+    *   `FINALIZE`: Audio processing and hashing.
+    *   `VERIFIED`: Blockchain confirmation received.
+    *   `INVALID`: Mismatch detected or timeout.
+
+## 2. Feature Mechanics
+This section details the logical flow of data for the core approved features.
+
+### 2.1 Dual-Phone Synchronization
+1.  **Session Creation:** User A generates a `session_id` and signs it with their private key.
+2.  **Invitation:** User A shares `session_id` with User B (via QR or Deep Link).
+3.  **Connection Handshake:** Both clients connect to the Orchestrator via WebSocket using the `session_id`.
+4.  **Time Sync:** Both clients exchange NTP timestamps to align recording start times within a 500ms tolerance window.
+5.  **Data Flow:** Audio chunks are streamed locally to the device (not the server) to ensure raw data integrity. The server only receives metadata and completion hashes.
+
+### 2.2 Biometric Multi-Signature Authentication
+1.  **Challenge Generation:** The Orchestrator sends a random nonce (challenge) to both devices.
+2.  **Local Verification:** Device A and Device B prompt the user for Face ID/Fingerprint.
+3.  **Local Signing:** If biometric passes, the Secure Enclave signs the nonce locally using a derived private key.
+4.  **Verification:** The signed nonce is sent to the Orchestrator. The Orchestrator verifies the signature against the stored `biometric_public_key`.
+5.  **State Update:** Only if **both** signatures are valid does the Session State transition to `RECORDING`.
+
+### 2.3 Blockchain Transcript Authentication
+1.  **Transcription:** Audio is converted to text (via secure STT engine).
+2.  **Hashing:** The text transcript is hashed locally (`SHA-256`).
+3.  **Transaction Construction:** A payload is created containing: `session_id`, `transcript_hash`, `user_a_sig`, `user_b_sig`, `timestamp`.
+4.  **Submission:** The payload is submitted to the Monad Blockchain Smart Contract.
+5.  **Receipt:** The Blockchain returns a `transaction_id`. This ID is immutable proof that the specific hash existed at that time.
+
+### 2.4 Smart Contract Verification
+1.  **Contract Logic:** The Smart Contract contains a function `verifySession(session_id, hash, sig_a, sig_b)`.
+2.  **Condition Check:** The contract checks if `sig_a` matches `User_A_Address` and `sig_b` matches `User_B_Address`.
+3.  **Event Emission:** If valid, the contract emits a `VerifiedSession` event.
+4.  **Flagging:** If signatures are missing or mismatched, the transaction reverts, and the local app flags the session as `INVALID`.
+
+### 2.5 Cryptographic Immutability & Non-Repudiation
+1.  **Locking:** Once the `transaction_id` is received, the local transcript file is "locked" (read-only permissions enforced).
+2.  **Verification:** Any future attempt to view the transcript involves re-hashing the file.
+3.  **Comparison:** The local hash is compared against the hash stored on the Blockchain.
+4.  **Alert:** If hashes differ, the UI displays a "Tampered" warning. The blockchain record serves as the court-admissible truth.
+
+## 3. External Dependencies
+The system relies on the following external services and APIs.
+
+| Dependency | Purpose | Criticality |
+| :--- | :--- | :--- |
+| **Monad Blockchain** | Immutable ledger for storing hashes and transaction IDs. | **Critical** |
+| **RPC Node Provider** | Interface to submit transactions to Monad (e.g., Alchemy, Infura equivalent for Monad). | **Critical** |
+| **Speech-to-Text (STT)** | Converts audio to text for hashing. Must be high-accuracy. | High |
+| **Secure Storage (S3/IPFS)** | Encrypted storage for raw audio files (metadata only goes on-chain). | High |
+| **NTP Service** | Time synchronization for logging accuracy. | Medium |
+| **Biometric APIs** | iOS LocalAuthentication / Android BiometricPrompt. | **Critical** |
+
+## 4. Workflow Diagram
+The following Mermaid.js flowchart maps the complete logical workflow from initiation to immutable verification.
+
+```mermaid
+flowchart TD
+    %% Nodes
+    UserA[User A Device]
+    UserB[User B Device]
+    Orch[Orchestrator Backend]
+    STT[Speech-to-Text Service]
+    Chain[Monad Blockchain]
+    Store[Secure Encrypted Storage]
+
+    %% Styling
+    classDef device fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef backend fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef external fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+    classDef chain fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px;
+
+    class UserA,UserB device;
+    class Orch,Store backend;
+    class STT external;
+    class Chain chain;
+
+    %% Process Flow
+    UserA -->|1. Create Session| Orch
+    Orch -->|2. Generate Session ID| UserA
+    UserA -->|3. Share Invite| UserB
+    
+    UserB -->|4. Accept Invite| Orch
+    Orch -->|5. Verify Session Valid| UserB
+
+    subgraph Authentication
+        Orch -->|6. Send Nonce| UserA
+        UserA -->|7. Biometric Auth| UserA
+        UserA -->|8. Sign Nonce| Orch
+        Orch -->|9. Send Nonce| UserB
+        UserB -->|10. Biometric Auth| UserB
+        UserB -->|11. Sign Nonce| Orch
+        Orch -->|12. Verify Signatures| Orch
+    end
+
+    Orch -->|13. Start Recording| UserA
+    Orch -->|13. Start Recording| UserB
+    
+    UserA -->|14. Stream Audio| UserA
+    UserB -->|14. Stream Audio| UserB
+    
+    UserA -->|15. Save Raw Audio| Store
+    UserB -->|15. Save Raw Audio| Store
+    
+    Orch -->|16. Trigger Transcription| STT
+    STT -->|17. Return Transcript| Orch
+    
+    Orch -->|18. Hash Transcript| Orch
+    Orch -->|19. Sign Hash| UserA
+    Orch -->|20. Sign Hash| UserB
+    
+    Orch -->|21. Submit Tx| Chain
+    Chain -->|22. Return TxID| Orch
+    
+    Orch -->|23. Store TxID & Lock| Store
+    Orch -->|24. Notify Completion| UserA
+    Orch -->|24. Notify Completion| UserB
+
+    subgraph Verification
+    UserA -->|25. Request Audit| Orch
+    Orch -->|26. Fetch TxID| Chain
+    Chain -->|27. Return Hash| Orch
+    Orch -->|28. Compare Hash| UserA
+    end
+```
+
+---
+
+### The Tech Stack
+# The Skeleton (Loop 2): Technical Architecture & Stack Selection
+
+## 1. Architecture Confirmation
+Based on your feedback, **Option A (Expo + Next.js)** is now **LOCKED**. This stack provides the necessary balance of native mobile security (Secure Enclave access) and AI-friendly development velocity (React/TypeScript).
+
+**Key Decisions:**
+*   **Client:** Expo (React Native) for native biometric access (`expo-local-authentication`).
+*   **Server:** Next.js (App Router) for the Orchestrator API.
+*   **Database:** `expo-sqlite` (Local-First) + Supabase (Cloud Sync).
+*   **STT:** **LM Studio** (Local) via Adapter.
+*   **Blockchain:** Monad SDK (Adapter Pattern).
+*   **State:** Zustand (Client) + TanStack Query (Server Sync).
+
+---
+
+## 2. Preliminary Directory Structure
+This structure enforces the **Adapter Pattern** and separates concerns to prevent AI hallucination of business logic.
+
+```text
+monad-secure-audit/
+├── apps/
+│   ├── client/                 # Expo (React Native)
+│   │   ├── src/
+│   │   │   ├── adapters/       # [CRITICAL] Local/Cloud Implementations
+│   │   │   │   ├── biometric/  # expo-local-authentication | Mock
+│   │   │   │   ├── storage/    # expo-sqlite | Supabase Client
+│   │   │   │   ├── stt/        # LM Studio API | OpenAI Whisper
+│   │   │   │   └── blockchain/ # Monad SDK | Hardhat Local
+│   │   │   ├── core/           # Business Logic (FSM, Crypto, State)
+│   │   │   ├── hooks/          # React Native Hooks
+│   │   │   ├── screens/        # UI Components
+│   │   │   └── utils/          # Shared Helpers
+│   │   └── package.json
+│   └── server/                 # Next.js (Orchestrator)
+│       ├── src/
+│       │   ├── adapters/       # [CRITICAL] Server-side Implementations
+│       │   │   ├── db/         # Supabase | Local Postgres
+│       │   │   ├── stt/        # Gateway for LM Studio
+│       │   │   └── chain/      # RPC Provider | Local Fork
+│       │   ├── routes/         # API Endpoints (Next.js API Routes)
+│       │   └── lib/            # Utils (Crypto, Hashing, Validation)
+│       └── package.json
+├── packages/
+│   ├── shared/                 # Shared Types & Interfaces
+│   │   ├── types/              # User, Session, State Definitions
+│   │   └── adapters/           # **Interface Definitions** (The Contract)
+│   └── config/                 # ESLint, TSConfig
+├── .env                        # Environment Variables (Swap Local/Prod)
+├── .env.local                  # Local Overrides (LM Studio URL, etc.)
+└── PROJECT_RULES.md            # [DELIVERABLE] AI Agent Instructions
+```
+
+---
+
+## 3. PROJECT_RULES.md
+*Copy the content below into the root of your project repository. This file instructs the AI Agent on how to generate code.*
+
+```markdown
+# PROJECT RULES: Monad Secure Audit
+
+## 1. Role & Objective
+You are the **Principal Architect** and **Lead Developer**. Your goal is to build a secure, local-first mobile audit application using React Native (Expo) and Next.js. The system must prioritize cryptographic integrity, biometric security, and local-first prototyping.
+
+## 2. Tech Stack (LOCKED)
+- **Client:** Expo (React Native) + TypeScript.
+- **Server:** Next.js (App Router) + TypeScript.
+- **Database:** `expo-sqlite` (Local) + Supabase (Cloud Sync).
+- **State:** Zustand (Client) + TanStack Query (Server).
+- **Auth:** `expo-local-authentication` (Native Biometrics).
+- **STT:** LM Studio (Local) via Adapter.
+- **Blockchain:** Monad SDK (via Adapter).
+
+## 3. Core Architectural Mandates
+
+### 3.1 Adapter Pattern (CRITICAL)
+- **Rule:** NO core business logic may directly import SDKs (e.g., `import { openai } from 'openai'`).
+- **Rule:** All external dependencies MUST live in `/src/adapters/`.
+- **Rule:** Core logic calls interfaces defined in `packages/shared/adapters`.
+- **Goal:** Swapping `LMStudioAdapter` for `OpenAIAdapter` must require only an `.env` change, not code changes.
+
+### 3.2 Local-First Prototyping
+- **Rule:** Default to local implementations for all services during development.
+- **Rule:** Database operations must use `expo-sqlite` first.
+- **Rule:** STT must route to `http://localhost:1234` (LM Studio) by default.
+- **Rule:** Blockchain interactions must use a Hardhat Local Fork or Testnet by default.
+
+### 3.3 Security & Biometrics
+- **Rule:** Biometric verification MUST use `expo-local-authentication`.
+- **Rule:** Private keys MUST NEVER leave the device Secure Enclave.
+- **Rule:** Signatures are generated locally; only public keys and hashes are shared with the Orchestrator.
+
+### 3.4 Workflow Compliance (Loop 1)
+- **Rule:** State transitions must follow the `SessionState` FSM defined in Loop 1 (`INIT` -> `AUTH` -> `SYNC` -> `RECORDING` -> `FINALIZE` -> `VERIFIED`).
+- **Rule:** Audio data is streamed locally. The server receives metadata and hashes only.
+
+## 4. File Structure Guidelines
+- **`/apps/client/src/adapters/`**: Implementations for Biometrics, Storage, STT, Blockchain.
+- **`/apps/client/src/core/`**: Business logic, State Machine, Crypto utilities.
+- **`/apps/server/src/adapters/`**: Server-side DB, STT Gateway, Chain RPC.
+- **`/packages/shared/`**: TypeScript Interfaces (The Contract).
+
+## 5. Coding Standards
+- **Language:** TypeScript (Strict Mode).
+- **Naming:** PascalCase for Components, camelCase for functions/variables.
+- **Testing:** Unit tests for Adapters before implementation.
+- **Documentation:** JSDoc on all public interface methods.
+
+## 6. Environment Variables
+- `STT_PROVIDER`: 'lm_studio' | 'openai'
+- `CHAIN_PROVIDER`: 'local_fork' | 'monad_testnet'
+- `DB_PROVIDER`: 'sqlite' | 'supabase'
+- `BIOMETRIC_MODE`: 'native' | 'mock' (Use 'mock' for initial UI dev)
+
+## 7. Immediate Next Steps
+1. Initialize Monorepo (Turborepo).
+2. Define Shared Interfaces (`packages/shared`).
+3. Implement `BiometricAdapter` (Mock first, then Native).
+4. Implement `STTAdapter` (LM Studio).
+5. Implement `SessionState` FSM in `core/`.
+```
+
+---
+
+## 4. Implementation Strategy for AI Agent
+When generating code, the AI Agent must adhere to the following sequence to ensure stability:
+
+1.  **Define Interfaces First:** Create the TypeScript interfaces in `packages/shared/adapters` before writing implementation logic.
+2.  **Mock Everything:** Implement Mock Adapters for `Biometric`, `STT`, and `Blockchain` to allow UI development without external dependencies.
+3.  **Swap Adapters:** Once UI is stable, replace Mock Adapters with Native/Local implementations (`expo-local-authentication`, `LM Studio`).
+4.  **Integrate FSM:** Ensure the `SessionState` transitions are guarded by the Adapter results (e.g., cannot move to `RECORDING` until Biometric Adapter returns `SUCCESS`).
+
+## 5. Local Tooling Configuration
+To ensure LM Studio works with the Adapter:
+1.  **Start LM Studio:** Ensure Local Server is running on port `1234`.
+2.  **Select Model:** Load a lightweight Whisper model (e.g., `Systran/faster-whisper-small`).
+3.  **Configure Adapter:** Set `STT_PROVIDER=lm_studio` in `.env`.
+4.  **Endpoint:** The Adapter should POST to `http://localhost:1234/v1/completions` (or compatible API).
+
+**Proceed to Loop 3: Code Generation.**
+
+---
+
+<a id='step-0-initialize-project-rules'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='-1'> Step 0: Initialize Project Rules</label>
+
+### Architecture Overview
+```mermaid
+flowchart TD
+    subgraph Client["Client Layer"]
+    User["User Browser"]
+    NextJS["Next.js 14 App Router"]
+    Zustand["Zustand Stores (UI/Session)"]
+    Components["Components (UI/Features)"]
+    end
+
+    subgraph Server["Server Layer (Vercel Edge)"]
+    Middleware["Middleware (Auth Check)"]
+    AuthPage["(auth) Routes"]
+    Dashboard["(dashboard) Routes"]
+    Interview["Interview Recorder"]
+    ServerActions["Server Actions (Mutations)"]
+    ServerComponents["Server Components (Data)"]
+    API["API Routes (Webhooks)"]
+    end
+
+    subgraph Infra["Infrastructure and Services"]
+    Prisma["Prisma Client"]
+    Postgres["PostgreSQL Database"]
+    Inngest["Inngest Workers"]
+    OpenAI["OpenAI API (Zero Retention)"]
+    Vercel["Vercel Edge Network"]
+    end
+
+    User --> NextJS
+    NextJS --> Middleware
+    Middleware --> AuthPage
+    Middleware --> Dashboard
+    Dashboard --> Interview
+    Interview --> Components
+    Interview --> Zustand
+    Interview --> ServerActions
+    ServerActions --> Prisma
+    Prisma --> Postgres
+    ServerActions --> Inngest
+    Inngest --> OpenAI
+    ServerComponents --> Prisma
+    ServerComponents --> Postgres
+    API --> Inngest
+    API --> OpenAI
+    NextJS -.-> Vercel
+```
+
+### ⚠️ Don't Panic! This file is huge.
+The code block below contains the master architectural rules for your entire project. **You do not need to read or understand it.**
+
+**Instructions:**
+1. Create a file named `PROJECT_RULES.md` in the root folder of your project.
+2. Copy the *entire* text block below and paste it into that file.
+3. Your AI coding assistant will automatically read this file to ensure it doesn't break your architecture in future steps.
+
+````text
+STACK A DEFINITION
+--------------------------------------------------------------------------------
+Framework: Next.js 14 (App Router)
+UI: React 18 (tsx files)
+Styling: Tailwind CSS 3.4
+State: Zustand 4.5
+Language: TypeScript 5.4
+Database: PostgreSQL + Prisma 5.10
+AI Provider: OpenAI API (Structured Outputs, Zero Retention)
+Testing: Vitest + Playwright
+Infra: Vercel + Inngest
+--------------------------------------------------------------------------------
+
+1. TECH STACK VERSION LOCK
+All dependencies must be pinned to exact versions in package.json.
+- Frontend: Next.js 14.2.0, React 18.2.0, TypeScript 5.4.0, TanStack Query 5.30.0
+- Styling: Tailwind CSS 3.4.0, PostCSS 8.4.0
+- State: Zustand 4.5.0
+- Backend: Node.js 20.10.0, Prisma 5.10.0 (Edge Runtime Compatible)
+- AI: OpenAI SDK 4.30.0 (Transcription & Analysis)
+- Testing: Vitest 1.4.0, Playwright 1.42.0
+- Deployment: Vercel Edge Network
+- Workers: Inngest 3.0.0
+- Audio: Server-side Whisper API (Primary). Client-side Web Speech API (Capture Only, No Local AI Processing)
+
+2. PROJECT DIRECTORY STRUCTURE
+src/
+├── app/                  # Next.js App Router (Routes, Layouts, Pages)
+│   ├── (auth)/           # Auth routes group
+│   ├── (dashboard)/      # Protected routes group
+│   ├── api/              # API Routes (Webhooks, Proxies, Inngest)
+│   │   └── inngest/      # Inngest Function Handlers
+│   └── layout.tsx        # Root layout
+├── components/           # Shared UI Components
+│   ├── ui/               # Atoms (Buttons, Inputs)
+│   ├── features/         # Molecules (Forms, Cards)
+│   └── interview/        # Interview-specific UI (Recorder, Transcript)
+├── lib/                  # Utilities
+│   ├── audio/            # Audio Processing Logic (Transcription, Hash)
+│   ├── db/               # Prisma Client, Migrations
+│   ├── utils/            # Generic helpers (CN, Formatters)
+│   └── validation/       # Zod Schemas
+├── prisma/               # Database Schema
+│   └── schema.prisma     # Prisma Schema Definition
+├── stores/               # Zustand State Stores
+│   ├── interview-store.ts
+│   └── ui-store.ts
+├── hooks/                # Custom React Hooks
+├── types/                # Global TypeScript Definitions
+└── tests/                # Test Suites
+    ├── unit/
+    └── e2e/
+
+3. COMPONENT MODULARITY
+All React components (.tsx) must adhere to a strict size limit.
+- Maximum lines per file: 150 lines.
+- If a component exceeds 150 lines, it MUST be refactored into smaller sub-components.
+- Logic separation: UI logic (JSX) must be separated from business logic (Hooks/Utils).
+- Props: All components must accept strictly typed props via TypeScript interfaces.
+- Reusability: Components must be generic where possible (e.g., <Button /> vs <SubmitButton />).
+
+4. DATA FETCHING
+- Primary Pattern: Next.js Server Components (RSC) for data fetching.
+- Secondary Pattern: Server Actions for mutations and client-side interactions.
+- Client Caching: TanStack Query used for client-side caching, retries, and stale-while-revalidate patterns.
+- Caching: 5-minute staleTime for list data; 0 for real-time audio stream data.
+- Mutation: All mutations must utilize Server Actions with Optimistic UI updates where safe.
+- Error Handling: Fetch errors must be caught and mapped to UI error states (see Section 7).
+- Streaming: Use Server Sent Events (SSE) for transcription streaming from Server Actions.
+- PII Governance: All PII sent to OpenAI must be masked or minimized. Zero Retention policy enforced via OpenAI API parameters.
+
+5. STATE MANAGEMENT
+- Authentication (Cookies/Middleware):
+  - User Session MUST be managed via HTTP-only Secure Cookies and Next.js Middleware.
+  - Do NOT store authentication tokens or user session data in client-side Zustand stores.
+  - Server Components must verify session validity before rendering protected content.
+- Global State (Zustand):
+  - Use Zustand stores for UI and Interview Session state ONLY (e.g., Recording status, Transcript view).
+  - Stores must be atomic (split into small stores: auth-store, interview-store).
+  - No direct store modification in components; use actions defined in the store.
+- Local State (React):
+  - Use useState for form inputs, UI toggles, and ephemeral data.
+  - Do not lift state unnecessarily.
+- Consumption Declaration:
+  - Every UI component consuming Zustand must explicitly declare the specific selector used.
+  - Example: const userName = useAuthStore((state) => state.user.name).
+  - Components MUST NOT subscribe to the entire store object to prevent unnecessary re-renders.
+
+6. UI/STYLING CONSTRAINTS
+- Styling Method: Tailwind CSS utility classes ONLY.
+- No: Custom CSS files, styled-components, inline style objects.
+- Colors: Use Tailwind semantic colors
+
+7. ERROR HANDLING
+- Global Error Boundaries: Wrap route groups in `error.tsx` to catch client-side rendering errors.
+- Server Actions: Return standardized error objects (e.g., `{ success: boolean, error?: string }`) to the client.
+- API Routes: Return consistent JSON error structures (e.g., `{ message: string, code: string }`).
+- UI Feedback: Display user-friendly error messages using Toast notifications or Alert components.
+- Logging: Log server-side errors to Vercel Logs or Sentry; do not expose stack traces to the client.
+- Recovery: Implement retry logic for transient network failures using TanStack Query (where applicable).
+````
+
+---
+
+<a id='step-05-global-database-schema'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='-1'> Step 0.5: Global Database Schema</label>
+
+**Why:** Before building isolated UI features, the AI needs a unified data model to ensure all API payloads and database migrations align perfectly across the entire application.
+
+**Expectation:** Your IDE will read this schema as context and use it to accurately structure your database models (e.g. Prisma, Drizzle, or Supabase).
+
+#### Table: users
+
+| Column Name | Data Type / Format | Key / Constraint | Description & UI Mapping |
+| :--- | :--- | :--- | :--- |
+| id | UUID | Primary Key, Unique | Unique user identifier. **Read:** Middleware (Auth Check), `src/stores/auth-store` (User Profile). **Write:** `src/app/api/auth/register` (Server Action). |
+| email | VARCHAR(255) | Unique, Not Null | User email address. Used for login and notifications. **Read:** `(auth)/login`, `(dashboard)/settings`. **Write:** `src/lib/validation` (Zod Schema). |
+| password_hash | VARCHAR(255) | Not Null, Encrypted | Bcrypt/Argon2 hashed password. **Read:** Never exposed to Client UI. **Write:** `src/app/(auth)/register` (Server Action). |
+| role | VARCHAR(50) | Default 'user' | User role (admin, user). **Read:** Middleware (RBAC). **Write:** `src/app/admin` (Admin Panel). |
+| created_at | TIMESTAMPTZ | Default NOW() | Account creation timestamp. **Read:** `(dashboard)/profile`. **Write:** `src/lib/db` (Prisma Client). |
+| updated_at | TIMESTAMPTZ | Default NOW() | Last profile update timestamp. **Read:** `(dashboard)/profile`. **Write:** `src/lib/db` (Prisma Client). |
+
+#### Table: interview_sessions
+
+| Column Name | Data Type / Format | Key / Constraint | Description & UI Mapping |
+| :--- | :--- | :--- | :--- |
+| id | UUID | Primary Key, Unique | Unique session identifier for the interview event. **Read:** `(dashboard)/interviews/[id]`. **Write:** `src/app/api/interviews/create` (Server Action). |
+| user_id | UUID | Foreign Key -> users.id, Not Null | Link to the user conducting the interview. **Read:** Middleware (Ownership Validation). **Write:** `src/stores/interview-store` (Session Init). |
+| title | VARCHAR(255) | Not Null | Human-readable session title. **Read:** `(dashboard)/interviews/list`. **Write:** `(dashboard)/interviews/create`. |
+| status | VARCHAR(50) | Enum (draft, active, completed, archived) | Current state of the interview. **Read:** `components/interview/StatusIndicator.tsx`. **Write:** `src/stores/interview-store` (Zustand Actions). |
+| duration_ms | INTEGER | Default 0 | Total duration of the session in milliseconds. **Read:** `(dashboard)/interviews/[id]/stats`. **Write:** `src/lib/audio` (Calculation Logic). |
+| is_public | BOOLEAN | Default False | Shareability flag. **Read:** `(public)/share/[id]`. **Write:** `(dashboard)/settings`. |
+| created_at | TIMESTAMPTZ | Default NOW() | Session start time. **Read:** `(dashboard)/interviews/list`. **Write:** `src/lib/db` (Prisma Client). |
+
+#### Table: interview_transcripts
+
+| Column Name | Data Type / Format | Key / Constraint | Description & UI Mapping |
+| :--- | :--- | :--- | :--- |
+| id | UUID | Primary Key, Unique | Unique transcript segment identifier. **Read:** `components/interview/TranscriptView.tsx`. **Write:** `src/app/api/transcribe/stream` (SSE Handler). |
+| session_id | UUID | Foreign Key -> interview_sessions.id, Not Null | Link to the parent interview session. **Read:** `src/app/(dashboard)/interviews/[id]`. **Write:** Server Action (Transcription Logic). |
+| role | VARCHAR(50) | Enum (user, interviewer, system) | Speaker identification. **Read:** `components/interview/TranscriptLine.tsx`. **Write:** AI Prompt (Role Assignment). |
+| content | TEXT | Not Null | Transcribed text content. **Read:** `components/interview/TranscriptView.tsx`. **Write:** OpenAI API (Whisper/Transcription). |
+| start_time | FLOAT | Not Null | Start time offset in seconds. **Read:** `components/interview/AudioPlayer.tsx`. **Write:** Whisper API Response. |
+| end_time | FLOAT | Not Null | End time offset in seconds. **Read:** `components/interview/AudioPlayer.tsx`. **Write:** Whisper API Response. |
+| is_pii_masked | BOOLEAN | Default True | Flag indicating PII masking status. **Read:** Audit Logs. **Write:** `src/lib/audio` (PII Governance Logic). |
+
+#### Table: ai_feedback
+
+| Column Name | Data Type / Format | Key / Constraint | Description & UI Mapping |
+| :--- | :--- | :--- | :--- |
+| id | UUID | Primary Key, Unique | Unique analysis record identifier. **Read:** `(dashboard)/interviews/[id]/analysis`. **Write:** `src/lib/ai` (OpenAI Analysis). |
+| session_id | UUID | Foreign Key -> interview_sessions.id, Not Null | Link to the analyzed session. **Read:** `(dashboard)/interviews/[id]/analysis`. **Write:** `src/app/api/analyze` (Inngest Worker). |
+| summary | TEXT | Not Null | High-level feedback summary. **Read:** `components/features/FeedbackCard.tsx`. **Write:** OpenAI API (Structured Output). |
+| scores | JSONB | Not Null | Structured scoring data (e.g., {communication: 8, tech: 9}). **Read:** `components/features/ScoreChart.tsx`. **Write:** OpenAI API (Structured Output). |
+| created_at | TIMESTAMPTZ | Default NOW() | Analysis generation timestamp. **Read:** `(dashboard)/interviews/[id]/analysis`. **Write:** `src/lib/db` (Prisma Client). |
+
+#### Table: audio_files
+
+| Column Name | Data Type / Format | Key / Constraint | Description & UI Mapping |
+| :--- | :--- | :--- | :--- |
+| id | UUID | Primary Key, Unique | Unique audio asset identifier. **Read:** `components/interview/AudioPlayer.tsx`. **Write:** `src/app/api/upload` (Server Action). |
+| session_id | UUID | Foreign Key -> interview_sessions.id, Not Null | Link to the parent interview session. **Read:** `(dashboard)/interviews/[id]`. **Write:** `src/stores/interview-store` (Recording State). |
+| storage_url | VARCHAR(500) | Not Null | Secure URL to audio blob (e.g., Vercel Blob/S3). **Read:** `components/interview/AudioPlayer.tsx`. **Write:** `src/lib/db` (Prisma Client). |
+| duration_sec | INTEGER | Not Null | Audio duration in seconds. **Read:** `(dashboard)/interviews/[id]/stats`. **Write:** Client-side Audio API (Recorder). |
+| is_processed | BOOLEAN | Default False | Flag for transcription completion. **Read:** `components/interview/StatusIndicator.tsx`. **Write:** Inngest Event Handler. |
+| created_at | TIMESTAMPTZ | Default NOW() | Upload timestamp. **Read:** `(dashboard)/interviews/[id]`. **Write:** `src/lib/db` (Prisma Client). |
 
 ---
 
 ## Multi-Agent Parallel Execution Strategy
 
-To prevent merge conflicts and maximize velocity, steps are grouped into **Phases**. Agents assigned to different **Lanes** within a Phase work on isolated file systems (e.g., Frontend vs. Backend). Agents in the same Lane must work sequentially.
+To minimize merge conflicts and maximize throughput, steps are grouped into **Phases**. Within each Phase, **Agents** are assigned to isolated file paths (e.g., `/src/backend`, `/src/frontend`, `/docs`). Agents in the same Phase execute simultaneously only if their target directories do not overlap.
 
-### Phase 1: Initialization & Planning (Sequential)
-*Constraint: No parallel execution. Foundation must be established before agents are spawned.*
+### Phase 1: Foundation & Infrastructure (Sequential)
+*Critical path: Establishes the workspace and safety constraints.*
 
-| Order | Agent | Steps | File Context |
+| Order | Agent | Task | Target Scope |
 | :--- | :--- | :--- | :--- |
-| 1 | **Orchestrator** | Ch 1, Ch 2, Ch 3, Ch 4, Ch 5 | Config files, `.env`, `package.json`, Project Root |
-| 2 | **Orchestrator** | Ch 30 | `PLAN.md` (Implementation Plan) |
+| 1 | **Agent 1** | Setup AI Agent Guardrails & Context Files | `/config/agents` |
+| 2 | **Agent 1** | Initialize Monorepo & Project Structure | Root |
+| 3 | **Agent 1** | Define Complete Directory Structure | Root |
+| 4 | **Agent 1** | Configure Environment Variables & Secrets | `/env`, `.github` |
 
-### Phase 2: Architecture & Contracts (Parallel Lanes)
-*Constraint: Database Schema and API Contracts are separate files. Safe to parallelize.*
+### Phase 2: Contracts & Schema (Parallel)
+*Critical path: Defines data structures and interfaces before implementation.*
 
-| Lane | Agent | Steps | File Context | Isolation Check |
-| :--- | :--- | :--- | :--- | :--- |
-| **A** | **Data Agent** | Ch 6, Ch 7, Ch 8, Ch 9, Ch 15 | `schema.prisma`, `migrations/`, `db/connect.ts` | Read-only on API routes |
-| **B** | **API Agent** | Ch 10, Ch 11, Ch 12, Ch 13, Ch 14 | `docs/api.md`, `types/api.ts` | Read-only on DB schema |
-
-### Phase 3: Feature Implementation (Parallel Lanes)
-*Constraint: Frontend components are split by domain to avoid shared UI file conflicts.*
-
-| Lane | Agent | Steps | File Context | Isolation Check |
-| :--- | :--- | :--- | :--- | :--- |
-| **A** | **Backend Agent** | Ch 23, Ch 24 + API Logic | `lib/stt.ts`, `api/` routes | No UI components |
-| **B** | **Frontend A** | Ch 16, Ch 17, Ch 18, Ch 19, Ch 20 | `pages/auth/`, `pages/interview/start` | No Blockchain/QR logic |
-| **C** | **Frontend B** | Ch 21, Ch 22, Ch 25, Ch 26, Ch 27, Ch 28, Ch 29 | `pages/blockchain/`, `pages/admin/` | No Auth logic |
-
-### Phase 4: Testing & Validation (Parallel Lanes)
-*Constraint: Test suites target specific code blocks. E2E tests run last within this phase.*
-
-| Lane | Agent | Steps | File Context | Isolation Check |
-| :--- | :--- | :--- | :--- | :--- |
-| **A** | **QA Agent 1** | Ch 32, Ch 33, Ch 37 | `tests/db/`, `tests/api/` | No UI interaction |
-| **B** | **QA Agent 2** | Ch 34, Ch 35, Ch 36 | `tests/features/` | No DB migration logic |
-| **C** | **QA Agent 3** | Ch 31, Ch 38 | `tests/e2e/`, `pre-flight/` | Read-only on codebase |
-
-### Phase 5: Deployment & Handover (Sequential)
-*Constraint: Deployment scripts depend on successful testing. Documentation is final.*
-
-| Order | Agent | Steps | File Context |
+| Agent | Task | Target Scope | Isolation Check |
 | :--- | :--- | :--- | :--- |
-| 1 | **DevOps Agent** | Ch 39 | `deploy/`, `ci-cd/` |
-| 2 | **Technical Writer** | Ch 40 | `docs/user-guide/` |
+| **Agent A** | Design Database Schema & Relationships | `/db/schemas` | No overlap with Types |
+| **Agent B** | Document API Contract Specifications | `/docs/api` | No overlap with DB |
+| **Agent B** | Build Adapter Interface Contracts | `/src/adapters/interfaces` | Read-only for Agents A/B |
+| **Agent A** | Create Shared Type Definitions Package | `/packages/types` | Read-only for Agents A/B |
 
-### Critical Guardrails for Agents
-1.  **Shared Components:** Agents B and C (Frontend) must not modify `layout.tsx` or `api-client.ts` simultaneously. Use a locking mechanism for shared files.
-2.  **Schema Changes:** If Phase 3 reveals a DB change, Data Agent (Lane 2A) must update Schema before Backend Agent (Lane 3A) proceeds.
-3.  **Environment:** All Agents must pull the latest `.env` template before writing code.
+### Phase 3: Core Services & Adapters (Parallel)
+*Critical path: Backend logic and external integrations. Agents work on isolated service folders.*
 
----
+| Agent | Task | Target Scope | Isolation Check |
+| :--- | :--- | :--- | :--- |
+| **Agent A** | Implement Biometric Authentication Adapter | `/services/auth` | Distinct from Blockchain/AI |
+| **Agent A** | Setup Local SQLite Storage Adapter | `/services/storage` | Distinct from Blockchain/AI |
+| **Agent A** | Create User Authentication Flow | `/services/auth` | Same folder as Auth Adapter |
+| **Agent B** | Implement Blockchain Adapter for Monad | `/services/blockchain` | Distinct from Auth/AI |
+| **Agent B** | Deploy Smart Contract for Verification | `/contracts` | Distinct from Auth/AI |
+| **Agent B** | Implement Blockchain Hash Submission | `/services/blockchain` | Same folder as Adapter |
+| **Agent B** | Build Session Verification Flow | `/services/verification` | Tied to Blockchain logic |
+| **Agent C** | Configure Speech-to-Text Adapter | `/services/ai` | Distinct from Auth/Blockchain |
+| **Agent C** | Generate AI Transcription Service | `/services/ai` | Same folder as Adapter |
+| **Agent C** | Evaluate Transcription Quality & Accuracy | `/services/ai` | Same folder as Service |
+| **Agent C** | Build Session State Machine Logic | `/services/state` | Core logic, isolated from UI |
 
-<a id='step-1-chapter-1-create-agent-memory-rules-file'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='0'> Step 1: Chapter 1: Create Agent Memory Rules File</label>
+### Phase 4: Frontend & Integration (Parallel)
+*Critical path: UI components and client-side networking. Agents work on `/components` vs `/hooks`.*
 
-**Purpose (Why we are building this):**
-This step defines the configuration rules for the AI agent to ensure interview context is stored consistently for blockchain hashing. Without these rules, memory retrieval will fail during authentication and deepfake verification.
+| Agent | Task | Target Scope | Isolation Check |
+| :--- | :--- | :--- | :--- |
+| **Agent A** | Design Interview Session Screen | `/frontend/components` | UI Layout only |
+| **Agent A** | Create Transcript Display Interface | `/frontend/components` | UI Layout only |
+| **Agent A** | Implement Audio Recording Component | `/frontend/components` | UI Logic only |
+| **Agent B** | Build Dual Phone Connection Handshake | `/frontend/hooks` | Networking/Logic |
+| **Agent B** | Integrate Session Verification Flow (UI) | `/frontend/hooks` | Consumes Service |
 
-**User Experience (UX) Flow:**
-This feature connects to the `InterviewSetupPage` and `AgentDashboard` where users view memory status. Users expect to see a green indicator when memory rules are active and valid.
+### Phase 5: Assurance & Delivery (Sequential)
+*Critical path: Final validation and handoff. Requires full codebase access.*
 
-**Expected Outcomes:**
-If successful, the agent loads rules and validates data against the schema. If failed, the agent rejects memory updates with a 400 Bad Request error.
+| Order | Agent | Task | Target Scope |
+| :--- | :--- | :--- | :--- |
+| 1 | **Agent 1** | Pre-Flight Impact Analysis & Risk Assessment | Global |
+| 2 | **Agent 1** | Security Audit & Penetration Testing | Global |
+| 3 | **Agent 1** | Documentation & Developer Handoff | `/docs` |
 
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 1: Create Agent Memory Rules File** feature.
-
-#### 1. UX & Logic Description
-This feature establishes the configuration file that dictates how the AI agent stores and retrieves interview context. It connects directly to the `InterviewSetupPage` to initialize memory and the `AgentDashboard` to display health status. The user sees a status indicator confirming the rules are loaded.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** Define strict JSON Schema using Zod for `src/agents/memory/rules.ts`. All fields must be required with max character lengths of 255 for text inputs.
-* **API/Database:** Use serverless API routes at `/api/agents/memory`. Reference `interview_sessions` table for storage. Handle 400 Bad Request for validation failures and 404 for missing rules.
-* **Testing Requirements:** Test schema validation, API response codes, and edge cases like invalid JSON. Verify separation of Generate and Evaluate operations.
-* **Global State:** Verify packages against `PROJECT_RULES.md` Tech Matrix before implementation.
-* **Infrastructure:** Use standard serverless API routes for simple tasks.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Explicitly define how edge cases are handled (e.g., 400 Bad Request for validation failure).
-5. Ensure distinct Generate and Evaluate operations are separated.
-6. Define strict JSON Schema (e.g., using Zod) and pass it directly into the AI provider's SDK.
-7. Verify paths match `src/agents/memory/rules.ts` and `src/schema/memory-schema.ts`.
-8. Ensure API endpoints match `/api/agents/memory`.
-9. Ensure table references match `interview_sessions` and `memory_rules`.
-10. Confirm no manual actions outside IDE are required.
-```
+### Execution Rules
+1.  **Lock Files:** Agents must lock specific files (e.g., `package.json`, `tsconfig.json`) before writing to prevent conflicts.
+2.  **Interface Contracts:** Agents in Phase 3 must strictly adhere to the interfaces defined in Phase 2.
+3.  **Merge Gates:** Code cannot be merged to `main` until Phase 5 is complete.
 
 ---
 
-<a id='step-2-chapter-2-set-up-project-folder-structure'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='1'> Step 2: Chapter 2: Set Up Project Folder Structure</label>
+<a id='step-1-setup-ai-agent-guardrails-&-context-files'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='0'> Step 1: Setup AI Agent Guardrails & Context Files</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Ensure the root directory is initialized with `npm init -y` before running AI generation commands.</li>
-    <li>Verify `package.json` dependencies match Chapter 1 (Zod, TypeScript, Next.js) before proceeding.</li>
+    <li>Obtain API keys for your selected AI Provider (e.g., OpenAI, Anthropic) and store them in your `.env` file as `AI_PROVIDER_API_KEY`.</li>
+    <li>Ensure your database connection string is configured in `.env` as `DATABASE_URL` before initializing the schema.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This step establishes the foundational directory layout to ensure modular scaling and consistency with Chapter 1's memory rules. It prevents architectural drift by enforcing a standardized structure for all future API, schema, and agent files.
+This feature establishes strict rules and context limits for the AI Agent to prevent hallucinations and ensure biometric data integrity during interview verification. It is necessary to maintain trust in the transcript authentication process and prevent AI-generated deepfakes from corrupting the blockchain record.
 
 **User Experience (UX) Flow:**
-This feature is backend infrastructure that supports the `/interview` and `/dashboard` pages. It ensures developers can locate configuration and logic files quickly without breaking existing integrations.
-
-*   **Expected Success:** Directory tree matches Chapter 1 specs (`src/agents`, `src/schema`) and no import errors occur.
-*   **Expected Failure:** Missing folders cause 404 errors on API routes or build failures due to missing imports.
+*   **Admin Configuration Panel:** Administrators define system prompts and safety thresholds here before an interview session begins.
+*   **Interview Setup Page:** The active guardrail configuration is loaded silently when a user initiates a verified interview session.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 2: Set Up Project Folder Structure** feature.
+We are building the **Setup AI Agent Guardrails & Context Files** feature.
 
 #### 1. UX & Logic Description
-Create the root directory structure ensuring `src/agents/memory/rules.ts` and `src/schema/memory-schema.ts` exist as per Chapter 1.
-This structure connects directly to the `/interview` page for session handling and `/dashboard` for audit logs.
+This feature connects to the **Admin Configuration Panel** (`/admin/config`) where users input system instructions, and the **Interview Setup Page** (`/interview/setup`) where these rules are applied to the session context.
+The UI will display input fields for "System Prompt" and "Safety Thresholds" with a "Save Configuration" button that triggers a serverless API call.
 
 #### 2. Technical Guardrails & Constraints
-*   **Data Validation:** All schema files must use Zod with max 255 char lengths and required fields enforced.
-*   **API/Database:** Place API routes under `src/api` matching `/api/agents/memory` endpoint and reference `interview_sessions` table.
-*   **Testing Requirements:** Verify folder existence and import paths resolve correctly without circular dependencies.
-*   **Constraints:** Do not introduce packages outside the Chapter 1 Tech Matrix (Zod, TS, Node).
-*   **Infrastructure:** Use serverless API routes for all simple tasks; do not use queues yet.
-*   **AI Separation:** Ensure Generate and Evaluate operations are distinct in the code structure.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional
-
----
-
-<a id='step-3-chapter-3-define-environment-variables-list'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='2'> Step 3: Chapter 3: Define Environment Variables List</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Create a `.env.example` file at the project root listing all required variables (e.g., `MONAD_RPC_URL`, `DB_CONNECTION_STRING`).</li>
-    <li>Copy `.env.example` to `.env` and populate with actual credentials before running any serverless functions.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This feature secures sensitive configuration like blockchain RPC URLs and database credentials by preventing hardcoding. It ensures the application initializes safely with validated environment variables before connecting to the Monad blockchain or database.
-
-**User Experience (UX) Flow:**
-This is a backend configuration step that connects to the system initialization for all pages, specifically supporting the `/api/agents/memory` endpoint. No direct user page exists, but failures here will block access to the Interview Verification and Biometric Authentication pages.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 3: Define Environment Variables List** feature.
-
-#### 1. UX & Logic Description
-This feature involves creating a configuration schema and environment file to securely manage API keys and database strings. It connects to the system startup logic that initializes the `/api/agents/memory` endpoint and database connections for `interview_sessions`.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** All environment variables must be validated using Zod schemas in `src/config/env.ts` (e.g., `MONAD_RPC_URL` must be a valid URL, `DB_CONNECTION_STRING` is required).
-* **API/Database:** Ensure variables support the `/api/agents/memory` endpoint and connect to `interview_sessions` and `memory_rules` tables.
-* **Testing Requirements:** Test that the app crashes gracefully with clear error logs if `.env` is missing or if variables fail Zod validation.
+* **Data Validation:** System Prompt must be 10-5000 characters, Safety Threshold must be an enum value (STRICT, MODERATE, LOOSE).
+* **API/Database:** POST to `/api/agent/config` to save to `ai_configurations` table (columns: `id`, `system_prompt`, `safety_level`, `updated_at`).
+* **Testing Requirements:** Test that invalid safety levels return 400 Bad Request, and that long prompts are truncated or rejected to prevent token overflow.
+* **Structured Outputs:** Define a Zod schema for the configuration payload to ensure strict typing before sending to the AI provider.
+* **Separation of AI:** Ensure the configuration endpoint does not use the AI to validate its own config; use standard schema validation instead.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -277,86 +747,41 @@ Before finalizing your work:
 
 ---
 
-<a id='step-4-chapter-4-choose-free-tier-hosting-platform'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='3'> Step 4: Chapter 4: Choose Free Tier Hosting Platform</label>
+<a id='step-2-initialize-monorepo-&-project-structure'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='1'> Step 2: Initialize Monorepo & Project Structure</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Create an account on a free-tier serverless provider (e.g., Vercel, Render, Railway) compatible with Node.js environments.</li>
-    <li>Generate a new project repository link to be used for deployment configuration.</li>
+    <li>Initialize the git repository using `git init` in the root directory.</li>
+    <li>Install the monorepo package manager (e.g., `pnpm init`) to manage dependencies.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This step configures the infrastructure required to host the serverless API routes defined in previous chapters. It ensures the application can accept interview data and store blockchain transcripts securely.
+This step establishes the modular codebase foundation required for blockchain integration and biometric security. It prevents technical debt by enforcing a consistent structure before feature development begins.
 
 **User Experience (UX) Flow:**
-This feature connects to the Deployment Pipeline and Environment Configuration pages within the developer console. It does not directly impact the end-user interview interface but enables the backend functionality.
+This infrastructure step connects to the `/admin/config` page for system settings and `/interview/setup` for user flows. No direct user interface is rendered during this specific initialization phase.
+
+**Expected Outcome:**
+If successful, the directory structure will be ready for feature implementation without path errors. If it fails, build scripts will crash due to missing dependencies or incorrect folder hierarchies.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 4: Choose Free Tier Hosting Platform** feature.
+We are building the **Initialize Monorepo & Project Structure** feature.
 
 #### 1. UX & Logic Description
-Configure the deployment environment on a selected free-tier provider to host the Next.js serverless functions. This connects directly to the `src/config/env.ts` configuration for environment variable injection. Ensure the hosting platform supports the `DB_CONNECTION_STRING` and `MONAD_RPC_URL` required by Chapter 3.
+Establish a root directory with `apps` and `packages` folders to separate client and shared logic. Connect this structure to the `/admin/config` and `/interview/setup` routes for future feature injection.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** Environment variables must strictly match keys in `src/config/env.ts` (e.g., `MONAD_RPC_URL`, `DB_CONNECTION_STRING`).
-* **API/Database:** Ensure `/api/agents/memory` endpoint is accessible via the deployed URL using the `interview_sessions` and `memory_rules` tables.
-* **Testing Requirements:** Verify the deployed URL returns a 200 OK on the memory endpoint and rejects requests with missing auth headers (401).
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
----
-
-<a id='step-5-chapter-5-initialize-nextjs-project'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='4'> Step 5: Chapter 5: Initialize Next.js Project</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Run `npx create-next-app@latest block-chain-interview --typescript --tailwind --eslint` in your terminal.</li>
-    <li>Run `npm install zod` to install validation libraries.</li>
-    <li>Manually create `.env` and `.env.example` files in the root directory.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This step establishes the Next.js framework to host the interview verification UI and API. It ensures the environment supports serverless functions and database connections defined in Chapters 3 and 4.
-
-**User Experience (UX) Flow:**
-This feature initializes the Root Landing Page (`src/app/page.tsx`).
-Users will land here before being redirected to the Interview Dashboard (`/dashboard`) upon authentication.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 5: Initialize Next.js Project** feature.
-
-#### 1. UX & Logic Description
-The AI will scaffold the Next.js application structure using the established file paths.
-This includes configuring `src/config/env.ts` to validate environment variables and creating `src/app/page.tsx` as the entry point.
-The project must connect to the future Interview Dashboard and support the `/api/agents/memory` endpoint structure.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** `src/config/env.ts` must use Zod to validate `MONAD_RPC_URL` and `DB_CONNECTION_STRING` (required, string, max 255 chars).
-* **API/Database:** Reserve paths for `/api/agents/memory` and ensure `src/config/env.ts` references `interview_sessions` and `memory_rules` tables for future connection.
-* **Testing Requirements:** Test that `.env` loads correctly, `src/config/env.ts` throws errors on missing variables, and `src/app/page.tsx` renders without console errors.
-* **Package Restrictions:** Use ONLY packages listed in the Tech Matrix (Next.js, Zod, standard Node libs). No external AI grading packages.
-* **Infrastructure:** Use standard serverless API routes for all future tasks; do not implement queues yet.
+* **Data Validation:** Define Zod schemas for all API payloads, specifically `POST /api/agent/config` requiring `system_prompt` (string, max 2000 chars) and `safety_level` (enum).
+* **API/Database:** Use `ai_configurations` table (columns: `id`, `system_prompt`, `safety_level`, `updated_at`) for persistence. Use standard serverless API routes for simple tasks.
+* **Testing Requirements:** Test directory creation, dependency installation, and route registration. Verify edge cases like missing `package.json` files or permission errors.
+* **Global State:** Read `PROJECT_RULES.md` Tech Matrix strictly; forbid packages not listed there.
+* **AI Concerns:** Architect distinct Generate and Evaluate operations; never allow AI to grade its own output.
+* **Structured Outputs:** Define strict JSON Schemas (Zod) for any AI-generated configuration data.
+* **Error Handling:** Return 400 Bad Request for validation failures and 404 for missing routes.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -371,50 +796,213 @@ Before finalizing your work:
 1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
 2. Ensure you have respected the global `PROJECT_RULES.md` and Tech Matrix constraints.
 3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Verify `src/config/env.ts` strictly validates `MONAD_RPC_URL` and `DB_CONNECTION_STRING`.
-5. Confirm `src/app/page.tsx` links correctly to future `/dashboard` routes.
+4. Verify all file paths match `/api/agent/config`, `/admin/config`, `/interview/setup`, and `ai_configurations` table schema.
+5. Confirm no manual actions were skipped in the alert section.
 ```
+
+---
+
+<a id='step-3-define-complete-directory-structure'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='2'> Step 3: Define Complete Directory Structure</label>
+
+<div class="manual-action-alert">
+<h4>⚠️ Manual Developer Action Required</h4>
+<ul>
+    <li>Ensure your local environment has `pnpm` installed globally to manage dependencies.</li>
+    <li>Create a `.env` file at the root containing `AI_PROVIDER_API_KEY` and `DATABASE_URL` as per previous architectural decisions.</li>
+</ul>
+</div>
+
+**Purpose (Why we are building this):**
+This step organizes the codebase into a scalable monorepo to prevent technical debt and ensure maintainability. It ensures separation of concerns between the interview logic and blockchain verification services.
+
+**User Experience (UX) Flow:**
+This structural setup enables the `/interview/setup` and `/admin/config` pages to load correctly without routing errors. It ensures API routes are discoverable for the dual-phone verification flow.
+
+### Phase 1: Planning (Copy & Paste to your AI first)
+```text
+We are building the **Define Complete Directory Structure** feature.
+
+#### 1. UX & Logic Description
+This feature establishes the foundational file system layout for the BlockChainInterview MVP. It organizes code into `apps/` for client/server logic and `packages/` for shared utilities to support the `/interview/setup` and `/admin/config` pages.
+
+#### 2. Technical Guardrails & Constraints
+* **Data Validation:** Use Zod schemas for all payloads; enforce `id`, `system_prompt`, `safety_level`, `updated_at` on `ai_configurations` table.
+* **API/Database:** Map `POST /api/agent/config` to `apps/api` or serverless routes; reference `ai_configurations` table for storage.
+* **Testing Requirements:** Verify directory existence, check `pnpm` install success, and validate `.env` variable presence.
+* **Global State:** Strictly use `pnpm` and Monorepo architecture; do not introduce external package managers.
+
+#### 3. Action Requested
+Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
+```
+
+### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
+```text
+I have approved the implementation plan. 
+
+Please execute the plan and write the code. 
+Before finalizing your work:
+1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
+2. Ensure you have respected the global `PROJECT_RULES.md`.
+3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+```
+
+---
+
+<a id='step-4-configure-environment-variables-&-secrets'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='3'> Step 4: Configure Environment Variables & Secrets</label>
+
+<div class="manual-action-alert">
+<h4>⚠️ Manual Developer Action Required</h4>
+<ul>
+    <li>Create a root `.env` file in the project directory.</li>
+    <li>Populate `.env` with `AI_PROVIDER_API_KEY` and `DATABASE_URL` values as per `PROJECT_RULES.md`.</li>
+    <li>Ensure `.env` is added to `.gitignore` to prevent secret leakage.</li>
+</ul>
+</div>
+
+**Purpose (Why we are building this):**
+Securely manage API keys and database credentials to prevent unauthorized access and ensure safe deployment. This step establishes the foundational configuration required for all subsequent features to function.
+
+**User Experience (UX) Flow:**
+Developers configure secrets locally via `.env`, while admins view masked configurations on the `/admin/config` page. This ensures sensitive data remains hidden from the frontend while remaining accessible to the server.
+
+### Phase 1: Planning (Copy & Paste to your AI first)
+```text
+We are building the **Configure Environment Variables & Secrets** feature.
+
+#### 1. UX & Logic Description
+This feature handles the setup of critical secrets like `AI_PROVIDER_API_KEY` and `DATABASE_URL`. It connects to the `/admin/config` page for runtime config viewing and the root `.env` file for local development.
+
+#### 2. Technical Guardrails & Constraints
+* **Data Validation:** Use Zod to validate environment variable presence; required fields must not be empty strings.
+* **API/Database:** Do not store secrets in the `ai_configurations` table; use `.env` for keys and `ai_configurations` only for non-sensitive settings like `system_prompt`.
+* **Testing Requirements:** Test that the app fails gracefully if `AI_PROVIDER_API_KEY` is missing; test that `.env` is excluded from git commits.
+
+#### 3. Action Requested
+Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
+```
+
+### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
+```text
+I have approved the implementation plan. 
+
+Please execute the plan and write the code. 
+Before finalizing your work:
+1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
+2. Ensure you have respected the global `PROJECT_RULES.md`.
+3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+```
+
+---
+
+<a id='step-5-design-database-schema-&-relationships'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='4'> Step 5: Design Database Schema & Relationships</label>
+
+<div class="manual-action-alert">
+<h4>⚠️ Manual Developer Action Required</h4>
+<ul>
+    <li>Ensure the `DATABASE_URL` environment variable is set in `.env` before running schema migrations.</li>
+    <li>Verify the database instance is running and accessible by the application.</li>
+</ul>
+</div>
+
+**Purpose (Why we are building this):**
+This step defines the core data structure for interviews, biometrics, and blockchain transcripts to ensure data integrity. It enables the verification workflow by structuring relationships between users and interview records.
+
+**User Experience (UX) Flow:**
+Schema changes support the `/interview/setup` page for scheduling and `/admin/config` for agent management. Data flows from mobile biometric capture to secure blockchain storage without user interruption.
+
+**Success & Failure States:**
+If successful, the schema migrates without errors and Zod validation passes for all defined tables. If it fails, migration errors occur or validation rejects invalid interview data payloads.
+
+### Phase 1: Planning (Copy & Paste to your AI first)
+```text
+We are building the **Design Database Schema & Relationships** feature.
+
+#### 1. UX & Logic Description
+Define the database schema to support interview scheduling, biometric verification, and blockchain transcript storage. This connects to the `/interview/setup` page for users and `/admin/config` for system agents.
+
+#### 2. Technical Guardrails & Constraints
+* **Data Validation:** Use Zod for schema validation. Define constraints like `interview_id` (UUID), `biometric_hash` (64 chars), `transcript_hash` (64 chars).
+* **API/Database:** Use `packages/db/schema.ts` for schema definitions. Maintain consistency with existing `ai_configurations` table.
+* **Testing Requirements:** Test schema migration integrity, foreign key constraints, and Zod validation on edge cases (nulls, overflows).
+* **Infrastructure:** Use serverless API routes for schema checks; do not use queues for schema definition.
+* **Global State:** Use `pnpm` for package management. Do not suggest packages outside `pnpm` and `Zod`.
+
+#### 3. Action Requested
+Please review `packages/db/schema.ts` and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
+```
+
+### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
+```text
+I have approved the implementation plan. 
+
+Please execute the plan and write the code. 
+Before finalizing your work:
+1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
+2. Ensure you have respected the global `PROJECT_RULES.md`.
+3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+```
+
+---
+
+<a id='step-6-document-api-contract-specifications'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='5'> Step 6: Document API Contract Specifications</label>
+
+**Purpose (Why we are building this):**
+This feature defines the strict JSON schemas and endpoint contracts required to validate interview configurations before they are stored. It prevents malformed data from corrupting the blockchain verification ledger.
 
 **Expected Outcome:**
-If successful, the Next.js app runs locally with valid environment variable validation.
-If it fails, the server throws 400 errors on missing env vars or the build fails due to dependency conflicts.
+Success returns 200 OK with a validated config ID; Failure returns 400 Bad Request with specific Zod error paths.
+
+**User Experience (UX) Flow:**
+*   This connects the `/admin/config` page (where agents are configured) to the `/api/agent/config` endpoint.
+*   Users submit forms that trigger API validation before persistence on the `/interview/setup` page.
+
+### Phase 1: Planning (Copy & Paste to your AI first)
+```text
+We are building the **Document API Contract Specifications** feature.
+
+#### 1. UX & Logic Description
+The UI on `/admin/config` submits agent settings to the backend via `POST /api/agent/config`. 
+The frontend validates data locally using Zod before sending the request to ensure network efficiency.
+This flow connects directly to `/interview/setup` for initializing verified sessions.
+
+#### 2. Technical Guardrails & Constraints
+*   **Data Validation
 
 ---
 
-<a id='step-6-chapter-6-define-database-tables-and-columns'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='5'> Step 6: Chapter 6: Define Database Tables and Columns</label>
+<a id='step-7-create-shared-type-definitions-package'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='6'> Step 7: Create Shared Type Definitions Package</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Ensure your database provider (e.g., Supabase, Neon, PlanetScale) is provisioned and the `DB_CONNECTION_STRING` is active in your `.env` file before running migrations.</li>
+    <li>Ensure the `packages/types` directory exists within the root `packages/` folder.</li>
+    <li>Update `pnpm-workspace.yaml` to include `packages/types` in the workspace packages list.</li>
+    <li>Run `pnpm install` to sync the new package dependency tree before proceeding.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This step formalizes the data structure required to store biometric verification hashes and interview transcripts securely. It ensures data integrity before blockchain anchoring and prevents schema drift during development.
+This feature establishes a single source of truth for data structures, preventing type mismatches between the `/admin/config` frontend and the `POST /api/agent/config` backend. It ensures biometric verification data and interview transcripts remain consistent across the Monad blockchain integration.
 
 **User Experience (UX) Flow:**
-This backend schema directly supports the `src/app/page.tsx` (Interview Start) and the Memory Rules configuration flow. Users will not see these tables, but their data persistence relies on this definition for session tracking.
+Developers will import these types into `/admin/config` and `/interview/setup` pages to enforce validation on user inputs. This creates a seamless flow where form errors immediately reflect database schema constraints without runtime crashes.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 6: Define Database Tables and Columns** feature.
+We are building the **Create Shared Type Definitions Package** feature.
 
 #### 1. UX & Logic Description
-This step defines the underlying data model for the BlockChainInterview app. 
-It connects to the `src/app/page.tsx` session initialization and the `/api/agents/memory` endpoint.
-The schema must support `interview_sessions` for tracking and `memory_rules` for AI constraints.
+This package creates a central `packages/types/src/index.ts` file containing Zod schemas. These schemas will be imported by the `/admin/config` page for form validation and by the `POST /api/agent/config` route for request parsing. This ensures that the `ai_configurations` table structure is enforced consistently across the application stack.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** Use Zod for all schema definitions. Max character length 255 for text fields. All ID fields required.
-* **API/Database:** 
-    *   Table: `interview_sessions` (Columns: `id`, `user_id`, `biometric_hash`, `transcript_ref`, `monad_tx_hash`, `created_at`).
-    *   Table: `memory_rules` (Columns: `id`, `rule_key`, `rule_value`, `created_at`).
-    *   File: `src/schema/memory-schema.ts` (Extend for DB models).
-    *   File: `src/schema/interview-schema.ts` (Create new for interview logic).
-    *   Endpoint: `/api/agents/memory` (Reads/Writes these tables).
-* **Testing Requirements:** Test schema migration success. Test Zod validation failure (400 Bad Request). Test missing record retrieval (404 Not Found).
+* **Data Validation:** Define Zod schemas for `ai_configurations` (id: UUID, system_prompt: string max 64 chars, safety_level: enum, updated_at: timestamp).
+* **API/Database:** Types must match `packages/db/schema.ts` exactly and validate payloads for `POST /api/agent/config`.
+* **Testing Requirements:** Test schema inference, ensure 400 Bad Request returns for invalid payloads, and verify type exports are clean.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -429,451 +1017,136 @@ Before finalizing your work:
 1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
 2. Ensure you have respected the global `PROJECT_RULES.md`.
 3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+4. Verify that `packages/types` exports strictly typed Zod schemas used in `packages/db/schema.ts`.
+5. Confirm no external packages outside the Tech Matrix (Zod, pnpm) are introduced.
 ```
 
 ---
 
-<a id='step-7-chapter-7-create-user-account-table-schema'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='6'> Step 7: Chapter 7: Create User Account Table Schema</label>
+<a id='step-8-build-adapter-interface-contracts'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='7'> Step 8: Build Adapter Interface Contracts</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Ensure the `DB_CONNECTION_STRING` environment variable is active and accessible in your local development environment before defining the schema.</li>
-    <li>Verify that the database migration tool (e.g., Prisma or Drizzle) is installed and configured in `package.json` before running schema updates.</li>
+    <li>None. Ensure `.env` contains `AI_PROVIDER_API_KEY` and `DATABASE_URL` as per previous setup steps.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This step defines the `users` table schema to link interview sessions to specific human identities via foreign keys. It is necessary to enable biometric verification and blockchain authentication for each unique user account.
-
-**User Experience (UX) Flow:**
-*   **Connected Pages:** Registration Page (`/register`), Login Page (`/login`), and Interview Dashboard (`/dashboard`).
-*   **Visual Expectations:** Users input credentials during sign-up; the system validates against this schema before creating a `user_id` for future interview sessions.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 7: Create User Account Table Schema** feature.
-
-#### 1. UX & Logic Description
-This feature creates the database schema for user accounts, which connects to the Registration and Login pages.
-It ensures every interview session in the `interview_sessions` table is linked to a valid `user_id` from this new `users` table.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** Use Zod for all schema definitions.
-    *   `email`: Required, max 255 characters, valid email format.
-    *   `id`: Primary key, UUID or Integer (consistent with `interview_sessions`).
-    *   `created_at`: Timestamp, required.
-* **API/Database:** 
-    *   Table Name: `users`.
-    *   File Path: `src/schema/user-schema.ts`.
-    *   Constraint: Must match the `user_id` type in `interview_sessions` (Chapter 6).
-* **Testing Requirements:** 
-    *   Test schema validation for missing fields and invalid email formats.
-    *   Test foreign key integrity between `users` and `interview_sessions`.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
----
-
-<a id='step-8-chapter-8-create-interview-session-table-schema'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='7'> Step 8: Chapter 8: Create Interview Session Table Schema</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Ensure `DB_CONNECTION_STRING` is populated in your `.env` file before running migrations.</li>
-    <li>Verify `MONAD_RPC_URL` is set in `.env` for blockchain transaction logging.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This step finalizes the data structure for storing interview metadata, linking users to their blockchain transcripts. It ensures data integrity and prepares the database for session creation APIs.
-
-**User Experience (UX) Flow:**
-Users interact with this schema during the "Interview Dashboard" when creating a new session. It connects to "User Profile" for identity verification and "Interview History" for viewing past records.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 8: Create Interview Session Table Schema** feature.
-
-#### 1. UX & Logic Description
-The schema enables the "Interview Dashboard" to save session metadata securely. It links a `user_id` from the `users` table to a new `interview_sessions` record. This ensures every interview is traceable to a verified identity and blockchain hash.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** Use Zod for `src/schema/interview-schema.ts`. `biometric_hash` max 255 chars, `monad_tx_hash` max 255 chars, `user_id` required.
-* **API/Database:** Reference `interview_sessions` and `users` tables. Support `/api/agents/memory` pattern for future session endpoints.
-* **Testing Requirements:** Test schema validation (happy path), FK constraint violations (edge case), and null checks.
-* **Infrastructure Physics:** Use Serverless API routes for schema validation logic.
-* **Global State Registry:** Use only Zod, Next.js, and ORM (Prisma/Drizzle) as per Chapter 1-7.
-* **Separation of AI Concerns:** Ensure schema generation is distinct from evaluation logic.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
----
-
-<a id='step-9-chapter-9-create-blockchain-record-table-schema'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='8'> Step 9: Chapter 9: Create Blockchain Record Table Schema</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Ensure your database migration tool (e.g., Drizzle/Prisma) is configured in `src/config/env.ts` before generating schema files.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This step creates a dedicated table to store immutable blockchain transaction proofs linked to interview sessions, ensuring audit integrity separate from session metadata. It prevents data tampering by anchoring interview records to the Monad blockchain.
-
-**User Experience (UX) Flow:**
-This feature connects to the `src/app/interview/[id]/page.tsx` to display verification status (e.g., "Verified on Blockchain"). Users see a read-only badge indicating the transaction hash and block confirmation status.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 9: Create Blockchain Record Table Schema** feature.
-
-#### 1. UX & Logic Description
-This schema defines the `blockchain_records` table to store immutable on-chain verification data. It links directly to the `interview_sessions` table via a foreign key to ensure data integrity. The frontend will read this table to display verification badges on the Interview Session Page.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** Use Zod for all schemas. `tx_hash` must be 255 chars max, `block_number` must be a positive integer. `status` must be enum ['pending', 'confirmed', 'failed'].
-* **API/Database:** Create file `src/schema/blockchain-record-schema.ts`. Table name `blockchain_records`. Columns: `id` (uuid), `interview_session_id` (uuid, FK), `tx_hash` (string), `block_number` (int), `status` (enum), `created_at` (timestamp).
-* **Testing Requirements:** Test schema validation for invalid hashes. Test Foreign Key constraint enforcement between `blockchain_records` and `interview_sessions`. Test edge cases like duplicate transaction hashes.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md` and previous architectural decisions (Zod, Serverless, Next.js).
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Verify that `src/schema/blockchain-record-schema.ts` aligns with `src/schema/interview-schema.ts` for FK consistency.
-```
-
----
-
-<a id='step-10-chapter-10-define-api-endpoint-list'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='9'> Step 10: Chapter 10: Define API Endpoint List</label>
-
-**Purpose (Why we are building this):**
-This step defines the communication contracts between the frontend interview interface and the backend blockchain verification logic. It prevents integration drift between the dual-phone biometric capture and the Monad ledger recording.
-
-**User Experience (UX) Flow:**
-Users interact with this via `src/app/interview/[id]/page.tsx` to initiate sessions and `src/app/page.tsx` for landing. The API list ensures seamless data flow from session creation to blockchain verification.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 10: Define API Endpoint List** feature.
-
-#### 1. UX & Logic Description
-The API list connects `src/app/interview/[id]/page.tsx` to backend routes for session creation and blockchain verification. It enables users to upload biometric hashes and retrieve verification status via the Monad network.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** Use Zod for all payloads (max 255 chars, required IDs).
-* **API/Database:** Use `src/app/api/.../route.ts` (Serverless) and tables `interview_sessions`, `block
-
----
-
-<a id='step-11-chapter-11-document-login-request-format'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='10'> Step 11: Chapter 11: Document Login Request Format</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Set the `JWT_SECRET` environment variable in your `.env` file for session signing.</li>
-    <li>Ensure `DB_CONNECTION_STRING` is active to access the `users` table.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This feature establishes the authentication gateway for users to access interview sessions securely. It prevents unauthorized access to biometric and blockchain-verified data.
-
-**User Experience (UX) Flow:**
-*   Users land on `src/app/login/page.tsx` to enter credentials.
-*   Successful login redirects to `src/app/dashboard/page.tsx`.
-*   Failed login displays a specific error message on the same page.
-
-**Expected Outcomes:**
-*   If successful, the user receives a session token and sees the dashboard.
-*   If failed, the system returns a 401 error with a clear invalid credential message.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 11: Document Login Request Format** feature.
-
-#### 1. UX & Logic Description
-The user interacts with the Login Page (`src/app/login/page.tsx`) to submit credentials.
-Upon validation, the system creates a session and redirects to the Dashboard (`src/app/dashboard/page.tsx`).
-If validation fails, the page remains open with an error state.
-
-#### 2. Technical Guardrails & Constraints
-*   **Data Validation:** Use Zod in `src/schema/auth-schema.ts`. Email must be valid format. Password min 8 chars.
-*   **API/Database:** Endpoint `/api/auth/login`. Use `users` table (id, email, password_hash). Return 400 for validation, 401 for auth fail.
-*   **Testing Requirements:** Test happy path (valid creds), edge case (wrong password), and edge case (non-existent user).
-
-####
-
----
-
-<a id='step-12-chapter-12-document-interview-start-request-format'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='11'> Step 12: Chapter 12: Document Interview Start Request Format</label>
-
-**Purpose (Why we are building this):**
-*   This feature defines the API payload and logic to initiate a new interview session securely.
-*   It ensures every interview is linked to a verified user and prepared for blockchain recording.
-
-**User Experience (UX) Flow:**
-*   User clicks "Start Interview" on `src/app/dashboard/page.tsx`.
-*   System navigates to `src/app/interview/[id]/page.tsx` with a new session ID.
-*   API call `POST /api/interviews/start` creates the record in `interview_sessions` table.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 12: Document Interview Start Request Format** feature.
-
-#### 1. UX & Logic Description
-*   **Entry Point:** User triggers start action from `src/app/dashboard/page.tsx`.
-*   **Navigation:** Redirects to `src/app/interview/[id]/page.tsx` using the new session ID.
-*   **Logic:** Client sends user credentials; Server validates and inserts into `interview_sessions` table.
-
-#### 2. Technical Guardrails & Constraints
-*   **Data Validation:** Use Zod in `src/schema/interview-schema.ts`. Max 255 chars for hashes. Required `user_id`.
-*   **API/Database:** Endpoint `POST /api/interviews/start`. Insert into `interview_sessions` (columns: `id`, `user_id`, `biometric_hash`, `transcript_ref`, `monad_tx_hash`, `created_at`).
-*   **Testing Requirements:** Test happy path (200 OK) and validation failures (400 Bad Request).
-*   **Infrastructure:** Use serverless API routes (`src/app/api/interviews/start/route.ts`). No queues.
-*   **Global Registry:** Adhere strictly to packages in PROJECT_RULES.md Tech Matrix.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
----
-
-<a id='step-13-chapter-13-document-transcript-upload-request-format'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='12'> Step 13: Chapter 13: Document Transcript Upload Request Format</label>
-
-**Purpose (Why we are building this):**
-This feature captures the interview transcript file to be hashed and anchored on the Monad blockchain for immutable verification. It ensures the text data matches the verified biometric session to combat AI deepfakes.
-
-**User Experience (UX) Flow:**
-*   **Primary Page:** `src/app/interview/[id]/page.tsx` (Interview Session Dashboard).
-*   **Interaction:** User selects a file via a drag-and-drop zone or file picker.
-*   **Feedback:** A success toast appears upon upload; errors display inline if validation fails.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 13: Document Transcript Upload Request Format** feature.
-
-#### 1. UX & Logic Description
-The user interacts with `src/app/interview/[id]/page.tsx` to upload a transcript file (PDF/Text) linked to their active session. The frontend sends a POST request to the API which validates the file, stores it, and updates the `interview_sessions` table with the reference path.
-
-#### 2. Technical Guardrails & Constraints
-*   **Data Validation:** Use Zod in `src/schema/transcript-schema.ts`. Max file size 5MB, allowed types `.pdf`, `.txt`, `.docx`. `interview_id` must be a valid UUID.
-*   **API/Database:** Endpoint `POST /api/interviews/[id]/transcript`. Updates `interview_sessions` table column `transcript_ref`. Return 400 for validation, 404 for missing session, 500 for storage failure.
-*   **Testing Requirements:** Test valid file upload (200 OK), invalid extension (400), and missing interview ID (404). Verify `transcript_ref` updates in DB.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Verify that the Zod schema strictly matches the API payload requirements.
-5. Confirm that the `interview_sessions` table update logic handles transaction rollbacks correctly.
-```
-
----
-
-<a id='step-14-chapter-14-document-verification-response-format'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='13'> Step 14: Chapter 14: Document Verification Response Format</label>
-
-**Purpose (Why we are building this):**
-*   This feature defines the standardized JSON structure returned when a transcript is verified against the Monad blockchain and biometric data.
-*   It ensures the frontend can reliably display verification status, preventing UI inconsistencies and data misinterpretation.
-
-**User Experience (UX) Flow:**
-*   **Pages:** Connects directly to `src/app/interview/[id]/page.tsx` (Interview Detail) and `src/app/dashboard/page.tsx` (Status Overview).
-*   **Interaction:** User uploads transcript (Ch 13), system processes, and this response format confirms validity or flags discrepancies.
-*   **Visuals:** Verification badge updates based on the `status` field in the response payload.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 14: Document Verification Response Format** feature.
-
-#### 1. UX & Logic Description
-The system must return a standardized JSON object confirming transcript verification status after upload. This response connects to `src/app/interview/[id]/page.tsx` to update the UI with a verification badge. The logic checks the `monad_tx_hash` in `interview_sessions` against the blockchain to validate authenticity.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** Use Zod at `src/schema/verification-schema.ts`. Enforce `status` as an enum ('verified', 'pending', 'failed'). Limit `tx_hash` to 255 characters.
-* **API/Database:** Implement `GET /api/interviews/[id]/verification` at `src/app/api/interviews/[id]/verification/route.ts`. Query `interview_sessions` and `blockchain_records` tables. Return 200 OK on success, 404 if session missing.
-* **Testing Requirements:** Test happy path (valid hash returns 'verified'). Test edge cases (invalid hash returns 'failed', missing ID returns 404).
-* **AI Concerns:** Define strict JSON Schema for the response. Do not allow AI to self-grade the schema; separate Generate (schema creation) and Evaluate (schema validation) logic.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
----
-
-<a id='step-15-chapter-15-set-up-local-database-connection'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='14'> Step 15: Chapter 15: Set Up Local Database Connection</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Ensure a local PostgreSQL database instance is running (via Docker or local install)</li>
-    <li>Verify `DB_CONNECTION_STRING` is configured in your local `.env` file matching the format in `.env.example`</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This step establishes the local database connection required for all subsequent interview session, user, and blockchain record operations. Without a working database connection, no data can be persisted or retrieved for biometric verification and transcript authentication.
-
-**User Experience (UX) Flow:**
-This feature has no direct user-facing UI. It enables the backend functionality that supports the `src/app/dashboard/page.tsx` (interview start), `src/app/interview/[id]/page.tsx` (transcript upload), and `src/app/interview/[id]/verification/page.tsx` (verification badge display) pages.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 15: Set Up Local Database Connection** feature.
-
-#### 1. UX & Logic Description
-This feature establishes the database connection layer that all API routes depend on. It connects the Next.js application to the local PostgreSQL database where `users`, `interview_sessions`, `memory_rules`, and `blockchain_records` tables reside. No direct user interaction occurs; this enables all data persistence for the interview verification flow.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** Connection string must be validated via Zod in `src/config/env.ts` (max 255 chars, required field)
-* **API/Database:** Use `DB_CONNECTION_STRING` environment variable; connect to tables: `users`, `interview_sessions`, `memory_rules`, `blockchain_records`
-* **Testing Requirements:** Test connection on app startup, verify 400 error on invalid connection string, test 200 OK on successful connection
-* **Infrastructure:** Use serverless API routes (Next.js App Router pattern)
-* **Global State:** Do not introduce new packages outside Tech Matrix in PROJECT_RULES.md
-* **Schema Consistency:** Must reference existing schemas: `src/schema/user-schema.ts`, `src/schema/interview-schema.ts`, `src/schema/memory-schema.ts`, `src/schema/blockchain-record-schema.ts`
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
-**Testing Requirements:**
-* **Connection Test:** Verify database connection succeeds on app startup
-* **Validation Test:** Confirm 400 Bad Request returns if `DB_CONNECTION_STRING` is missing or malformed
-* **Schema Test:** Verify all 4 tables (`users`, `interview_sessions`, `memory_rules`, `blockchain_records`) are accessible
-* **Environment Test:** Confirm `.env` file loads correctly in local development
-* **Edge Case:** Test connection timeout handling (5-second max)
-
-**Files to Create/Modify:**
-* `src/config/db-connection.ts` (new) - Database connection singleton
-* `.env` (update) - Add local `DB_CONNECTION_STRING`
-* `.env.example` (update) - Add example `DB_CONNECTION_STRING` format
-
-**Expected Results:**
-* **Success:** Application starts without database connection errors; API routes can query tables successfully
-* **Failure:** Application throws clear error message indicating missing/invalid `DB_CONNECTION_STRING` in `.env`
-
-**Code Review Reminders:**
-* Ask your IDE to check for recursive loops in connection pooling logic
-* Verify JSON schemas match natural language prompts in validation messages
-* Ensure no hardcoded credentials exist in source code
-* Confirm all file paths match PROJECT_RULES.md structure exactly
-
----
-
-<a id='step-16-chapter-16-build-user-registration-screen'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='15'> Step 16: Chapter 16: Build User Registration Screen</label>
-
-**Purpose (Why we are building this):**
-This feature enables new users to create accounts to access interview verification tools. Without this, users cannot authenticate to start dual-phone interviews or store blockchain transcripts.
+This step defines standardized TypeScript interfaces and Zod schemas for AI agents to communicate with external blockchain and biometric services. It is necessary to prevent data drift and ensure interview transcripts are authenticated correctly across the Monad blockchain.
 
 **Expected Outcome:**
-If successful, a new user record is created in the `users` table and redirected to the Dashboard. If it fails, the UI displays specific validation errors (e.g., 409 Conflict for duplicate email) without creating a record.
+If successful, the system will validate adapter configurations via Zod before storing them in `ai_configurations`, returning a 200 OK with a config ID. If it fails, the API will return a 400 Bad Request with specific Zod error paths, preventing invalid contracts from being deployed.
 
 **User Experience (UX) Flow:**
-Users access this via the Register link on the Login page (`src/app/login/page.tsx`). Upon success, they redirect to the Dashboard (`src/app/dashboard/page.tsx`). The form includes Email, Password, and Confirm Password fields.
+Admins access `/admin/config` to define adapter contracts, which are then selectable by users on `/interview/setup` during interview creation. This ensures users only utilize verified, authenticated adapter configurations for their blockchain-verified interviews.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 16: Build User Registration Screen** feature.
+We are building the **Build Adapter Interface Contracts** feature.
 
 #### 1. UX & Logic Description
-Create a registration form at `src/app/register/page.tsx` linking back to Login (`src/app/login/page.tsx`). 
-On submit, validate inputs client-side then POST to `src/app/api/auth/register/route.ts`. 
-Success redirects to `src/app/dashboard/page.tsx`; failure displays error messages inline.
+Admins configure adapter contracts on the `/admin/config` page, selecting specific blockchain or biometric providers. These contracts are stored as configurations and become selectable options on the `/interview/setup` page for end-users. The flow ensures only validated contracts are used for interview authentication.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** Use Zod in `src/schema/user-schema.ts`. Email: required, max 255 chars. Password: required, min 8 chars. Confirm Password: must match.
-* **API/Database:** Endpoint `POST /api/auth/register`. DB Table `users` (columns: `id`, `email`, `password_hash`, `created_at`). 
-* **Testing Requirements:** Test happy path (new user), edge case (duplicate email 409), and edge case (weak password 400).
-* **Infrastructure:** Use standard Next.js serverless API routes. Do not use queues.
-* **Structured Outputs:** Define strict Zod schema for request body before processing.
+* **Data Validation:** Use Zod in `packages/types/src/index.ts` to validate adapter payloads (max 500 chars for description, enum for provider type).
+* **API/Database:** Use `POST /api/agent/config` to save contracts; map data to `ai_configurations` table (`id`, `system_prompt`, `safety_level`, `updated_at`).
+* **Testing Requirements:** Test happy path (200 OK), validation failure (400 Bad Request), and ensure `packages/types` matches `packages/db/schema.ts`.
+* **Structured Outputs:** Define strict JSON Schema for adapter responses and pass it to the AI provider's SDK.
+* **Separation of Concerns:** Generate adapter contracts separately from evaluating their validity; do not allow AI to grade its own output.
+
+#### 3. Action Requested
+Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
+```
+
+### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
+```text
+I have approved the implementation plan. 
+
+Please execute the plan and write the code. 
+Before finalizing your work:
+1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
+2. Ensure you have respected the global `PROJECT_RULES.md` and Tech Matrix.
+3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+4. Verify that `packages/types` exports align with `packages/db/schema.ts` column names.
+5. Confirm serverless API routes handle heavy tasks asynchronously if needed.
+```
+
+---
+
+<a id='step-9-implement-biometric-authentication-adapter'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='8'> Step 9: Implement Biometric Authentication Adapter</label>
+
+**Purpose (Why we are building this):**
+This feature implements a secure biometric adapter to verify user identity during interviews, preventing AI deepfakes by requiring real-time biometric data. It is necessary to establish trust in the BlockChainInterview platform before blockchain transcript authentication can occur.
+
+**User Experience (UX) Flow:**
+Users access this feature via the `/interview/setup` page where they initiate a dual-phone verification process. The UI must display a biometric permission prompt and a real-time status indicator confirming verification success before allowing interview progression.
+
+### Phase 1: Planning (Copy & Paste to your AI first)
+```text
+We are building the **Implement Biometric Authentication Adapter** feature.
+
+#### 1. UX & Logic Description
+The user interacts with the `/interview/setup` page to trigger a biometric verification flow on their device. Upon success, the system updates the interview session status and stores verification metadata in the database.
+
+#### 2. Technical Guardrails & Constraints
+* **Data Validation:** Use Zod in `packages/types/src/index.ts` for all payloads. Constraints: `id` (UUID), `verification_status` (enum: 'pending', 'verified', 'failed'), `biometric_hash` (max 64 chars).
+* **API/Database:** Create endpoint `POST /api/auth/biometric` in `apps/api`. Update schema in `packages/db/schema.ts` by adding `biometric_sessions` table (pattern: `ai_configurations` style).
+* **Testing Requirements:** Test happy path (successful verification returns 200) and edge cases (invalid hash returns 400, missing device token returns 401).
+* **Infrastructure:** Use standard serverless API routes for this task.
+* **Structured Outputs:** Define a strict JSON Schema using Zod for the API response before passing to the provider.
+
+#### 3. Action Requested
+Please review the relevant files (`packages/db/schema.ts`, `packages/types/src/index.ts`) and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
+```
+
+### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
+```text
+I have approved the implementation plan. 
+
+Please execute the plan and write the code. 
+Before finalizing your work:
+1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
+2. Ensure you have respected the global `PROJECT_RULES.md` and Tech Matrix (pnpm, Zod, packages/db).
+3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+```
+
+---
+
+<a id='step-10-setup-local-sqlite-storage-adapter'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='9'> Step 10: Setup Local SQLite Storage Adapter</label>
+
+<div class="manual-action-alert">
+<h4>⚠️ Manual Developer Action Required</h4>
+<ul>
+    <li>Install the SQLite driver package (e.g., `better-sqlite3`) via `pnpm add better-sqlite3` in the `packages/db` directory.</li>
+    <li>Ensure `DB_PATH` is set in `.env` pointing to `./db.sqlite` for local development.</li>
+</ul>
+</div>
+
+**Purpose (Why we are building this):**
+This feature establishes a local-first data persistence layer for interview transcripts, enabling offline capability before blockchain synchronization. It is necessary to ensure data integrity and speed during the interview process without immediate network dependency.
+
+**Expectation:**
+Success creates a `db.sqlite` file with initialized tables (`ai_configurations`, `biometric_sessions`) ready for local queries. Failure results in connection errors or schema mismatch exceptions that prevent the app from starting.
+
+**User Experience (UX) Flow:**
+This feature supports data caching on `/interview/setup` for rapid local retrieval and `/admin/config` for schema verification. Users interact with this transparently as data syncs locally before uploading to the Monad blockchain.
+
+### Phase 1: Planning (Copy & Paste to your AI first)
+```text
+We are building the **Setup Local SQLite Storage Adapter** feature.
+
+#### 1. UX & Logic Description
+This adapter initializes a local SQLite database file for the BlockChainInterview app to store interview transcripts and biometric sessions locally. It connects to the `/interview/setup` page for caching and `/admin/config` for schema validation.
+
+#### 2. Technical Guardrails & Constraints
+* **Data Validation:** Use Zod schemas from `packages/types/src/index.ts` to validate all inputs before DB insertion.
+* **API/Database:** Create `packages/db/src/adapter.ts` using `packages/db/schema.ts`. Reference tables `ai_configurations` (id, system_prompt, safety_level, updated_at) and `biometric_sessions` (verification_status, biometric_hash).
+* **Testing Requirements:** Test happy path (DB initialization) and edge cases (file lock, schema drift).
+* **Constraints:** Max 64 chars for hashes, required fields for `system_prompt`, enum for `safety_level`.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -888,608 +1161,50 @@ Before finalizing your work:
 1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
 2. Ensure you have respected the global `PROJECT_RULES.md`.
 3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Verify `src/config/db-connection.ts` is used for DB access and `src/config/env.ts` for validation.
-5. Ensure no new packages are added outside the Tech Matrix (Next.js, Zod, Tailwind).
+4. Verify `packages/db/src/adapter.ts` connects correctly to `packages/db/schema.ts` without external package violations.
 ```
 
 ---
 
-<a id='step-17-chapter-17-build-user-login-screen'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='16'> Step 17: Chapter 17: Build User Login Screen</label>
+<a id='step-11-configure-speech-to-text-adapter'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='10'> Step 11: Configure Speech-to-Text Adapter</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Ensure the `JWT_SECRET` environment variable is defined in both `.env` and `.env.example` files.</li>
-    <li>Verify `DB_CONNECTION_STRING` is active and pointing to the local PostgreSQL instance from Chapter 15.</li>
+    <li>Add `STT_API_KEY` and `AI_PROVIDER_API_KEY` to your root `.env` file.</li>
+    <li>Ensure `packages/db` is migrated to reflect new adapter configuration columns.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This step enables authenticated access to interview sessions and blockchain verification features. It secures user identity before allowing biometric interview initiation.
+* This feature configures the adapter logic to transcribe interview audio for blockchain verification.
+* It is necessary to convert spoken words into text before hashing and storing on the Monad blockchain.
+
+**Expected Outcome:**
+* **Success:** The adapter accepts audio input and returns structured JSON text via the API.
+* **Failure:** Returns 400 Bad Request if API keys are missing or audio format is invalid.
 
 **User Experience (UX) Flow:**
-*   User lands on `src/app/login/page.tsx`, enters credentials, and submits.
-*   Success redirects to `src/app/dashboard/page.tsx`; failure displays inline error on the login form.
+* **Pages:** Connects to `/admin/config` for provider setup and `/interview/setup` for enabling STT.
+* **Visuals:** Admins see a dropdown to select the STT provider; users see a "Transcribing..." status during interviews.
+* **Interaction:** Admins save configuration; the system validates input via Zod before storing in `ai_configurations`.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 17: Build User Login Screen** feature.
-
-#### 1. UX & Logic Description
-Create a login form on `src/app/login/page.tsx` collecting email and password. Include a link to `src/app/register/page.tsx` for new users and a submit button that triggers `POST /api/auth/login`. Upon success, redirect to `src/app/dashboard/page.tsx`.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** Use Zod in `src/schema/auth-schema.ts`. Email required, max 255 chars. Password required, min 8 chars.
-* **API/Database:** Use `src/app/api/auth/login/route.ts` (Serverless). Query `users` table (`id`, `email`, `password_hash`). Return 200 OK with JWT on success. Return 400 Bad Request for validation failure. Return 401 Unauthorized for invalid credentials.
-* **Testing Requirements:** Test valid login (redirects), invalid password (401), missing fields (400), and non-existent email (401). Ensure no packages outside Next.js, Zod, Tailwind are used.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
----
-
-<a id='step-18-chapter-18-build-biometric-verification-screen'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='17'> Step 18: Chapter 18: Build Biometric Verification Screen</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Ensure the deployment environment enforces HTTPS, as biometric camera access requires secure contexts.</li>
-    <li>Verify `DB_CONNECTION_STRING` and `JWT_SECRET` are correctly set in `.env` before starting development.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-*   This screen captures a live biometric hash to verify human presence and prevent AI deepfakes during interviews.
-*   Success results in a stored `biometric_hash` in the `interview_sessions` table; failure blocks session start with a 400/404 error.
-
-**User Experience (UX) Flow:**
-*   User navigates to `src/app/interview/[id]/page.tsx` and sees a "Verify Identity" button.
-*   Clicking triggers a browser camera prompt; upon capture, a local hash is generated and sent to the API.
-*   The screen connects directly to `src/app/dashboard/page.tsx` (previous step) and `src/app/api/interviews/start/route.ts`.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 18: Build Biometric Verification Screen** feature.
-
-#### 1. UX & Logic Description
-The UI resides in `src/app/interview/[id]/page.tsx` and includes a video preview and "Capture & Verify" button.
-Clicking the button triggers `navigator.mediaDevices.getUserMedia` to access the camera.
-A SHA-256 hash of the captured frame is generated client-side using the Web Crypto API.
-This hash is submitted to `POST /api/interviews/start` alongside the `user_id`.
-The screen connects to `src/app/dashboard/page.tsx` for entry and `src/app/interview/[id]/page.tsx` for processing.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** `biometric_hash` must be max 255 chars (Zod), `user_id` is required.
-* **API/Database:** Use `POST /api/interviews/start` endpoint; handle 400 (Validation) and 404 (Not Found) errors.
-* **Testing Requirements:** Test camera permission denial, hash generation, and API 200/400 responses.
-* **Tech Stack:** Use only Next.js, Zod, Tailwind, and Web Crypto API (No external biometric SDKs).
-* **Schema:** Validate input against `src/schema/interview-schema.ts` before API submission.
-* **Database:** Update `interview_sessions` table with `biometric_hash` column upon success.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md` and Tech Matrix constraints.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Verify the `biometric_hash` column in `interview_sessions` is populated correctly.
-5. Confirm error handling for 400 Bad Request and 404 Not Found is implemented.
-6. Ensure no external packages are introduced beyond Next.js, Zod, and Tailwind.
-7. Verify HTTPS is enforced for camera access permissions.
-8. Check that `src/app/interview/[id]/page.tsx` correctly handles the API response state.
-9. Validate that `src/schema/interview-schema.ts` enforces the 255 character limit on hashes.
-10. Ensure the `user_id` is correctly passed from the session context to the API payload.
-```
-
----
-
-<a id='step-19-chapter-19-build-interview-start-screen'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='18'> Step 19: Chapter 19: Build Interview Start Screen</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Verify that `DB_CONNECTION_STRING` and `JWT_SECRET` are present in your local `.env` file before proceeding.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This feature allows authenticated users to initiate a new interview session, creating a database record and redirecting to the biometric capture screen. It bridges the Dashboard and the Interview execution phase, ensuring session integrity before biometric verification begins.
-
-**User Experience (UX) Flow:**
-*   **Entry Point:** User clicks "Start New Interview" on `src/app/dashboard/page.tsx`.
-*   **Intermediate Page:** User lands on `src/app/interview/start/page.tsx` to confirm session details.
-*   **Action:** User submits the form, triggering `POST /api/interviews/start`.
-*   **Exit Point:** On success, user redirects to `src/app/interview/[id]/page.tsx` for biometric verification.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 19: Build Interview Start Screen** feature.
-
-#### 1. UX & Logic Description
-Design a simple confirmation page at `src/app/interview/start/page.tsx` that appears after clicking 'Start Interview' on the dashboard. This page must call the existing API endpoint `POST /api/interviews/start` to create a session record in the `interview_sessions` table. Upon receiving a 200 OK response containing the new `id`, redirect the user immediately to `src/app/interview/[id]/page.tsx` where biometrics are handled.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** Use `src/schema/interview-schema.ts` (Zod) to validate `user_id` (required string) on the API side.
-* **API/Database:** Use `POST /api/interviews/start` to insert into `interview_sessions` table (columns: `user_id`, `created_at`).
-* **Testing Requirements:** Test 200 OK redirect flow, 400 Bad Request for missing user_id, and 401 Unauthorized if token is missing.
-* **Infrastructure:** Use standard Next.js Serverless API routes; do not implement queues.
-* **Global State:** Do not introduce new packages; rely on Next.js, Zod, and Tailwind as per Tech Matrix.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
----
-
-<a id='step-20-chapter-20-build-qr-code-generator-screen'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='19'> Step 20: Chapter 20: Build QR Code Generator Screen</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>None. This feature uses existing database tables and serverless infrastructure.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This feature generates a scannable QR code for interview sessions to enable the second phone (interviewer) to link and verify the session securely. It is necessary to combat AI deepfakes by ensuring physical presence and dual-device authentication.
-
-**User Experience (UX) Flow:**
-*   User navigates from `src/app/interview/start/page.tsx` to `src/app/interview/[id]/qr/page.tsx`.
-*   Screen displays a large QR code representing the interview session ID and a "Copy Link" fallback.
-*   Scanning directs the second phone to `src/app/interview/connect/page.tsx` (future feature) to join the session.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 20: Build QR Code Generator Screen** feature.
-
-#### 1. UX & Logic Description
-Create a new page `src/app/interview/[id]/qr/page.tsx` that renders a QR code based on the interview session ID passed in the URL params. The UI must connect back to `src/app/interview/start/page.tsx` via a "Back" button. Since we cannot add new packages per Chapter 19 constraints, implement a client-side SVG QR code generator function within the component or use a lightweight CDN import if absolutely necessary, but prioritize pure JS/CSS generation.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** Interview ID must be a valid string; max 255 chars for session ID.
-* **API/Database:** Fetch session details from `interview_sessions` table (id, user_id, created_at) via `GET /api/interviews/[id]/qr-data`.
-* **Testing Requirements:** Verify 200 OK response with session data; verify 404 for invalid IDs; ensure QR renders visually.
-* **Constraints:** NO new npm packages (Next.js, Zod, Tailwind only). Use serverless API routes.
-* **Structured Output:** Define Zod schema for API response: `{ id: string, url: string, status: 'active' | 'expired' }`.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
----
-
-<a id='step-21-chapter-21-build-dual-phone-sync-screen'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='20'> Step 21: Chapter 21: Build Dual Phone Sync Screen</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Run database migration to add `session_code` (VARCHAR 255) column to `interview_sessions` table before building.</li>
-    <li>Ensure `DB_CONNECTION_STRING` is active in `.env` as per Chapter 15.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This feature enables two devices to link to a single interview session, ensuring both parties are physically present to prevent AI deepfake substitution. It establishes a secure handshake between interviewer and interviewee before biometric verification begins.
-
-**User Experience (UX) Flow:**
-*   **Interviewer:** Navigates to `src/app/interview/start/page.tsx` to generate a unique sync code.
-*   **Interviewee:** Navigates to `src/app/interview/join/page.tsx` to enter the sync code and validate session ownership.
-*   **Sync:** Both phones display a "Connected" status on `src/app/interview/[id]/page.tsx` upon successful validation.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 21: Build Dual Phone Sync Screen** feature.
-
-#### 1. UX & Logic Description
-The Interviewer views a unique 6-digit code on `src/app/interview/start/page.tsx` after session creation. The Interviewee enters this code on `src/app/interview/join/page.tsx` to fetch the session ID.
-Both devices then poll `src/app/interview/[id]/page.tsx` to confirm the `session_code` matches and status is "active".
-This connects the existing Login flow (Ch 17) and Biometric Verification (Ch 18) into a shared session context.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** `session_code` must be 6 digits (numeric), unique per session, max 255 chars.
-* **API/Database:** Use `POST /api/interviews/[id]/sync` for joining. Validate against `interview_sessions` table `session_code` column.
-* **Testing Requirements:** Test valid code match, invalid code (404), expired session (400), and concurrent joins.
-* **Infrastructure:** Use Serverless API routes (`src/app/api/.../route.ts`). No external WebSocket packages (Polling only).
-* **Constraints:** Use Zod for schema validation. No new external packages allowed (Next.js, Tailwind, Zod only).
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
-**Expected Outcomes:**
-*   **Success:** Both devices display "Synced" on `src/app/interview/[id]/page.tsx` within 5 seconds of code entry.
-*   **Failure:** Interviewee sees "Invalid Session Code" (404) if code does not match `interview_sessions` table.
-
-**Verification Reminders:**
-*   Ask your IDE to check for recursive loops in the polling logic.
-*   Ensure JSON schemas in `src/schema/interview-schema.ts` match API payloads exactly.
-*   Verify no external packages are introduced that violate the Tech Matrix.
-
----
-
-<a id='step-22-chapter-22-build-audio-recording-screen'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='21'> Step 22: Chapter 22: Build Audio Recording Screen</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Run database migration to add `audio_ref` column (VARCHAR 255) to the `interview_sessions` table before coding.</li>
-    <li>Ensure the local server is running on HTTPS to enable the browser MediaRecorder API.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This feature captures interview audio locally and links it to the session for subsequent blockchain hashing. It ensures raw data integrity before authentication, preventing AI deepfake substitution of voice data.
-
-**User Experience (UX) Flow:**
-*   **Page:** `src/app/interview/[id]/page.tsx`
-*   **Interaction:** User clicks "Start Recording" (mic icon), sees waveform, then clicks "Stop".
-*   **Feedback:** Status changes to "Processing Upload" then "Audio Saved".
-*   **Connection:** This screen is embedded within the active interview session flow, directly following the Biometric Verification.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 22: Build Audio Recording Screen** feature.
-
-#### 1. UX & Logic Description
-The user interacts with a recording widget on `src/app/interview/[id]/page.tsx`.
-Clicking start initializes the MediaRecorder API; clicking stop triggers a blob upload to `POST /api/interviews/[id]/audio`.
-The UI must show recording state (red dot), time elapsed, and upload success/error.
-
-#### 2. Technical Guardrails & Constraints
-*   **Data Validation:** Audio file size < 50MB, MIME type `audio/webm` or `audio/mp3`, Duration > 1 second.
-*   **API/Database:** Use `src/app/api/interviews/[id]/audio/route.ts` (Serverless).
-    *   Payload: `{ audio_file: FormData }`.
-    *   DB Update: Save `audio_ref` (URL/Path) in `interview_sessions` table.
-    *   Errors: 400 (Invalid File), 404 (Session Not Found), 500 (Upload Fail).
-*   **Testing Requirements:**
-    *   Happy Path: Record > Stop > Upload > DB Update verified.
-    *   Edge Case: Large file rejection, Network failure retry, HTTPS requirement check.
-*   **Global State:** Do not use new packages; rely on Next.js, Zod, and Tailwind.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md` and Tech Matrix (No new packages).
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Verify that `src/schema/audio-schema.ts` strictly validates the Zod constraints defined.
-```
-
----
-
-<a id='step-23-chapter-23-implement-speech-to-text-generation'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='22'> Step 23: Chapter 23: Implement Speech-to-Text Generation</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Obtain an API Key for a Speech-to-Text provider (e.g., OpenAI Whisper or AssemblyAI).</li>
-    <li>Add the key to your `.env` file as `STT_API_KEY` and update `.env.example`.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This step converts the recorded audio from Chapter 22 into text for blockchain anchoring and verification. It is necessary to create a human-readable transcript that can be hashed and stored on the Monad network.
-
-**User Experience (UX) Flow:**
-Users interact with the `src/app/interview/[id]/page.tsx` page after completing audio recording. They click a "Generate Transcript" button, triggering a loading state, followed by a display of the generated text.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 23: Implement Speech-to-Text Generation** feature.
-
-#### 1. UX & Logic Description
-This feature connects directly to the **Interview Recording Page** at `src/app/interview/[id]/page.tsx`.
-The UI displays a "Generate Transcript" button that becomes active only after audio recording is confirmed.
-Upon clicking, the client sends the `audio_ref` to the backend API, which processes the STT request.
-The resulting text is saved to the database and displayed on the same page in a read-only text area.
-This flow ensures the transcript is linked to the specific interview session ID and user.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** `transcript_text` must be a required string, max 10,000 characters. `audio_ref` must exist in `interview_sessions`.
-* **API/Database:** Use endpoint `POST /api/interviews/[id]/transcribe`. Update `interview_sessions` table with `transcript_text` column.
-* **Testing Requirements:** Test successful transcription flow (200 OK). Test missing audio reference (400 Bad Request). Test API failure (500 Internal Server Error).
-* **AI Constraints:** Do not allow the AI to grade its own output; treat transcription as a generation step only.
-* **Structured Outputs:** Define a strict Zod schema for the API response containing `transcript_text` and `status`.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
-**Expected Outcomes:**
-If successful, the API returns a 200 status with the transcribed text stored in the `interview_sessions` table.
-If it fails, the API returns a 400 error for missing audio or 500 for STT service failure, showing an error message to the user.
-
-**Data & Schema References:**
-*   **Database Table:** `interview_sessions`
-*   **New Column:** `transcript_text` (VARCHAR 10000)
-*   **Existing Column:** `audio_ref` (VARCHAR 255)
-*   **File Paths:** `src/app/api/interviews/[id]/transcribe/route.ts`, `src/schema/transcribe-schema.ts`, `src/app/interview/[id]/page.tsx`
-*   **API Endpoint:** `POST /api/interviews/[id]/transcribe`
-*   **Environment:** `STT_API_KEY` (from `.env`)
-
-**Testing Mandate:**
-*   **Happy Path:** Send valid `audio_ref`, verify `transcript_text` is saved and returned.
-*   **Edge Case:** Send request without `audio_ref`, verify 400 Bad Request response.
-*   **Edge Case:** Simulate STT provider failure, verify 500 Internal Server Error handling.
-
-**Verification Reminders:**
-*   Ask your IDE to check the code for errors (e.g., recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-*   Run 10 mock dry runs internally to ensure the code is safe and functional.
-
----
-
-<a id='step-24-chapter-24-implement-speech-to-text-quality-check'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='23'> Step 24: Chapter 24: Implement Speech-to-Text Quality Check</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Ensure `STT_API_KEY` is set in `.env` from Chapter 23 to retrieve confidence scores.</li>
-    <li>Run database migration to add `transcript_quality_score` (INT) and `transcript_status` (ENUM) columns to `interview_sessions` table.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This feature validates the accuracy and completeness of the generated transcript before anchoring it to the blockchain. It prevents low-quality or AI-generated hallucinations from being permanently recorded as verified evidence.
-
-**User Experience (UX) Flow:**
-Users view the transcript quality status (Green/Red) on the `src/app/interview/[id]/page.tsx` review screen after recording. A progress indicator shows the quality check running before the "Verify on Blockchain" button becomes active.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 24: Implement Speech-to-Text Quality Check** feature.
-
-#### 1. UX & Logic Description
-The user navigates to `src/app/interview/[id]/page.tsx` after recording. The UI displays a "Quality Check" badge. Upon clicking, the system calls the backend to validate the `transcript_text` stored in the `interview_sessions` table. The backend calculates a quality score based on text length and punctuation consistency, then updates the `transcript_status` column. If the score is high, the status becomes 'verified'; otherwise, 'failed'.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** `transcript_quality_score` must be an integer between 0-100. `transcript_status` must be enum: 'pending', 'verified', 'failed'. `transcript_text` must be min 10 chars, max 10000.
-* **API/Database:** Use `POST /api/interviews/[id]/transcript/quality` endpoint. Update `interview_sessions` table. Use `src/schema/interview-schema.ts` and new `src/schema/transcript-quality-schema.ts`.
-* **Testing Requirements:** Test happy path (valid text returns 'verified'), edge case (empty text returns 'failed'), and DB update verification.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
----
-
-<a id='step-25-chapter-25-build-transcript-display-screen'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='24'> Step 25: Chapter 25: Build Transcript Display Screen</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Ensure the database migration for Chapter 23/24 (`transcript_text`, `transcript_status`, `transcript_quality_score` columns) has been applied to your local PostgreSQL instance.</li>
-    <li>Verify `DB_CONNECTION_STRING` in `.env` is active and points to the correct schema.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This screen allows users to view the finalized interview transcript alongside its blockchain verification status and quality score. If successful, users see readable text with a green verification badge; if failed, they see an error state with no data.
-
-**User Experience (UX) Flow:**
-Users navigate from `src/app/interview/[id]/page.tsx` to the transcript section after recording completes. The layout displays the text in a scrollable container with a status badge indicating "Verified", "Pending", or "Failed".
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 25: Build Transcript Display Screen** feature.
-
-#### 1. UX & Logic Description
-The user views the `src/app/interview/[id]/page.tsx` screen which fetches transcript data via `GET /api/interviews/[id]/transcript`. The UI renders `transcript_text` in a text block and `transcript_status` as a colored badge (Green=Verified, Yellow=Pending, Red=Failed). It connects directly to the Interview Session page created in Chapter 19.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** `transcript_text` (VARCHAR 10000, required), `transcript_status` (Enum: 'verified' | 'pending' | 'failed'), `monad_tx_hash` (VARCHAR 255).
-* **API/Database:** Use `GET /api/interviews/[id]/transcript` endpoint. Read from `interview_sessions` table (columns: `id`, `transcript_text`, `transcript_status`, `monad_tx_hash`). Return 404 if session not found, 400 if validation fails.
-* **Testing Requirements:** Test happy path (text renders), edge case (empty transcript shows placeholder), and error path (404 returns error message).
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
----
-
-<a id='step-26-chapter-26-build-blockchain-hash-signing-screen'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='25'> Step 26: Chapter 26: Build Blockchain Hash Signing Screen</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Verify `MONAD_RPC_URL` is present in your `.env` file with a valid Mainnet or Testnet RPC endpoint.</li>
-    <li>Ensure your local database migration has created the `blockchain_records` table as defined in Chapter 9.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This feature anchors the verified interview transcript hash to the Monad blockchain, creating an immutable record that proves the data has not been altered by AI or tampering. It is necessary to fulfill the core product promise of deepfake-resistant interview verification.
-
-**User Experience (UX) Flow:**
-The user navigates to the Interview Detail page (`src/app/interview/[id]/page.tsx`) where they see a "Sign to Blockchain" button after transcript generation. Upon clicking, the system signs the hash, displays a loading spinner, and updates the UI with the transaction hash and verification badge upon success.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 26: Build Blockchain Hash Signing Screen** feature.
+We are building the **Configure Speech-to-Text Adapter** feature.
 
 #### 1. UX & Logic Description
 [Provide a highly descriptive, layman explanation of the UI layout, interactions, and user flow. Explicitly state which pages this connects to.]
-* **Page:** `src/app/interview/[id]/page.tsx` (Add "Anchor to Blockchain" section).
-* **Interaction:** User clicks button -> API Call -> Loading State -> Success/Fail Toast.
-* **Cohesion:** Reuses existing `src/app/interview/[id]/page.tsx` layout; does not create new navigation routes.
-* **Visual:** Button disabled if `transcript_text` is missing; shows hash on success.
+* The Admin interface at `/admin/config` will allow selecting the STT provider.
+* The Interview Setup at `/interview/setup` will toggle the transcription feature.
+* Logic flows from user toggle -> API validation -> DB storage in `ai_configurations`.
 
 #### 2. Technical Guardrails & Constraints
 [Explicitly list specific constraints the AI MUST follow when generating the implementation plan:]
-* **Data Validation:** Use `src/schema/blockchain-sign-schema.ts` (Zod) for API payload (`interview_id` required, max 255 chars).
-* **API/Database:** Use `POST /api/interviews/[id]/sign` (Serverless); Update `interview_sessions` (`monad_tx_hash`); Insert `blockchain_records`.
-* **Testing Requirements:** Test Happy Path (RPC success, DB update); Edge Case (RPC timeout, Duplicate signing, Missing transcript).
-* **Global State:** Strictly use Next.js, Zod, Tailwind, and Serverless routes (No external packages per Tech Matrix).
-* **Separation of Concerns:** Ensure signing logic is distinct from verification logic (Chapter 14).
-* **Structured Outputs:** API response must match Zod schema strictly.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
-**Success Expectations:**
-The "Sign" button triggers an API call that returns a transaction hash, updating the UI to show a green "Verified" badge and the hash string.
-**Failure Expectations:**
-If the RPC fails or the interview is already signed, the API returns a 400 or 500 error, and the UI displays a red toast message without updating the database.
-
-**Data Validation Mandate:**
-*   **API Payload:** `interview_id` (string, required, max 255 chars).
-*   **DB Columns:** `monad_tx_hash` (interview_sessions, varchar 255), `tx_hash` (blockchain_records, varchar 255).
-*   **Constraints:** Prevent duplicate signing if `monad_tx_hash` is already populated (Return 409 Conflict).
-
-**Testing Mandate:**
-*   **Unit Test:** Validate Zod schema rejects missing `interview_id`.
-*   **Integration Test:** Mock `MONAD_RPC_URL` to simulate transaction success and verify `interview_sessions` update.
-*   **Edge Case:** Simulate RPC timeout to ensure API returns 503 Service Unavailable gracefully.
-
-**Verification Reminders:**
-*   **IDE Check:** Ask your IDE to scan for recursive loops in the signing logic and ensure JSON schemas match API routes.
-*   **Dry Runs:** Run 10 internal mock dry runs to ensure the transaction hash generation is deterministic and safe.
-*   **Schema Check:** Verify `src/schema/blockchain-sign-schema.ts` aligns exactly with `src/app/api/interviews/[id]/sign/route.ts` input.
-
----
-
-<a id='step-27-chapter-27-build-transaction-broadcast-screen'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='26'> Step 27: Chapter 27: Build Transaction Broadcast Screen</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Ensure `MONAD_RPC_URL` is set in your `.env` and `.env.example` files as defined in Chapter 3.</li>
-    <li>Verify the `interview_sessions` table has the `monad_tx_hash` column and `blockchain_records` table exists per Chapter 8 & 9.</li>
-</ul>
-</div>
-
-**Purpose (Why we are building this):**
-This screen finalizes the blockchain commitment by broadcasting the signed transaction to the Monad network and displaying the immutable proof hash. It ensures the interview transcript is permanently anchored against AI deepfakes.
-
-**User Experience (UX) Flow:**
-The user navigates from `src/app/interview/[id]/page.tsx` to `src/app/interview/[id]/broadcast/page.tsx` after signing. They see a loading state for network confirmation, then a success badge with the TX hash upon completion.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 27: Build Transaction Broadcast Screen** feature.
-
-#### 1. UX & Logic Description
-The UI displays a real-time status indicator (Pending, Confirmed, Failed) while the server broadcasts the signed hash to Monad. Upon success, it redirects the user back to `src/app/interview/[id]/page.tsx` showing the verified badge. This connects directly from the signing completion state in Chapter 26.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** `monad_tx_hash` must be string, max 255 chars. `status` must be enum ['pending', 'confirmed', 'failed'].
-* **API/Database:** Use `POST /api/interviews/[id]/broadcast` route. Update `interview_sessions` (monad_tx_hash) and `blockchain_records` (tx_hash, status).
-* **Testing Requirements:** Test happy path (RPC success), edge case (RPC timeout 500), and validation error (missing interview ID 404).
-* **Global State:** Use only Next.js, Zod, Tailwind, and existing DB connections. No new packages allowed.
+* **Data Validation:** Zod schema required for `stt_provider` (enum: 'google', 'aws', 'custom') and `api_key` (min 10 chars).
+* **API/Database:** Update `packages/db/schema.ts` to add `stt_config` JSONB column to `ai_configurations`. Use `POST /api/agent/config`.
+* **Testing Requirements:** Test happy path (config save), edge case (invalid key), and DB migration safety.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -1508,37 +1223,38 @@ Before finalizing your work:
 
 ---
 
-<a id='step-28-chapter-28-build-record-verification-screen'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='27'> Step 28: Chapter 28: Build Record Verification Screen</label>
+<a id='step-12-implement-blockchain-adapter-for-monad'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='11'> Step 12: Implement Blockchain Adapter for Monad</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Ensure `MONAD_RPC_URL` is configured in `.env` as defined in Chapter 26.</li>
-    <li>Confirm `blockchain_records` table exists with `status` enum (pending, confirmed, failed) per Chapter 27.</li>
+    <li>Generate a Monad testnet RPC URL and Private Key for development.</li>
+    <li>Add `MONAD_RPC_URL` and `MONAD_PRIVATE_KEY` to the root `.env` file.</li>
+    <li>Ensure `pnpm` is installed globally to manage workspace dependencies.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This feature allows users to visually confirm the authenticity of an interview transcript against the Monad blockchain. It closes the verification loop by displaying transaction status and hash, proving the data has not been altered.
+This feature hashes interview transcripts to the Monad blockchain to create immutable proof of authenticity. It prevents AI deepfakes by cryptographically verifying the source of the data.
 
 **User Experience (UX) Flow:**
-*   **Entry Points:** Users navigate from `src/app/dashboard/page.tsx` (Interview List) or `src/app/interview/[id]/page.tsx` (Active Interview) to the verification screen.
-*   **Visuals:** Display a clear status badge (Verified/Pending/Failed), the Transaction Hash, and a "Refresh Status" button.
-*   **Navigation:** Successful verification links back to the Transcript Display Screen (`src/app/interview/[id]/page.tsx`).
+Users initiate verification on `/interview/setup` after biometric capture. Admins view transaction status on `/admin/config` linked to `ai_configurations`.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 28: Build Record Verification Screen** feature.
+We are building the **Implement Blockchain Adapter for Monad** feature.
 
 #### 1. UX & Logic Description
-Build a Next.js page at `src/app/verify/[id]/page.tsx` that fetches interview verification status via `GET /api/interviews/[id]/verification`. The UI must display a status badge (Verified, Pending, Failed) and the Monad Transaction Hash (`monad_tx_hash`). Users can navigate to this page from the Dashboard or Interview Detail screen. If the interview ID is invalid, redirect to the 404 page.
+This feature connects to the `/interview/setup` page to trigger on-chain hashing after biometric success. It links transaction IDs back to `/admin/config` for audit trails within `ai_configurations`.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** Enforce Zod schema at `src/schema/verification-schema.ts` (id: required, tx_hash: max 255 chars, status: enum 'verified' | 'pending' | 'failed').
-* **API/Database:** Use existing endpoint `GET /api/interviews/[id]/verification`. Query `interview_sessions` and `blockchain_records` tables. Handle 404 (Interview Not Found) and 500 (Server Error) gracefully.
-* **Testing Requirements:** Test happy path (Verified status), edge cases (Pending status, Failed status, Missing ID). Verify no new external packages are added (Tech Matrix: Next.js, Zod, Tailwind only).
-* **Safety:** Ensure no recursive loops in API calls. Validate JSON response against Zod schema before rendering.
+* **Data Validation:** Use Zod in `packages/types/src/index.ts` for all payloads.
+* **API/Database:** Create `POST /api/blockchain/verify` in `apps/api/routes`. Update `packages/db/schema.ts` with `blockchain_records` table (hash, tx_id, timestamp).
+* **Testing Requirements:** Test 200 OK on success, 400 Bad Request on Zod errors, and 500 on RPC failures.
+* **Infrastructure:** Use serverless API routes for transaction submission.
+* **Structured Outputs:** Define strict JSON Schema for AI-generated transcript hashes before submission.
+* **AI Separation:** Ensure the AI generating the hash is distinct from the AI evaluating the transaction status.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -1551,57 +1267,35 @@ I have approved the implementation plan.
 Please execute the plan and write the code. 
 Before finalizing your work:
 1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md` and Tech Matrix (No new packages).
+2. Ensure you have respected the global `PROJECT_RULES.md` and existing `packages/` structure.
 3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Verify that `src/app/verify/[id]/page.tsx` correctly consumes `src/app/api/interviews/[id]/verification/route.ts`.
-5. Confirm `src/schema/verification-schema.ts` matches the API response structure exactly.
 ```
 
 ---
 
-<a id='step-29-chapter-29-build-admin-dashboard-screen'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='28'> Step 29: Chapter 29: Build Admin Dashboard Screen</label>
-
-<div class="manual-action-alert">
-<h4>⚠️ Manual Developer Action Required</h4>
-<ul>
-    <li>Ensure a user with admin privileges exists in the `users` table (e.g., set `role = 'admin'` or note specific email in `.env` as `ADMIN_EMAIL`).</li>
-    <li>Verify `DB_CONNECTION_STRING` and `JWT_SECRET` are populated in `.env` before running migrations or starting the server.</li>
-</ul>
-</div>
+<a id='step-13-build-session-state-machine-logic'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='12'> Step 13: Build Session State Machine Logic</label>
 
 **Purpose (Why we are building this):**
-This screen provides administrators with a centralized view to monitor interview integrity, blockchain transaction statuses, and user activity. It is necessary to ensure system health and detect potential deepfake or verification failures across the platform.
+This feature manages the lifecycle of an interview session to ensure data integrity before blockchain commitment. It prevents state corruption and ensures biometric verification occurs before recording starts.
 
 **User Experience (UX) Flow:**
-Admins access this via `/admin/dashboard` after authentication, viewing a table of interview sessions with status indicators (verified/pending/failed). This connects to the Login Screen for auth and the Verification Screen (`/verify/[id]`) for detailed audit trails.
-
-- **Connected Pages:** `/login`, `/admin/dashboard`, `/verify/[id]`
-- **Database Tables:** `users`, `interview_sessions`, `blockchain_records`
-- **API Endpoints:** `GET /api/admin/dashboard`
-- **File Paths:** `src/app/admin/dashboard/page.tsx`, `src/app/api/admin/dashboard/route.ts`
-- **Tech Stack:** Next.js, Zod, Tailwind, PostgreSQL (Serverless)
-- **Constraints:** Max 255 chars for hashes, Enum status for blockchain records
+This feature connects to the `/interview/setup` and `/interview/live` pages. Users see a status indicator (e.g., "Verifying", "Recording", "Secured") that updates as the state machine progresses.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 29: Build Admin Dashboard Screen** feature.
+We are building the **Build Session State Machine Logic** feature.
 
 #### 1. UX & Logic Description
-Build a protected admin page at src/app/admin/dashboard/page.tsx displaying a table of interview sessions.
-The table must show user_id, interview status, monad_tx_hash, and blockchain_record status.
-Clicking a row navigates to src/app/verify/[id]/page.tsx for deep audit.
-The page fetches data from GET /api/admin/dashboard route.
+Implement a state machine to track interview progress from `/interview/setup` to `/interview/live`. The system must transition states: INITIATED -> BIOMETRIC_VERIFIED -> RECORDING -> BLOCKCHAIN_COMMITTED.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** Use Zod for API response (status enum: pending/confirmed/failed, tx_hash max 255 chars).
-* **API/Database:** GET /api/admin/dashboard returns JSON; Query users, interview_sessions, and blockchain_records tables.
-* **Testing Requirements:** Test auth bypass (401), empty data state (200 OK with empty array), and valid data rendering.
-* **Global State:** Use only Next.js, Zod, Tailwind, and PostgreSQL (No new packages).
-* **Infrastructure:** Use Serverless API routes for the endpoint.
+* **Data Validation:** Use Zod in `packages/types/src/index.ts`. Define `session_status` enum (INITIATED, VERIFIED, FINALIZED). Max 64 chars for hashes.
+* **API/Database:** Update `biometric_sessions` table in `packages/db/schema.ts`. Use `POST /api/interview/session` endpoint in `apps/api/routes`. Return 200 OK on success, 400 Bad Request on invalid state.
+* **Testing Requirements:** Test state transitions (e.g., cannot move to FINALIZED without VERIFIED). Test DB constraint enforcement.
 
 #### 3. Action Requested
-Please review the relevant files and generate an implementation_plan.md for this feature. Do not write code until the plan is approved.
+Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
 ```
 
 ### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
@@ -1611,63 +1305,190 @@ I have approved the implementation plan.
 Please execute the plan and write the code. 
 Before finalizing your work:
 1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global PROJECT_RULES.md.
+2. Ensure you have respected the global `PROJECT_RULES.md`.
 3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Verify that the Admin Dashboard correctly filters interview_sessions by admin privileges.
-5. Ensure blockchain_records status enum matches 'pending', 'confirmed', or 'failed'.
 ```
 
-**Success Expectations:**
-If successful, the admin dashboard loads a secure table showing real-time interview verification statuses. If it fails, the user receives a 401 Unauthorized error or a 500 Server Error due to DB connection issues.
-
-**Testing Mandate:**
-- Verify 401 response when accessing `/admin/dashboard` without a valid JWT token.
-- Verify 200 response with empty array when no interviews exist in `interview_sessions`.
-- Verify `monad_tx_hash` truncation does not break UI layout (max 255 chars).
-- Verify navigation to `/verify/[id]` works from table row click.
-
-**Verification Reminders:**
-- Ask your IDE to check the code for errors (e.g. recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-- Run 10 mock dry runs internally to ensure the code is safe.
-- Ensure Zod schemas in `src/schema/...` match the actual API response structure exactly.
+*   **Success Expectation:** The system transitions interview states correctly, updating `biometric_sessions` in `packages/db/schema.ts` without errors.
+*   **Failure Expectation:** Invalid state transitions trigger 400 Bad Request errors, and data remains unchanged in the database.
+*   **Files:** `packages/db/schema.ts`, `packages/types/src/index.ts`, `apps/api/routes`.
+*   **Endpoints:** `POST /api/interview/session`.
+*   **Constraints:** `session_status` enum, `biometric_hash` max 64 chars.
+*   **Testing:** Unit tests for state transitions and DB integrity.
+*   **Verification:** Ask IDE to check for recursive loops and run 10 mock dry runs.
 
 ---
 
-<a id='step-30-chapter-30-create-implementation-plan-document'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='29'> Step 30: Chapter 30: Create Implementation Plan Document</label>
+<a id='step-14-create-user-authentication-flow'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='13'> Step 14: Create User Authentication Flow</label>
+
+**Purpose (Why we are building this):**
+This feature secures user identity before interview sessions by verifying biometric data against stored hashes, preventing AI impersonation and ensuring blockchain transcript integrity. Without this, deepfakes could compromise the entire verification system.
+
+**User Experience (UX) Flow:**
+Users navigate to `/login` to initiate biometric capture, which validates against `/api/auth/biometric` before redirecting to `/interview/setup`. The interface must clearly indicate success (green check) or failure (red alert with retry option) on the login page.
+
+**Success/Fail Expectations:**
+On success, the user receives a session token and is redirected to `/interview/setup`. On failure, the system returns a 401 Unauthorized error and prompts the user to retry biometric verification without locking the account.
+
+### Phase 1: Planning (Copy & Paste to your AI first)
+```text
+We are building the **Create User Authentication Flow** feature.
+
+#### 1. UX & Logic Description
+The user lands on the `/login` page (create `apps/web/pages/login.tsx`) and triggers a biometric scan. The frontend calls `POST /api/auth/biometric` sending a `biometric_hash` (max 64 chars). The backend validates this against the `biometric_sessions` table in `packages/db/schema.ts`. If valid, the `verification_status` updates to `VERIFIED` and a session token is issued. This flow connects directly to the `/interview/setup` page.
+
+#### 2. Technical Guardrails & Constraints
+* **Data Validation:** Use Zod in `packages/types/src/index.ts` to enforce `biometric_hash` (min 32, max 64 chars) and `verification_status` enum (INITIATED, VERIFIED, FINALIZED).
+* **API/Database:** Implement `POST /api/auth/biometric` in `apps/api/routes/auth.ts` using `packages/db` for `biometric_sessions` table access.
+* **Testing Requirements:** Test happy path (valid hash updates status) and edge cases (invalid hash returns 401, missing fields returns 400).
+* **Infrastructure:** Use serverless API routes for `apps/api/routes/auth.ts`.
+* **Global State:** Adhere to `pnpm` workspace and `Zod` validation patterns defined in `PROJECT_RULES.md`.
+
+#### 3. Action Requested
+Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
+```
+
+### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
+```text
+I have approved the implementation plan. 
+
+Please execute the plan and write the code. 
+Before finalizing your work:
+1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
+2. Ensure you have respected the global `PROJECT_RULES.md`.
+3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+```
+
+---
+
+<a id='step-15-design-interview-session-screen'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='14'> Step 15: Design Interview Session Screen</label>
+
+**Purpose (Why we are building this):**
+* This screen initiates the verified interview workflow where dual-device synchronization and biometric checks occur.
+* It is necessary to trigger the blockchain recording of the transcript for authenticity.
+
+**User Experience (UX) Flow:**
+* Users navigate from `/login` and `/interview/setup` to `/interview/session` to start recording.
+* If successful, the session initializes with biometric status; if failed, a 400 error displays validation details.
+* The interface connects directly to `/login` and `/interview/setup` to ensure cohesive navigation.
+
+### Phase 1: Planning (Copy & Paste to your AI first)
+```text
+We are building the **Design Interview Session Screen** feature.
+
+#### 1. UX & Logic Description
+*   **Layout:** Two-panel UI for Host/Guest device synchronization with status badges.
+*   **Flow:** Users access `/interview/session` post-login to begin recording.
+*   **Connections:** Links back to `/interview/setup` and `/login` for navigation.
+*   **Visuals:** Real-time indicators for biometric verification and blockchain hashing.
+
+#### 2. Technical Guardrails & Constraints
+*   **Data Validation:** `biometric_hash` (32-64 chars), `session_status` (enum: INITIATED, VERIFIED, FINALIZED).
+*   **API/Database:** Use `POST /api/interview/session` and `biometric_sessions` table in `packages/db/schema.ts`.
+*   **Testing Requirements:** Test session creation, status transition, and 400/404 error handling.
+*   **Validation:** Enforce Zod schemas in `packages/types/src/index.ts` for all payloads.
+*   **Infrastructure:** Use serverless API routes for simple session tasks.
+
+#### 3. Action Requested
+Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
+```
+
+### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
+```text
+I have approved the implementation plan. 
+
+Please execute the plan and write the code. 
+Before finalizing your work:
+1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
+2. Ensure you have respected the global `PROJECT_RULES.md`.
+3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+```
+
+---
+
+<a id='step-16-build-dual-phone-connection-handshake'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='15'> Step 16: Build Dual Phone Connection Handshake</label>
+
+**Purpose (Why we are building this):**
+This feature enables two devices to securely link before recording, ensuring both parties are present for biometric verification. It prevents single-device spoofing by requiring a cryptographic handshake between the interviewer and interviewee phones.
+
+**User Experience (UX) Flow:**
+The user navigates from `/interview/setup` to `/interview/session` where a pairing code is generated and scanned. This connects the local session state to the remote device via the `biometric_sessions` table.
+
+### Phase 1: Planning (Copy & Paste to your AI first)
+```text
+We are building the **Build Dual Phone Connection Handshake** feature.
+
+#### 1. UX & Logic Description
+The user initiates a handshake on the `/interview/setup` page, generating a unique session code. The second device enters this code on the `/interview/session` page to link devices.
+This connects the `/interview/setup` and `/interview/session` pages via a shared session ID.
+The UI must display a "Connected" status upon successful handshake validation.
+
+#### 2. Technical Guardrails & Constraints
+* **Data Validation:** `handshake_code` (UUID, required), `session_status` (enum: INITIATED, HANDSHAKE, VERIFIED). Max length 64 chars for hashes.
+* **API/Database:** Use `POST /api/interview/session` in `apps/api/routes/interview.ts`. Update `biometric_sessions` table in `packages/db/schema.ts`.
+* **Testing Requirements:** Test handshake code generation, valid code acceptance, invalid code rejection (400 Bad Request), and timeout expiration.
+* **Infrastructure:** Use Serverless API routes only; no persistent background queues for this sync task.
+* **Validation:** Enforce Zod schemas in `packages/types/src/index.ts` for all payloads.
+
+#### 3. Action Requested
+Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
+```
+
+### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
+```text
+I have approved the implementation plan. 
+
+Please execute the plan and write the code. 
+Before finalizing your work:
+1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
+2. Ensure you have respected the global `PROJECT_RULES.md`.
+3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+```
+
+---
+
+<a id='step-17-implement-audio-recording-component'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='16'> Step 17: Implement Audio Recording Component</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Create the `docs/` directory in the project root if it does not already exist.</li>
+    <li>Create an `uploads/` directory in the project root to store audio files.</li>
+    <li>Add `UPLOADS_DIR` environment variable to the root `.env` file pointing to this directory.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This step consolidates all architectural decisions from Chapters 1-29 into a single reference document to ensure alignment before production deployment. It is necessary to prevent drift between the codebase and the original design specifications.
+This component captures raw audio during the interview to verify human presence and prevent AI deepfakes. It stores the file locally and logs the path in the database for subsequent blockchain hashing.
 
 **Expected Outcome:**
-Success creates a comprehensive `implementation_plan.md` matching all schemas and API definitions. Failure results in a plan missing critical API or DB definitions that break future development.
+*   **Success:** Audio file is saved to `uploads/`, path is written to `biometric_sessions.recording_path`, and UI confirms completion.
+*   **Failure:** API returns 400 Bad Request for invalid file types or 500 for write errors, and no database entry is created.
 
 **User Experience (UX) Flow:**
-This feature connects to the `docs/implementation_plan.md` file for developer reference. It does not impact user-facing pages like `src/app/interview/[id]/page.tsx`.
+*   **Page:** Connects to `/interview/session` within `apps/web/pages`.
+*   **Interaction:** User clicks "Start Recording", sees waveform, then "Stop" and "Submit".
+*   **Visual:** Progress bar during upload, success message upon DB confirmation.
+*   **Cohesion:** Reuses `biometric_sessions` state from `/interview/session` flow.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 30: Create Implementation Plan Document** feature.
+We are building the **Implement Audio Recording Component** feature.
 
 #### 1. UX & Logic Description
-This feature generates a central documentation file at `docs/implementation_plan.md`. It connects to the project root for developer reference, not user-facing pages. The AI must review all previous schema and API files to ensure accuracy.
+Build a client-side recording interface in `apps/web/components/InterviewRecording.tsx` that integrates with the existing `/interview/session` page. The UI must display a waveform or timer, allow start/stop actions, and handle file upload to `POST /api/interview/recording`. Ensure the component updates the session state to 'RECORDING_COMPLETE' upon success.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** The plan must accurately list all Zod schemas (e.g., `src/schema/interview-schema.ts`) and DB columns (e.g., `interview_sessions.monad_tx_hash`).
-* **API/Database:** Reference exact endpoints like `/api/interviews/start` and tables like `blockchain_records`.
-* **Testing Requirements:** Verify the document lists all 29 previous chapters and matches the Tech Matrix (Next.js, Zod, Tailwind, PostgreSQL).
-* **Global State:** Adhere strictly to the Tech Matrix; do not introduce new packages.
-* **Structured Outputs:** The document must follow a strict Markdown structure defined in the prompt.
+*   **Data Validation:** Use Zod in `packages/types/src/index.ts` to enforce `recording_path` (string, max 255 chars), `file_type` (enum: 'audio/wav', 'audio/mp3'), and `file_size` (max 50MB).
+*   **API/Database:** Endpoint `POST /api/interview/recording` in `apps/api/routes/recording.ts`. Update `biometric_sessions` table in `packages/db/schema.ts` to include `recording_path` column.
+*   **Testing Requirements:** Test file upload size limits, MIME type rejection (400 Bad Request), successful DB write, and file existence in `uploads/` directory.
+*   **Infra:** Use standard serverless API routes for handling file uploads; do not use background queues.
 
 #### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
+Please review the relevant files (`packages/db/schema.ts`, `apps/web/pages/interview/session.tsx`) and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
 ```
 
 ### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
@@ -1679,35 +1500,37 @@ Before finalizing your work:
 1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
 2. Ensure you have respected the global `PROJECT_RULES.md`.
 3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+4. Verify that `packages/types/src/index.ts` Zod schemas match `packages/db/schema.ts` exactly.
+5. Confirm that the `uploads/` directory path in code matches the `UPLOADS_DIR` environment variable.
 ```
 
 ---
 
-<a id='step-31-chapter-31-run-pre-flight-impact-analysis'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='30'> Step 31: Chapter 31: Run Pre-Flight Impact Analysis</label>
+<a id='step-18-create-transcript-display-interface'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='17'> Step 18: Create Transcript Display Interface</label>
 
 **Purpose (Why we are building this):**
-This feature validates interview session integrity (biometrics, transcript quality) before blockchain commitment to prevent failed transactions. It ensures data readiness, saving costs and maintaining trust in the verification system.
+This feature allows users to view verified interview transcripts authenticated by the Monad blockchain to ensure data integrity. It is necessary to combat AI deepfakes by providing a cryptographic proof of the conversation's authenticity.
 
 **User Experience (UX) Flow:**
-This feature connects to the `src/app/interview/[id]/page.tsx` dashboard. Users trigger a "Run Pre-Flight Check" button which displays a status modal before allowing the "Sign/Broadcast" action.
+*   Users navigate from the `/interview/session` page to a new `/transcript/:id` page after session completion.
+*   The interface displays the text transcript alongside a blockchain verification badge indicating `FINALIZED` status.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 31: Run Pre-Flight Impact Analysis** feature.
+We are building the **Create Transcript Display Interface** feature.
 
 #### 1. UX & Logic Description
-The user clicks a "Run Pre-Flight Check" button on the `src/app/interview/[id]/page.tsx` dashboard.
-This triggers an API call to validate the session state before blockchain broadcasting.
-The UI displays a loading state, then a success/fail modal with specific reasons (e.g., missing biometric, low quality).
-This connects directly to the `src/app/interview/[id]/broadcast/page.tsx` flow.
+*   **UI Layout:** Create `apps/web/pages/transcript.tsx` to display text and a verification status badge.
+*   **User Flow:** Users access this page via a link from `/interview/session` after biometric verification.
+*   **Navigation:** Connects directly to `/interview/session` and `/login` for authentication checks.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** `biometric_hash` (required, max 255 chars), `transcript_quality_score` (required, min 80), `status` (enum: pending/ready/failed).
-* **API/Database:** Use `POST /api/interviews/[id]/pre-flight`. Read `interview_sessions` table. Response must return a Zod-validated JSON object.
-* **Testing Requirements:** Test happy path (all checks pass), edge case (missing biometric hash), and edge case (low transcript quality score).
-* **Infrastructure:** Use standard serverless API routes (`src/app/api/.../route.ts`). No queues.
-* **Stack:** Strictly Next.js, Zod, Tailwind, PostgreSQL. No new external packages.
+*   **Data Validation:** `transcript_text` (max 10,000 chars), `session_id` (UUID), `verification_status` (enum: INITIATED, VERIFIED, FINALIZED).
+*   **API/Database:** Use `GET /api/interview/transcript/:id` endpoint; extend `biometric_sessions` table in `packages/db/schema.ts` with `transcript_text`.
+*   **Testing Requirements:** Test happy path (verified session returns 200), edge case (missing ID returns 404, invalid status returns 400).
+*   **Global State Registry:** Use `pnpm`, `Zod`, and Serverless API routes only; no background queues.
+*   **Structured Outputs:** Define strict Zod schema for transcript response in `packages/types/src/index.ts`.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -1722,42 +1545,44 @@ Before finalizing your work:
 1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
 2. Ensure you have respected the global `PROJECT_RULES.md`.
 3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Verify that the API response strictly matches the Zod schema defined in `src/schema/pre-flight-schema.ts`.
 ```
 
 ---
 
-<a id='step-32-chapter-32-test-database-schema-migrations'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='31'> Step 32: Chapter 32: Test Database Schema Migrations</label>
+<a id='step-19-generate-ai-transcription-service'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='18'> Step 19: Generate AI Transcription Service</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Ensure `DB_CONNECTION_STRING` is correctly set in `.env` and `.env.example` before running migrations.</li>
-    <li>Verify the chosen migration tool (Prisma/Drizzle) is initialized in `package.json` as per Chapter 7.</li>
+    <li>Ensure `AI_PROVIDER_API_KEY` is added to the root `.env` file.</li>
+    <li>Verify `AI_PROVIDER_API_KEY` is included in the environment variable list for the deployment environment.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This step validates that all database schema definitions from previous chapters apply correctly to the PostgreSQL instance without syntax errors or constraint violations. It prevents runtime failures in authentication and interview flows caused by missing tables or mismatched columns.
+This step converts recorded interview audio into verified text transcripts using AI, enabling blockchain authentication of the content. It is necessary to transform raw audio into a searchable, hashable format for integrity verification.
 
 **User Experience (UX) Flow:**
-This is a backend infrastructure step with no direct user interface; however, successful execution ensures stability for `src/app/dashboard/page.tsx` and `src/app/admin/dashboard/page.tsx`. Failure results in 500 errors on all data-dependent pages like `src/app/interview/[id]/page.tsx`.
+Users navigate from `/interview/session` after recording to trigger transcription. The system processes the audio and redirects to `/transcript` to view the generated text.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 32: Test Database Schema Migrations** feature.
+We are building the **Generate AI Transcription Service** feature.
 
 #### 1. UX & Logic Description
-This feature is a backend validation process ensuring the database tables match the Zod schemas defined in `src/schema/`. It connects logically to all data-driven pages like `src/app/dashboard/page.tsx` by ensuring the underlying `users` and `interview_sessions` tables exist. The flow involves running migration scripts against the local PostgreSQL instance defined in `src/config/db-connection.ts`.
+The user initiates transcription from the `/interview/session` page after completing audio recording. The frontend calls the API, which processes audio via AI and saves text to the database. The user is then redirected to `/transcript` to view the result.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** All text fields must enforce `VARCHAR 255` (e.g., `email`, `biometric_hash`); Enums like `status` must strictly match `pending`, `confirmed`, `failed`.
-* **API/Database:** Migrations must align with `interview_sessions` (columns: `user_id`, `monad_tx_hash`) and `blockchain_records` (columns: `tx_hash`, `status`).
-* **Testing Requirements:** Test migration `up` (create tables), `down` (rollback), and constraint violation (e.g., inserting invalid `status` enum).
+* **Data Validation:** `transcript_text` must be string, max 10000 chars. `session_id` must be UUID.
+* **API/Database:** Use `POST /api/interview/transcription` endpoint. Update `biometric_sessions` table in `packages/db/schema.ts`.
+* **Testing Requirements:** Test valid audio upload, AI response parsing, and database write success. Test 400 Bad Request for missing session ID.
+* **AI Structure:** Define a strict Zod schema for the AI response (e.g., `{ transcript: string, confidence: number }`) and pass it to the AI provider SDK.
+* **Infrastructure:** Use standard serverless API routes only. Do not use background queues.
+* **Separation of Concerns:** This step is for Generation only. Do not implement grading logic here.
 
 #### 3. Action Requested
-Please review the relevant files in `src/schema/` and `src/config/` and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
+Please review the relevant files (`packages/db/schema.ts`, `packages/types/src/index.ts`, `apps/api/routes/interview.ts`) and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
 ```
 
 ### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
@@ -1771,55 +1596,41 @@ Before finalizing your work:
 3. Run 10 mock dry runs internally to ensure the code is safe and functional.
 ```
 
-**Expected Outcomes:**
-*   **Success:** Migration script completes with 200 OK status, tables `users`, `interview_sessions`, `blockchain_records` exist with correct columns.
-*   **Failure:** Migration throws 500 error, logs show SQL syntax errors or foreign key constraint violations.
-
-**Data Validation Mandate:**
-*   `users.email`: Required, Max 255 chars, Unique.
-*   `interview_sessions.biometric_hash`: Required, Max 255 chars.
-*   `blockchain_records.status`: Enum ['pending', 'confirmed', 'failed'], Default 'pending'.
-
-**Testing Mandate:**
-*   **Happy Path:** Run migration, verify tables exist via `SELECT * FROM users`.
-*   **Edge Case:** Attempt insert with invalid `status` enum to verify DB rejects it.
-*   **Rollback:** Run migration down command to ensure tables drop cleanly.
-
-**Verification Reminders:**
-*   Ask your IDE to check `src/config/db-connection.ts` for recursive connection loops.
-*   Ensure `src/schema/*.ts` Zod definitions match the SQL migration columns exactly.
-*   Run 10 mock dry runs internally to ensure the code is safe and functional.
-
 ---
 
-<a id='step-33-chapter-33-test-api-contract-compliance'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='32'> Step 33: Chapter 33: Test API Contract Compliance</label>
+<a id='step-20-evaluate-transcription-quality-&-accuracy'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='19'> Step 20: Evaluate Transcription Quality & Accuracy</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Ensure the local PostgreSQL database is migrated and seeded with test data for `users`, `interview_sessions`, and `blockchain_records` tables.</li>
-    <li>Verify `.env` contains `DB_CONNECTION_STRING`, `MONAD_RPC_URL`, and `JWT_SECRET` before running compliance tests.</li>
+    <li>Run database migration to add `quality_score` (float) and `evaluation_status` (enum) columns to `biometric_sessions` table in `packages/db/schema.ts`.</li>
+    <li>Update `.env` if new AI provider keys are needed for the evaluation model distinct from the transcription model.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This step validates that all implemented API endpoints strictly adhere to the Zod schemas and database constraints defined in Chapters 10-29. It prevents runtime failures and security vulnerabilities by ensuring data contracts match frontend expectations before deployment.
+This feature validates the AI-generated transcript against the original audio to ensure accuracy before blockchain commitment, preventing deepfake manipulation. It separates generation from evaluation to maintain integrity.
 
 **User Experience (UX) Flow:**
-This feature impacts all API-dependent pages including `src/app/dashboard/page.tsx`, `src/app/interview/[id]/page.tsx`, and `src/app/verify/[id]/page.tsx`. Successful compliance ensures users see accurate data without loading errors or validation failures during interview sessions.
+Users view the `transcript.tsx` page where a "Quality Score" badge appears after evaluation. This connects the interview session flow to the final verification screen.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 33: Test API Contract Compliance** feature.
+We are building the **Evaluate Transcription Quality & Accuracy** feature.
 
 #### 1. UX & Logic Description
-This step involves verifying that serverless API routes return correct status codes and payloads matching their Zod schemas. It connects to the entire application flow, specifically validating data integrity for the `src/app/dashboard/page.tsx` and `src/app/verify/[id]/page.tsx` pages. The AI must simulate requests to critical endpoints and compare responses against `src/schema/*.ts` definitions.
+This feature adds a quality assessment layer to the `apps/web/pages/transcript.tsx` page.
+The system triggers an evaluation API call that compares the transcript against the audio source.
+A quality score and status badge update dynamically on the transcript view.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** All string fields (e.g., `biometric_hash`, `monad_tx_hash`) must strictly adhere to max 255 character limits defined in `src/schema/*.ts`.
-* **API/Database:** Test endpoints `/api/auth/login`, `/api/interviews/start`, and `/api/interviews/[id]/verification` against `users`, `interview_sessions`, and `blockchain_records` tables.
-* **Testing Requirements:** Validate 200 OK for valid payloads, 400 Bad Request for schema violations, and 404 Not Found for missing resources.
+* **Data Validation:** Use Zod in `packages/types/src/index.ts` to validate `quality_score` (0-100) and `evaluation_status` (enum: PENDING, PASSED, FAILED).
+* **API/Database:** Implement `POST /api/interview/evaluate` in `apps/api/routes/interview.ts`. Update `biometric_sessions` table in `packages/db/schema.ts`.
+* **Testing Requirements:** Test happy path (valid score returned) and edge cases (invalid session UUID returns 404, Zod validation fails returns 400).
+* **AI Separation:** Use a distinct system prompt ID in `ai_configurations` table for evaluation, separate from the transcription generation prompt.
+* **Infrastructure:** Use Serverless API routes only; do not use background queues.
+* **Structured Outputs:** Enforce strict JSON Schema via Zod for the AI evaluation response.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -1834,84 +1645,42 @@ Before finalizing your work:
 1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
 2. Ensure you have respected the global `PROJECT_RULES.md`.
 3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+4. Verify that the AI evaluation prompt is distinct from the generation prompt to prevent self-grading.
 ```
 
 ---
 
-<a id='step-34-chapter-34-test-biometric-authentication-flow'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='33'> Step 34: Chapter 34: Test Biometric Authentication Flow</label>
-
-**Purpose (Why we are building this):**
-This step validates that biometric hashes are correctly captured, stored, and retrievable before blockchain anchoring. It ensures the dual-phone authentication flow is functional and prevents deepfake injection by verifying data integrity.
-
-**Expected Outcome:**
-Success returns a valid hash status and confirms database storage. Failure returns a 404 or 400 error if the session or hash is missing.
-
-**User Experience (UX) Flow:**
-*   **Page:** `src/app/interview/[id]/page.tsx`
-*   **Action:** User clicks "Verify Biometric" during the interview session.
-*   **Visual:** Loading spinner followed by a green checkmark or red error message.
-*   **Connection:** Ties directly to the Biometric Verification Screen (Chapter 18) and Interview Start (Chapter 19).
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 34: Test Biometric Authentication Flow** feature.
-
-#### 1. UX & Logic Description
-This feature adds a validation check to `src/app/interview/[id]/page.tsx` to confirm the `biometric_hash` is stored in `interview_sessions`. The UI triggers a GET request to verify the hash exists and matches the session ID. This connects directly to the existing Interview Session page.
-
-#### 2. Technical Guardrails & Constraints
-* **Data Validation:** `biometric_hash` must be max 255 chars, required. `interview_id` must be valid UUID.
-* **API/Database:** Use GET `/api/interviews/[id]/biometric-verify`. Query `interview_sessions` table.
-* **Testing Requirements:** Test happy path (hash exists), 404 (session missing), 400 (invalid hash format).
-* **Stack:** Next.js, Zod, Tailwind, PostgreSQL ONLY. No new packages.
-* **Infrastructure:** Serverless API route.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md` and Tech Matrix (No new packages).
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Verify `src/schema/biometric-verify-schema.ts` matches `interview_sessions` columns exactly.
-```
-
----
-
-<a id='step-35-chapter-35-test-dual-phone-sync-connection'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='34'> Step 35: Chapter 35: Test Dual Phone Sync Connection</label>
+<a id='step-21-implement-blockchain-hash-submission'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='20'> Step 21: Implement Blockchain Hash Submission</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Ensure the local development server is accessible via LAN IP or a tunnel (e.g., ngrok) to allow a second physical device to connect for sync testing.</li>
+    <li>Add `MONAD_RPC_URL` and `MONAD_PRIVATE_KEY` to the root `.env` file before coding.</li>
+    <li>Ensure `packages/db` has `better-sqlite3` installed as per previous adapter steps.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This step validates that two separate devices can successfully join and synchronize state within the same interview session using a shared `session_code`. It is necessary to confirm the dual-phone workflow functions before proceeding to blockchain anchoring.
+This step immutably records the interview transcript hash on the Monad blockchain to prove authenticity and combat AI deepfakes. It provides users with a cryptographic receipt verifying the session data has not been altered.
 
 **User Experience (UX) Flow:**
-Users navigate from `src/app/interview/start/page.tsx` to generate a session code, then to `src/app/interview/join/page.tsx` to input it on a second device. Both devices converge on `src/app/interview/[id]/page.tsx` where they poll for synchronized state updates.
+The feature triggers automatically on `apps/web/pages/transcript.tsx` after AI transcription is finalized. Users see a "Verified on Blockchain" badge once the hash submission succeeds.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 35: Test Dual Phone Sync Connection** feature.
+We are building the **Implement Blockchain Hash Submission** feature.
 
 #### 1. UX & Logic Description
-Implement a polling mechanism where two clients connect to `src/app/interview/[id]/page.tsx` using a shared `session_code`. The Host device initiates the session at `src/app/interview/start/page.tsx`, and the Guest joins via `src/app/interview/join/page.tsx`. Both devices must poll the API endpoint `POST /api/interviews/[id]/sync` to verify connection state and synchronize interview status in real-time.
+This feature connects to the `apps/web/pages/transcript.tsx` page to trigger submission after transcription.
+The UI displays a loading state during submission and a success badge upon blockchain confirmation.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** `session_code` must be VARCHAR 255 (required), `interview_id` must be UUID (required). Use `src/schema/interview-schema.ts` for Zod validation.
-* **API/Database:** Use serverless route `src/app/api/interviews/[id]/sync/route.ts`. Update `interview_sessions` table `session_code` column. Return 200 OK on success, 400 Bad Request on validation failure, 404 Not Found if session missing.
-* **Testing Requirements:** Test concurrent polling from two devices, invalid session code rejection, and session timeout handling. Ensure no WebSockets are used; rely strictly on HTTP polling.
+* **Data Validation:** Use Zod in `packages/types/src/index.ts` for `hash` (64 char string, hex) and `session_id` (UUID).
+* **API/Database:** Implement `POST /api/blockchain/submit` in `apps/api/routes/blockchain.ts`.
+* **Database:** Insert record into `blockchain_records` table (`hash`, `tx_id`, `timestamp`) in `packages/db/schema.ts`.
+* **Testing Requirements:** Test happy path (valid hash submitted) and edge cases (network timeout, invalid hash format).
+* **Infrastructure:** Use standard serverless API routes; do not use background queues.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -1930,38 +1699,34 @@ Before finalizing your work:
 
 ---
 
-<a id='step-36-chapter-36-test-blockchain-transaction-signing'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='35'> Step 36: Chapter 36: Test Blockchain Transaction Signing</label>
+<a id='step-22-deploy-smart-contract-for-verification'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='21'> Step 22: Deploy Smart Contract for Verification</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Update the `.env` file to set `MONAD_RPC_URL` to a Testnet endpoint (e.g., Monad Testnet) before testing transaction signing.</li>
-    <li>Ensure `DB_CONNECTION_STRING` is configured and accessible by the serverless API routes.</li>
+    <li>Ensure `MONAD_PRIVATE_KEY` and `MONAD_RPC_URL` are securely added to the root `.env` file before running deployment scripts.</li>
+    <li>Verify access to the Monad testnet or mainnet via the RPC URL provided in the environment configuration.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This step validates that the interview transcript hash is correctly signed and stored locally before broadcasting to the Monad network. It ensures data integrity and prevents invalid transactions from being submitted to the blockchain.
+This step deploys the immutable verification contract to the Monad blockchain, enabling the system to anchor interview transcripts to a public ledger. It is necessary to prevent AI deepfakes by providing a cryptographic proof of authenticity that cannot be altered.
 
 **User Experience (UX) Flow:**
-*   The user interacts with the `src/app/interview/[id]/page.tsx` interface to initiate the signing process.
-*   A status indicator updates to reflect the signing state (pending, signed, failed) without leaving the page.
+This feature connects to the `/admin/config` page where the deployed contract address is stored and displayed. It also integrates with the `/transcript` page to show verification status badges linked to the blockchain transaction ID.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 36: Test Blockchain Transaction Signing** feature.
+We are building the **Deploy Smart Contract for Verification** feature.
 
 #### 1. UX & Logic Description
-The user triggers a signing action on the Interview Page (`src/app/interview/[id]/page.tsx`).
-This connects to the existing API route `POST /api/interviews/[id]/sign` to validate the hash.
-The system must update the `interview_sessions` table with `monad_tx_hash` and log to `blockchain_records`.
-Display a success or error toast based on the API response status.
+We need to write a deployment script that compiles and deploys the Verification.sol contract to Monad. The resulting contract address must be saved to the `.env` file and a new column in the `ai_configurations` table for runtime access. The `/admin/config` page will display this address for verification by admins.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** Enforce Zod schema in `src/schema/blockchain-sign-schema.ts` (interview_id UUID, hash max 255 chars).
-* **API/Database:** Use `POST /api/interviews/[id]/sign` endpoint; return 400 for validation errors, 404 if session missing.
-* **Testing Requirements:** Verify 1) Hash generation matches input, 2) DB `monad_tx_hash` updates correctly, 3) 400 error triggers on invalid payload.
+* **Data Validation:** Contract address must be a 42-character hex string (0x...). `MONAD_PRIVATE_KEY` must be 64+ characters.
+* **API/Database:** Use `packages/db/schema.ts` to update `ai_configurations` table. Use `apps/api/routes/blockchain.ts` for interaction logic.
+* **Testing Requirements:** Test deployment script execution on testnet. Verify address storage in DB. Confirm API returns 200 OK when address is valid.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -1976,40 +1741,43 @@ Before finalizing your work:
 1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
 2. Ensure you have respected the global `PROJECT_RULES.md`.
 3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Verify that `src/app/api/interviews/[id]/sign/route.ts` uses serverless patterns and handles `MONAD_RPC_URL` from `src/config/env.ts`.
-5. Confirm `interview_sessions` and `blockchain_records` tables are updated with correct transaction hashes and status enums.
 ```
 
 ---
 
-<a id='step-37-chapter-37-test-transcript-hash-verification'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='36'> Step 37: Chapter 37: Test Transcript Hash Verification</label>
+<a id='step-23-build-session-verification-flow'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='22'> Step 23: Build Session Verification Flow</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Verify `MONAD_RPC_URL` exists in `.env` and `.env.example` to enable blockchain hash verification.</li>
-    <li>Ensure `DB_CONNECTION_STRING` is active to access `interview_sessions` and `blockchain_records` tables.</li>
+    <li>Verify `MONAD_PRIVATE_KEY` and `MONAD_RPC_URL` exist in the root `.env` file before starting.</li>
+    <li>Ensure `packages/db/schema.ts` has been migrated to include `biometric_sessions` table columns.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This step validates the integrity of the interview transcript by comparing the local hash against the Monad blockchain record. It prevents AI deepfake alteration by cryptographically proving the transcript matches the signed on-chain record.
+*   This feature links biometric authentication to session state management to ensure interview integrity.
+*   It prevents AI deepfakes by binding human verification to blockchain records.
 
 **User Experience (UX) Flow:**
-Users navigate to `src/app/verify/[id]/page.tsx` to see a verification badge (Green/Red). The system fetches the transcript, hashes it, and compares it with the `monad_tx_hash` stored in `interview_sessions`.
+*   Users log in via `apps/web/pages/login.tsx` and proceed to `apps/web/pages/interview/setup`.
+*   Dual phone handshake occurs on `apps/web/pages/interview/session` before recording begins.
+*   Transcript view is accessible at `apps/web/pages/transcript.tsx` post-verification.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 37: Test Transcript Hash Verification** feature.
+We are building the **Build Session Verification Flow** feature.
 
 #### 1. UX & Logic Description
-The user visits the verification page (`src/app/verify/[id]/page.tsx`) linked from the dashboard. The frontend calls the API (`GET /api/interviews/[id]/verification`) to check if the local transcript hash matches the `monad_tx_hash` in the database and on-chain. The UI displays a clear 'Verified' or 'Failed' status based on the hash comparison result.
+The user flow starts at `apps/web/pages/login.tsx` where biometric auth is triggered via `POST /api/auth/biometric`. Upon success, the user navigates to `apps/web/pages/interview/session` to initiate a dual-phone handshake using `POST /api/interview/session`. The session state in `biometric_sessions` table transitions from INITIATED to VERIFIED only after biometric hash validation. Finally, the transcript is generated and displayed at `apps/web/pages/transcript.tsx` linked to the session ID.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** `tx_hash` (VARCHAR 255, required), `status` (enum: verified/pending/failed). Use Zod at `src/schema/verification-schema.ts`.
-* **API/Database:** Use `GET /api/interviews/[id]/verification` endpoint. Query `interview_sessions` (monad_tx_hash, transcript_ref) and `blockchain_records` (tx_hash, status).
-* **Testing Requirements:** Test hash match (200 OK, status: verified) and hash mismatch (400 Bad Request, status: failed). Ensure 404 for missing interview IDs.
+* **Data Validation:** Enforce 32-64 character length for `biometric_hash` and UUID format for `session_id` using Zod in `packages/types/src/index.ts`.
+* **API/Database:** Use `packages/db/schema.ts` for `biometric_sessions` table updates; ensure `POST /api/interview/session` returns 400 Bad Request on invalid state transitions.
+* **Testing Requirements:** Test happy path (Init -> Verify -> Finalize) and edge cases (Invalid handshake code, missing blockchain key, duplicate session ID).
+* **AI Separation:** Ensure transcription generation and evaluation use distinct API keys and prompts as per `ai_configurations` table.
+* **Structured Outputs:** Define strict Zod JSON Schema for all AI-generated transcript data before passing to provider SDK.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -2022,93 +1790,50 @@ I have approved the implementation plan.
 Please execute the plan and write the code. 
 Before finalizing your work:
 1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
+2. Ensure you have respected the global `PROJECT_RULES.md` and Tech Matrix constraints (pnpm, Zod, Serverless).
 3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+4. Verify all file paths match `apps/api/routes/interview.ts`, `packages/db/schema.ts`, and `apps/web/pages/login.tsx`.
+5. Confirm `POST /api/blockchain/submit` is triggered only after `verification_status` equals VERIFIED.
 ```
 
 ---
 
-<a id='step-38-chapter-38-test-end-to-end-interview-flow'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='37'> Step 38: Chapter 38: Test End-to-End Interview Flow</label>
-
-*   **Purpose (Why we are building this):**
-    *   This feature validates the complete integration of authentication, biometrics, and blockchain anchoring.
-    *   It ensures data integrity across all previous modules before production.
-
-*   **User Experience (UX) Flow:**
-    *   Users navigate `src/app/dashboard/page.tsx` to start, `src/app/interview/[id]/page.tsx` for the session, and `src/app/verify/[id]/page.tsx` for results.
-    *   The flow connects dual-phone sync, audio recording, and blockchain verification screens seamlessly.
-
-*   **Expected Outcome:**
-    *   Success confirms all API routes return 200 OK with valid data.
-    *   Failure indicates disconnects between frontend, database, or blockchain RPC.
-
-### Phase 1: Planning (Copy & Paste to your AI first)
-```text
-We are building the **Chapter 38: Test End-to-End Interview Flow** feature.
-
-#### 1. UX & Logic Description
-Provide a highly descriptive, layman explanation of the UI layout, interactions, and user flow. Explicitly state which pages this connects to.
-*   **Pages:** `src/app/dashboard/page.tsx`, `src/app/interview/[id]/page.tsx`, `src/app/verify/[id]/page.tsx`.
-*   **Flow:** Login -> Start Interview -> Biometric -> Dual Phone Sync -> Record Audio -> Transcribe -> Sign Blockchain -> Verify.
-*   **Logic:** Ensure state persists across pages using Next.js App Router server actions or API calls.
-
-#### 2. Technical Guardrails & Constraints
-Explicitly list specific constraints the AI MUST follow when generating the implementation plan:
-*   **Data Validation:** `interview_sessions` table requires `user_id` (UUID), `biometric_hash` (VARCHAR 255), `monad_tx_hash` (VARCHAR 255). Use Zod in `src/schema/interview-schema.ts`.
-*   **API/Database:** Use Serverless API routes (`src/app/api/interviews/[id]/route.ts`). Connect to `interview_sessions` and `blockchain_records` tables.
-*   **Testing Requirements:** Test Happy Path (full flow), Edge Cases (sync timeout, blockchain RPC failure).
-*   **Infrastructure:** Use standard serverless API routes. Do not use WebSockets.
-*   **AI Concerns:** Do not allow an AI to grade its own output; separate Generate and Evaluate operations.
-*   **Structured Outputs:** If generating structured data, define a strict JSON Schema using Zod.
-
-#### 3. Action Requested
-Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
-```
-
-### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
-```text
-I have approved the implementation plan. 
-
-Please execute the plan and write the code. 
-Before finalizing your work:
-1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
-2. Ensure you have respected the global `PROJECT_RULES.md`.
-3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-```
-
----
-
-<a id='step-39-chapter-39-document-deployment-instructions'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='38'> Step 39: Chapter 39: Document Deployment Instructions</label>
+<a id='step-24-pre-flight-impact-analysis-&-risk-assessment'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='23'> Step 24: Pre-Flight Impact Analysis & Risk Assessment</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Create a hosting account on Vercel, Render, or Railway before writing code.</li>
-    <li>Generate database credentials for your production PostgreSQL instance to populate `DB_CONNECTION_STRING`.</li>
+    <li>Update `packages/db/schema.ts` to add `risk_score` (float) and `risk_status` (enum) columns to the `biometric_sessions` table.</li>
+    <li>Verify `packages/types/src/index.ts` contains the Zod schema for the new risk assessment payload before executing code.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This step ensures the application is accessible to end-users via a live URL with secure environment variables. It validates that all serverless routes and database connections function correctly in production.
+This feature validates environment readiness and blockchain connectivity before recording begins to prevent wasted resources and failed verifications. It ensures biometric and network conditions meet minimum thresholds defined in `ai_configurations`.
 
 **User Experience (UX) Flow:**
-This feature does not change user-facing pages but enables access to `src/app/dashboard/page.tsx`, `src/app/interview/[id]/page.tsx`, and `src/app/verify/[id]/page.tsx`. It connects the local development environment to the production hosting platform.
+Users interact with this feature on the `/interview/setup` page via a "Run Diagnostics" button. A modal displays the risk score and status before allowing transition to `/interview/session`.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 39: Document Deployment Instructions** feature.
+We are building the **Pre-Flight Impact Analysis & Risk Assessment** feature.
 
 #### 1. UX & Logic Description
-This feature generates a comprehensive deployment guide connecting local development to production hosting. It explicitly links the configuration in `src/config/env.ts` to the live environment variables required by `src/app/api/auth/login/route.ts` and other serverless routes. The output must be a `DEPLOYMENT.md` file that ensures users can access `src/app/dashboard/page.tsx` and `src/app/verify/[id]/page.tsx` securely.
+The user clicks "Run Diagnostics" on the `/interview/setup` page (`apps/web/pages/interview/setup.tsx`).
+The system calls `POST /api/interview/risk-assessment` to check biometric and network health.
+The result updates the `risk_status` column in the `biometric_sessions` table.
+If `risk_status` is 'HIGH', the user cannot proceed to `/interview/session`.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** Ensure `DB_CONNECTION_STRING` and `MONAD_RPC_URL` are marked as required in `DEPLOYMENT.md` with max 255 char limits per `src/config/env.ts`.
-* **API/Database:** Document that `users`, `interview_sessions`, and `blockchain_records` tables must be migrated before deployment.
-* **Testing Requirements:** Verify that `/api/auth/login` returns 200 OK and `/api/interviews/start` returns 401 without valid JWT in the live environment.
-* **Infrastructure:** Confirm no WebSockets are used; strictly adhere to Serverless API routes as per Chapter 15.
-* **Package Constraints:** Do not introduce new packages; rely only on Next.js, Zod, Tailwind, and PostgreSQL.
+* **Data Validation:** `risk_score` (float 0-100), `risk_status` (enum: LOW, MEDIUM, HIGH).
+* **API/Database:** Use `POST /api/interview/risk-assessment` endpoint in `apps/api/routes/risk.ts`.
+* **Database:** Update `biometric_sessions` table in `packages/db/schema.ts`.
+* **Types:** Define Zod schema in `packages/types/src/index.ts`.
+* **Testing Requirements:** Test happy path (LOW risk), edge case (Network failure returns HIGH), and validation (missing session_id returns 400).
+* **AI Concerns:** If AI analyzes logs, use distinct system prompt ID in `ai_configurations`.
+* **Structured Outputs:** Enforce JSON Schema via Zod for API response.
+* **Infrastructure:** Use Serverless API routes only.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -2127,35 +1852,83 @@ Before finalizing your work:
 
 ---
 
-<a id='step-40-chapter-40-create-user-onboarding-guide'></a>
-## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='39'> Step 40: Chapter 40: Create User Onboarding Guide</label>
+<a id='step-25-security-audit-&-penetration-testing'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='24'> Step 25: Security Audit & Penetration Testing</label>
 
 <div class="manual-action-alert">
 <h4>⚠️ Manual Developer Action Required</h4>
 <ul>
-    <li>Run database migration command to add `onboarding_completed` column: `npx prisma migrate dev --name add_onboarding_completed`.</li>
-    <li>Ensure `DB_CONNECTION_STRING` in `.env` points to a local or remote PostgreSQL instance accessible by the migration tool.</li>
+    <li>Ensure `packages/db` has write permissions for migration scripts.</li>
+    <li>Verify `AI_PROVIDER_API_KEY` and `MONAD_PRIVATE_KEY` are masked in `.env` and never logged.</li>
 </ul>
 </div>
 
 **Purpose (Why we are building this):**
-This feature reduces user drop-off by explaining the dual-phone and biometric verification process before interview start. It ensures users understand security measures, increasing trust and completion rates.
+This step implements security middleware and audit logging to prevent injection attacks and unauthorized access to biometric data. It ensures all API routes validate inputs strictly using Zod and log security events for future penetration testing.
 
 **User Experience (UX) Flow:**
-Users access `src/app/onboarding/page.tsx` via links on `src/app/login/page.tsx` and `src/app/register/page.tsx`. It displays step-by-step guides connecting to `src/app/dashboard/page.tsx` upon completion.
+This feature operates invisibly in the background for all users. It secures existing pages: `/login`, `/interview/session`, `/transcript`, and `/admin/config` without changing visual layout.
 
 ### Phase 1: Planning (Copy & Paste to your AI first)
 ```text
-We are building the **Chapter 40: Create User Onboarding Guide** feature.
+We are building the **Security Audit & Penetration Testing** feature.
 
 #### 1. UX & Logic Description
-Create a static informational page at `src/app/onboarding/page.tsx` that explains the biometric and blockchain verification steps. Include a "Complete Guide" button that calls the API to update the user's `onboarding_completed` status and redirects to `src/app/dashboard/page.tsx`. Ensure the design uses Tailwind classes consistent with `src/app/login/page.tsx`.
+Implement a security middleware layer that intercepts all API requests to `/login`, `/interview/session`, `/transcript`, and `/admin/config`.
+This middleware validates JSON payloads against strict Zod schemas and logs suspicious activity to a new `security_logs` table.
+No visual changes occur; the flow remains seamless for authenticated users while blocking invalid requests.
 
 #### 2. Technical Guardrails & Constraints
-* **Data Validation:** `onboarding_completed` field must be a Boolean defaulting to `false` in the `users` table. API payload requires `user_id` (UUID) and `onboarding_completed` (Boolean).
-* **API/Database:** Use `PATCH /api/users/onboarding-complete` serverless route. Update `users` table column `onboarding_completed`. Use `src/schema/onboarding-schema.ts` for Zod validation.
-* **Testing Requirements:** Test happy path (status updates to true), edge case (status update when already true returns 200), and validation failure (missing `user_id` returns 400).
-* **Constraints:** Do not introduce new external packages. Use Next.js, Zod, Tailwind, and existing `DB_CONNECTION_STRING`. Ensure separation of Generate and Evaluate operations if AI is used for content.
+* **Data Validation:** All inputs must pass Zod schemas in `packages/types/src/index.ts` (e.g., `biometric_hash`: 32-64 chars, `session_id`: UUID).
+* **API/Database:** Use existing `packages/db/schema.ts` and extend with `security_logs` (id, event_type, timestamp, ip_address).
+* **API/Database:** Enforce 400 Bad Request for validation failures and 403 Forbidden for auth failures on all protected routes.
+* **Testing Requirements:** Unit test middleware rejection of malformed JSON; verify 401/403 responses for invalid tokens.
+* **Infrastructure:** Use standard Serverless API routes; do not introduce external background queues.
+
+#### 3. Action Requested
+Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
+```
+
+### Phase 2: Execution & Verification (Copy & Paste after approving the plan)
+```text
+I have approved the implementation plan. 
+
+Please execute the plan and write the code. 
+Before finalizing your work:
+1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
+2. Ensure you have respected the global `PROJECT_RULES.md` and Tech Matrix (Zod, pnpm, SQLite only).
+3. Run 10 mock dry runs internally to ensure the code is safe and functional.
+```
+
+---
+
+<a id='step-26-documentation-&-developer-handoff'></a>
+## <label style='cursor:pointer; display:inline-flex; align-items:center; gap:12px;'><input type='checkbox' class='blueprint-checkbox vibe-checkbox' data-idx='25'> Step 26: Documentation & Developer Handoff</label>
+
+<div class="manual-action-alert">
+<h4>⚠️ Manual Developer Action Required</h4>
+<ul>
+    <li>Verify `PROJECT_RULES.md` exists in the root directory and contains the Tech Matrix before initiating the build process.</li>
+</ul>
+</div>
+
+**Purpose (Why we are building this):**
+This step generates final technical artifacts to ensure future maintainability and onboarding clarity. It consolidates all architectural decisions into a readable format for external developers.
+
+**User Experience (UX) Flow:**
+Administrators access this via `/admin/config` to view system configurations linked to documentation. The documentation itself is static but references live API states from `/transcript` and `/interview/session`.
+
+### Phase 1: Planning (Copy & Paste to your AI first)
+```text
+We are building the **Documentation & Developer Handoff** feature.
+
+#### 1. UX & Logic Description
+Generate a comprehensive `README.md` and `CHANGELOG.md` in the project root. These documents must reference the exact API endpoints like `POST /api/auth/biometric` and database tables like `biometric_sessions`. The flow connects the `/admin/config` page to the final documentation repository for system state visibility.
+
+#### 2. Technical Guardrails & Constraints
+* **Data Validation:** All schema references must match `packages/types/src/index.ts` Zod definitions.
+* **API/Database:** Document endpoints `POST /api/agent/config`, `POST /api/interview/session`, and tables `ai_configurations`, `biometric_sessions`.
+* **Testing Requirements:** Verify all links in the documentation resolve correctly and schema constraints (e.g., 64-char hashes) are accurate.
 
 #### 3. Action Requested
 Please review the relevant files and generate an `implementation_plan.md` for this feature. Do not write code until the plan is approved.
@@ -2170,9 +1943,15 @@ Before finalizing your work:
 1. Check the code for common errors (recursive loops, disconnects between JSON schemas and natural prompts, formatting errors).
 2. Ensure you have respected the global `PROJECT_RULES.md`.
 3. Run 10 mock dry runs internally to ensure the code is safe and functional.
-4. Explicitly verify that the Zod schema in `src/schema/onboarding-schema.ts` matches the API payload requirements exactly.
-5. Confirm that `src/app/onboarding/page.tsx` correctly links to `src/app/dashboard/page.tsx` after API success.
 ```
+
+*   **Expected Success:** Documentation files are generated in the root directory with accurate API and DB references.
+*   **Expected Failure:** Missing links to `packages/db/schema.ts` or incorrect endpoint paths like `POST /api/auth/biometric`.
+*   **Testing:** Validate that `README.md` links resolve and schema constraints (e.g., `biometric_hash` 32-64 chars) match `packages/types/src/index.ts`.
+*   **Verification:** Ask your IDE to check for recursive loops and formatting errors, then run 10 mock dry runs internally.
+*   **Global State:** Ensure only `Zod`, `pnpm`, and `Serverless API routes` are used per the Tech Matrix.
+*   **AI Separation:** Ensure documentation generation is distinct from any evaluation logic used in the app.
+*   **Structured Outputs:** If generating JSON manifests for docs, define a strict Zod schema in `packages/types/src/index.ts`.
 
 ---
 
@@ -2182,18 +1961,18 @@ Before finalizing your work:
 
 ## Architect's Final Audit
 
-### Potential Risks & Overlapping Logic
-*   **Security Model Contradiction (Blockchain Signing):** Steps 26–27 imply server-side signing (`POST /api/.../sign` updates `monad_tx_hash`). If the server holds the private key to sign transactions, the system centralizes trust, undermining the "individual verification" value proposition. Users should ideally sign client-side, or a secure MPC wallet flow must be defined.
-*   **Feature Claim vs. Implementation:** The "Biometric Verification" (Step 18) generates a hash of a camera frame using Web Crypto API. This verifies *camera presence*, not human identity (e.g., FaceID or liveness detection). This does not robustly combat deepfakes as claimed in the Executive Purpose.
-*   **Cost vs. Tier Conflict:** Step 4 mandates "Free Tier Hosting," but Step 23 requires a paid STT API Key (`STT_API_KEY`). Free serverless tiers often have execution time limits that may timeout large audio processing tasks, and STT APIs are rarely free at production scale.
-*   **Data Redundancy:** The `monad_tx_hash` is stored in both `interview_sessions` (Step 6/8) and `blockchain_records` (Step 9/27). This creates a risk of desynchronization; if one updates and the other fails, audit integrity is compromised.
+### 1. Potential Risks & Overlapping Logic
+*   **Stack Inconsistency:** There is a critical conflict between **Step 0.5 (PROJECT_RULES.md)** which mandates **PostgreSQL + Prisma**, and **Step 2 (The Skeleton)** which locks **Expo + SQLite/Supabase**. This will cause build failures and dependency hell if not resolved immediately.
+*   **Schema Drift:** The **Step 0.5 Global Database Schema** defines `interview_sessions` and `users`, but **Steps 9, 13, & 14** repeatedly reference a `biometric_sessions` table that was never defined in the initial schema. This indicates incomplete data modeling.
+*   **WebSocket vs. Serverless:** The **System Workflow** requires real-time **WebSocket** connections for dual-phone synchronization, but the **Tech Stack** defaults to **Vercel Edge/Serverless**. Persistent WebSocket connections are difficult to maintain in a pure serverless environment without external services (e.g., Pusher, Ably), creating a potential single point of failure.
+*   **Trust Model Flaw:** The workflow hashes the **AI-generated transcript** directly to the blockchain (Step 21). If the AI transcribes incorrectly, the immutable record is wrong. There is no "Human-in-the-Loop" verification step before the hash is committed, undermining the "Non-Repudiation" guarantee.
 
-### Skipped or Incomplete Logic
-*   **Wallet Connection Flow:** There is no step defining how the signing key is accessed (Client-side Wallet like MetaMask vs. Server-side Key). Step 26 assumes an API call can sign without detailing the authentication mechanism for the blockchain signer.
-*   **QR Code Reliability:** Step 20 suggests generating QR codes via "pure JS/CSS generation" to avoid packages. This is high-risk for reliability and compatibility; a lightweight, proven library is standard practice.
-*   **RBAC Middleware:** Step 29 requires Admin access, but no explicit middleware step exists to validate `role='admin'` on API routes before Step 29 execution.
+### 2. Skipped Steps & Incomplete Logic
+*   **Human Verification Loop:** No step exists for the user to review and sign off on the *text* of the transcript before it is hashed. The current flow assumes AI accuracy is sufficient for legal evidence, which is a liability.
+*   **Security Shift:** **Step 25** places Security Audit at the very end. Security controls (encryption, key management) must be designed in **Step 1-5**, not audited post-development.
+*   **Conflict Resolution:** **Step 16 (Dual Phone Handshake)** relies on a handshake code, but the **State Machine (Step 13)** does not explicitly define a `HANDSHAKE` state, risking race conditions during connection setup.
 
-### Strict Advice for Developers
-1.  **Resolve Blockchain Key Management:** Decide immediately if signing is Client-Side (Web3.js/Ethers) or Server-Side. If Server-Side, implement a secure Vault/Secrets Manager for the private key; do not hardcode `MONAD_RPC_URL` or keys in `.env` for production.
-2.  **Validate STT Cost Model:** Confirm the chosen STT provider has a sustainable free tier or budget allocation before committing to Step 23; otherwise, the "Free Tier" hosting goal is unachievable.
-3.  **Consolidate Transaction Records:** Remove the `monad_tx_hash` column from `interview_sessions` and rely solely on the `blockchain_records` table linked via Foreign Key to prevent state desynchronization during transaction broadcasting.
+### 3. Strict Advice for Developers
+*   **Unify the Stack Immediately:** Decide between **Prisma/Postgres** OR **Supabase/SQLite** before writing any adapter code. Do not attempt to hybridize; choose one path to avoid migration nightmares.
+*   **Enforce Schema Integrity:** Update **Step 0.5** to include `biometric_sessions`, `blockchain_records`, and `security_logs` tables to match the implementation steps. Do not create tables ad-hoc in later steps.
+*   **Insert Human Verification:** Add a mandatory "Transcript Review & Sign" screen between **Step 19 (Transcription)** and **Step 21 (Hash Submission)**. The blockchain hash must represent the *verified* text, not the raw AI output.

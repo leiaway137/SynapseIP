@@ -77,13 +77,20 @@ class MockModelsAsync:
                 except Exception:
                     pass
         
-        # Force ALL requests to the Pro model (RTX) since token costs are $0 locally
-        if self.pro_client is not None:
+        # Determine target client and model
+        # Use passed model parameter for routing: pro models go to vLLM, flash to LM Studio
+        is_pro_model = model and ('pro' in model.lower() or 'rtx' in model.lower() or '122b' in model.lower())
+        
+        if is_pro_model and self.pro_client is not None:
+            target_client = self.pro_client
+            actual_model = self.pro_model  # Always use configured pro model
+        elif self.pro_client is not None and is_pro_model:
+            # Fallback to pro_model if passed model not configured
             target_client = self.pro_client
             actual_model = self.pro_model
         else:
             target_client = self.client
-            actual_model = self.chat_model
+            actual_model = self.chat_model  # Always use configured flash model
             
         res = await target_client.chat.completions.create(
             model=actual_model,
@@ -156,13 +163,20 @@ class MockModelsSync:
                 except Exception:
                     pass
         
-        # Force ALL requests to the Pro model (RTX) since token costs are $0 locally
-        if self.pro_client is not None:
+        # Determine target client and model
+        # Use passed model parameter for routing: pro models go to vLLM, flash to LM Studio
+        is_pro_model = model and ('pro' in model.lower() or 'rtx' in model.lower() or '122b' in model.lower())
+        
+        if is_pro_model and self.pro_client is not None:
+            target_client = self.pro_client
+            actual_model = self.pro_model  # Always use configured pro model
+        elif self.pro_client is not None and is_pro_model:
+            # Fallback to pro_model if passed model not configured
             target_client = self.pro_client
             actual_model = self.pro_model
         else:
             target_client = self.client
-            actual_model = self.chat_model
+            actual_model = self.chat_model  # Always use configured flash model
         
         res = target_client.chat.completions.create(
             model=actual_model,
