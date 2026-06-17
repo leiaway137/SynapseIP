@@ -528,6 +528,13 @@ if (!isSynapseDashboard) {
         function fetchAndRenderProjects() {
             projectList.innerHTML = '<div style="padding: 10px 14px; color: #94a3b8;"><span class="synapseip-loading-spinner"></span></div>';
             
+            // Check if extension runtime is available
+            if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+                projectList.innerHTML = '<div style="padding: 10px 14px; color: #f87171; font-size: 12px;">Extension not loaded. Please reload the extension.</div>';
+                console.error("SynapseIP: chrome.runtime not available in content script");
+                return;
+            }
+            
             chrome.runtime.sendMessage({ action: "fetch_projects" }, (response) => {
                 if (chrome.runtime.lastError || !response || response.status !== "success") {
                     projectList.innerHTML = '<div style="padding: 10px 14px; color: #f87171; font-size: 12px;">Failed to load projects. Log into SynapseIP first.</div>';
@@ -558,7 +565,9 @@ if (!isSynapseDashboard) {
             isOpen = false;
             pill.classList.remove('synapseip-open');
             newProjectInput.style.display = 'none';
-            chrome.runtime.sendMessage({ action: "set_active_project", project: { id: project.id, name: project.name } });
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+                chrome.runtime.sendMessage({ action: "set_active_project", project: { id: project.id, name: project.name } });
+            }
             // Re-render to update radio buttons
             fetchAndRenderProjects();
         }
@@ -577,13 +586,17 @@ if (!isSynapseDashboard) {
                 newProjectInput.style.display = 'none';
                 projectList.innerHTML = '<div style="padding: 10px 14px; color: #94a3b8;"><span class="synapseip-loading-spinner"></span> Creating...</div>';
                 
-                chrome.runtime.sendMessage({ action: "create_project", name }, (response) => {
-                    if (chrome.runtime.lastError || !response || response.status !== "success") {
-                        projectList.innerHTML = '<div style="padding: 10px 14px; color: #f87171; font-size: 12px;">Failed to create project.</div>';
-                        return;
-                    }
-                    selectProject(response.project);
-                });
+                if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+                    chrome.runtime.sendMessage({ action: "create_project", name }, (response) => {
+                        if (chrome.runtime.lastError || !response || response.status !== "success") {
+                            projectList.innerHTML = '<div style="padding: 10px 14px; color: #f87171; font-size: 12px;">Failed to create project.</div>';
+                            return;
+                        }
+                        selectProject(response.project);
+                    });
+                } else {
+                    projectList.innerHTML = '<div style="padding: 10px 14px; color: #f87171; font-size: 12px;">Extension not loaded.</div>';
+                }
             }
             if (e.key === 'Escape') {
                 newProjectInput.style.display = 'none';
@@ -596,25 +609,31 @@ if (!isSynapseDashboard) {
         newProjectInput.addEventListener('keypress', (e) => e.stopPropagation());
 
         // --- Load Initial State ---
-        chrome.runtime.sendMessage({ action: "get_active_project" }, (response) => {
-            if (chrome.runtime.lastError) {
-                pillLabel.textContent = "No project";
-                return;
-            }
-            if (response && response.project) {
-                activeProjectId = response.project.id;
-                pillLabel.textContent = response.project.name;
-            } else {
-                // No project selected yet — fetch list and auto-select the first one
-                chrome.runtime.sendMessage({ action: "fetch_projects" }, (res) => {
-                    if (res && res.status === "success" && res.projects && res.projects.length > 0) {
-                        selectProject(res.projects[0]);
-                    } else {
-                        pillLabel.textContent = "No project";
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+            chrome.runtime.sendMessage({ action: "get_active_project" }, (response) => {
+                if (chrome.runtime.lastError) {
+                    pillLabel.textContent = "No project";
+                    return;
+                }
+                if (response && response.project) {
+                    activeProjectId = response.project.id;
+                    pillLabel.textContent = response.project.name;
+                } else {
+                    // No project selected yet — fetch list and auto-select the first one
+                    if (chrome.runtime && chrome.runtime.sendMessage) {
+                        chrome.runtime.sendMessage({ action: "fetch_projects" }, (res) => {
+                            if (res && res.status === "success" && res.projects && res.projects.length > 0) {
+                                selectProject(res.projects[0]);
+                            } else {
+                                pillLabel.textContent = "No project";
+                            }
+                        });
                     }
-                });
-            }
-        });
+                }
+            });
+        } else {
+            pillLabel.textContent = "No project";
+        }
 
         function escapeHtml(text) {
             const div = document.createElement('div');
